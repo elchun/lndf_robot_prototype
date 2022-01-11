@@ -1,5 +1,6 @@
 import os, os.path as osp
 import numpy as np
+from plotly import graph_objects
 import trimesh
 from scipy.spatial import KDTree
 import time
@@ -174,6 +175,8 @@ def process_demo_data_rack(grasp_data, place_data, cfg, gaussian_scale=0.1):
     # place_demo_rack_pts = place_demo_rack_bb_pts
     place_demo_rack_pts = uniform_place_demo_rack_pts
 
+    # trimesh_util.trimesh_show([demo_gripper_pts, demo_obj_pts])
+
     target_info = dict(
         demo_query_pts=demo_gripper_pts, 
         demo_query_pts_real_shape=demo_gripper_pts_rs,
@@ -273,6 +276,35 @@ def process_demo_data_shelf(grasp_data, place_data, cfg):
 def process_xq_data(grasp_data, place_data, shelf=True):
     optimizer_gripper_pts = grasp_data['gripper_pts_uniform']
 
+    # print(type(grasp_data))
+    # print(grasp_data.files)
+    """
+    ['shapenet_id', 
+    'ee_pose_world', 
+    'robot_joints', 
+    'obj_pose_world', 
+    'obj_pose_camera', 
+    'object_pointcloud', 
+    'depth', 
+    'seg', 
+    'camera_poses', 
+    'obj_model_file', 
+    'obj_model_file_dec', 
+    'gripper_pts', 
+    'gripper_pts_gaussian', 
+    'gripper_pts_uniform', 
+    'gripper_contact_pose', 
+    'table_urdf']
+    """
+    # print(grasp_data['gripper_contact_pose'])
+    # time.sleep(10)
+
+    # trimesh_util.trimesh_show([grasp_data['gripper_pts']])
+
+    # trimesh_util.trimesh_show([grasp_data['gripper_pts'], optimizer_gripper_pts, grasp_data['object_pointcloud']])
+    # print("In target <---------------")
+    # time.sleep(10)
+
     uniform_place_demo_rack_pts = place_data['rack_pointcloud_uniform']
     uniform_place_demo_rack_pcd = trimesh.PointCloud(uniform_place_demo_rack_pts)
     uniform_place_demo_rack_pose_mat = util.matrix_from_pose(util.list2pose_stamped(place_data['rack_pose_world']))
@@ -293,6 +325,8 @@ def process_xq_data(grasp_data, place_data, shelf=True):
 
 def process_xq_rs_data(grasp_data, place_data, shelf=True):
     optimizer_gripper_pts_rs = grasp_data['gripper_pts']
+
+    # trimesh_util.trimesh_show([optimizer_gripper_pts_rs])
 
     place_demo_rack_pts_rs = place_data['rack_pointcloud_gt']  # points used to represent the rack in canonical pose
     place_demo_rack_pcd_rs = trimesh.PointCloud(place_demo_rack_pts_rs)

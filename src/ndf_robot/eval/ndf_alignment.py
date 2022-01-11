@@ -32,10 +32,12 @@ class NDFAlignmentCheck:
         self.model = self.model.to(self.dev)
         self.model.eval()
 
+        # Visualization Stuff
         self.viz_path = 'visualization'
         if not osp.exists(self.viz_path):
             os.makedirs(self.viz_path)
 
+        # Video stuff
         self.video_viz_path = 'vid_visualization'
         if not osp.exists(self.video_viz_path):
             os.makedirs(self.video_viz_path)
@@ -43,6 +45,9 @@ class NDFAlignmentCheck:
         self._cam_frame_scene_dict()
 
     def _cam_frame_scene_dict(self):
+        """
+        Set up plotly camera?
+        """
         self.cam_frame_scene_dict = {}
         cam_up_vec = [0, 1, 0]
         plotly_camera = {
@@ -90,6 +95,9 @@ class NDFAlignmentCheck:
         self.cam_frame_scene_dict['scene'] = plotly_scene
 
     def plotly_create_local_frame(self, transform=None, length=0.03):
+        """
+        Also for visualizing output
+        """
         if transform is None:
             transform = np.eye(4)
 
@@ -137,37 +145,55 @@ class NDFAlignmentCheck:
         return data
 
     def prepare_inputs(self, pcd1, pcd2):
+        """
+        Zero center inputs
+
+        Args:
+            pcd1 (ndarray(dtype=float, ndim=2)): point cloud 1 (n1 x 3)
+            pcd2 (ndarray(dtype=float, ndim=2)): point cloud 2 (n2 x 3)
+        """
         pcd1 = pcd1 - np.mean(pcd1, axis=0)
         pcd2 = pcd2 - np.mean(pcd2, axis=0)
-        self.pcd1 = pcd1
+        self.pcd1 = pcd1 # reference model 
         self.pcd2 = pcd2
 
+        # Generate triangular mesh?
+        # Seems to be pretty useless rn
         tpcd1 = trimesh.PointCloud(self.pcd1[:self.n_pts])
         tpcd2 = trimesh.PointCloud(self.pcd2[:self.n_pts])
         # tpcd1.show()
         # tpcd2.show()
 
     def sample_pts(self, show_recon=False, return_scene=False, visualize_all_inits=False, render_video=False):
-        # sample query points
+
+        ###########################
+        # PREPARE REFERENCE MODEL #
+        ###########################
+
+        # sample random query points with mean 0
         query_pts = np.random.normal(0.0, self.sigma, size=(self.n_opt_pts, 3))
         
         # put the query points at one of the points in the point cloud
-        q_offset_ind = np.random.randint(self.pcd1.shape[0])
-        q_offset = self.pcd1[q_offset_ind]
-        q_offset *= 1.2
-        reference_query_pts = query_pts + q_offset
+        # Centers the querry points at a random point in the point cloud
+        q_offset_ind = np.random.randint(self.pcd1.shape[0])    # Choose index of coordinate in pcd1
+        q_offset = self.pcd1[q_offset_ind]                      # get coordinate in pcd1
+        q_offset *= 1.2                                         # Put point near edge of shape
+        reference_query_pts = query_pts + q_offset              
 
         reference_model_input = {}
         ref_query_pts = torch.from_numpy(reference_query_pts[:self.n_opt_pts]).float().to(self.dev)
         ref_shape_pcd = torch.from_numpy(self.pcd1[:self.n_pts]).float().to(self.dev)
-        reference_model_input['coords'] = ref_query_pts[None, :, :]
+        reference_model_input['coords'] = ref_query_pts[None, :, :]         # Also adds dimension
         reference_model_input['point_cloud'] = ref_shape_pcd[None, :, :]
 
         # get the descriptors for these reference query points
         reference_latent = self.model.extract_latent(reference_model_input).detach()
         reference_act_hat = self.model.forward_latent(reference_latent, reference_model_input['coords']).detach()
 
-        # set up the optimization
+        #######################
+        # SET UP OPTIMIZATION #
+        #######################
+
         if 'dgcnn' in self.model_type:
             full_opt = 5   # dgcnn can't fit 10 initialization in memory
         else:
@@ -178,12 +204,14 @@ class NDFAlignmentCheck:
         tf_list = []
         M = full_opt
 
+        # Init translation and rotation
         trans = (torch.rand((M, 3)) * 0.1).float().to(self.dev)
         rot = torch.rand(M, 3).float().to(self.dev)
         trans.requires_grad_()
         rot.requires_grad_()
-        opt = torch.optim.Adam([trans, rot], lr=1e-2)
+        opt = torch.optim.Adam([trans, rot], lr=1e-2) # Make optimizer
 
+        # Perform rotation, how does this work???
         rand_rot_init = (torch.rand((M, 3)) * 2*np.pi).float().to(self.dev)
         rand_mat_init = torch_util.angle_axis_to_rotation_matrix(rand_rot_init)
         rand_mat_init = rand_mat_init.squeeze().float().to(self.dev)
@@ -206,7 +234,10 @@ class NDFAlignmentCheck:
         loss_values = []
         vid_plot_idx = None  # we will set this during the optimization
 
-        # run optimization
+        ####################
+        # RUN OPTIMIZATION #
+        ####################
+
         pcd_traj_list = {}
         for jj in range(M):
             pcd_traj_list[jj] = []
@@ -272,7 +303,7 @@ class NDFAlignmentCheck:
             loss_values.append(loss.item())
             opt.zero_grad()
             loss.backward()
-            opt.step()
+            opt.step() # Step of optimization
 
             if i > 5 and (vid_plot_idx is None):
                 # try to guess which run in the batch will lead to lowest cost

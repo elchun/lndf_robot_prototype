@@ -149,11 +149,16 @@ def angle_axis_to_rotation_matrix(angle_axis):
 
     Shape:
         - Input: :math:`(N, 3)`
-        - Output: :math:`(N, 4, 4)`
+        - Output: :math:`(N, 4, 4)`  
 
     Example:
         >>> input = torch.rand(1, 3)  # Nx3
         >>> output = tgm.angle_axis_to_rotation_matrix(input)  # Nx4x4
+        >>> print(output)
+        >>> [[ 0.9895, -0.1413,  0.0311,  0.0000],
+            [ 0.1442,  0.9807, -0.1320,  0.0000],
+            [-0.0118,  0.1351,  0.9908,  0.0000],
+            [ 0.0000,  0.0000,  0.0000,  1.0000]],
     """
     def _compute_rotation_matrix(angle_axis, theta2, eps=1e-6):
         # We want to be careful to only evaluate the square root if the

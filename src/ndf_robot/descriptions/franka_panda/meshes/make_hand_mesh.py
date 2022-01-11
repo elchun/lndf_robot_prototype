@@ -41,5 +41,4 @@ tf[:-1, :-1] = common.euler2rot([0, 0, 0.785398163397])
 combined_hand.apply_translation([0, 0, -0.105])
 combined_hand.show()
 
-
 from IPython import embed; embed()

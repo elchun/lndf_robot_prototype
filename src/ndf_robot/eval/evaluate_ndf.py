@@ -32,6 +32,9 @@ from ndf_robot.utils.eval_gen_utils import (
     process_demo_data_rack, process_demo_data_shelf, process_xq_data, process_xq_rs_data, safeRemoveConstraint,
 )
 
+# NEW IMPORTS
+import trimesh
+
 
 def main(args, global_dict):
     if args.debug:
@@ -199,6 +202,8 @@ def main(args, global_dict):
                 print('Using rack points')
                 place_optimizer_pts = rack_optimizer_gripper_pts
                 place_optimizer_pts_rs = rack_optimizer_gripper_pts_rs
+                # print("Rack real points")
+                # trimesh_util.trimesh_show([place_optimizer_pts_rs])
 
         if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
             target_info, rack_target_info, shapenet_id = process_demo_data_shelf(grasp_data, place_data, cfg=None)
@@ -211,6 +216,8 @@ def main(args, global_dict):
         demo_rack_target_info_list.append(rack_target_info)
         demo_shapenet_ids.append(shapenet_id)
 
+    # Create optimizers
+    # trimesh_util.trimesh_show([optimizer_gripper_pts, optimizer_gripper_pts_rs])
     place_optimizer = OccNetOptimizer(
         model,
         query_pts=place_optimizer_pts,
@@ -222,6 +229,7 @@ def main(args, global_dict):
         query_pts=optimizer_gripper_pts,
         query_pts_real_shape=optimizer_gripper_pts_rs,
         opt_iterations=args.opt_iterations)
+    
     grasp_optimizer.set_demo_info(demo_target_info_list)
     place_optimizer.set_demo_info(demo_rack_target_info_list)
 
@@ -772,7 +780,7 @@ if __name__ == "__main__":
     parser.add_argument('--acts', type=str, default='all')
     parser.add_argument('--old_model', action='store_true', help='True if using a model using the old extents centering, else new one uses mean centering + com offset')
     parser.add_argument('--save_all_opt_results', action='store_true', help='If True, then we will save point clouds for all optimization runs, otherwise just save the best one (which we execute)')
-    parser.add_argument('--grasp_viz', action='store_true')
+    parser.add_argument('--grasp_viz', action='store_true') # Only works if pybullet_viz is on
     parser.add_argument('--single_instance', action='store_true')
     parser.add_argument('--non_thin_feature', action='store_true')
     parser.add_argument('--grasp_dist_thresh', type=float, default=0.0025)
@@ -804,5 +812,8 @@ if __name__ == "__main__":
         object_class=obj_class,
         vnn_checkpoint_path=vnn_model_path
     )
+
+    # print("Demo dir", global_dict['demo_load_dir'])
+    # /home/elchun/Documents/LIS/ndf_robot/src/ndf_robot/data/demos/mug/grasp_rim_hang_handle_gaussian_precise_w_shell
 
     main(args, global_dict)

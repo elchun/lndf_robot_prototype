@@ -12,7 +12,8 @@ import pybullet as p
 from airobot import Robot
 from airobot.utils.common import euler2quat
 
-from ndf_robot.utils import util, path_util
+# How does this import work?
+from ndf_robot.utils import trimesh_util, util, path_util
 from ndf_robot.utils.eval_gen_utils import safeCollisionFilterPair
 from ndf_robot.robot.multicam import MultiCams
 
