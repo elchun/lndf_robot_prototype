@@ -1,7 +1,7 @@
 descriptions/demo_objects/
 descriptions/objects/
 eval/*
-~eval/*.py
+!eval/*.py
 data/
 assets/
 eval_data/
