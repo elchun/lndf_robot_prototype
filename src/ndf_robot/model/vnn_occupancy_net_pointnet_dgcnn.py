@@ -106,6 +106,13 @@ class VNNOccNet(nn.Module):
         out_dict['occ'], out_dict['features'] = self.decoder(coords, z)
 
         return out_dict['features']
+    
+    def forward_occ(self, z, coords): 
+        out_dict = {}
+        coords = coords * self.scaling
+        out_dict['occ'], out_dict['features'] = self.decoder(coords, z)
+
+        return out_dict['occ']
 
 class VNN_ResnetPointnet(nn.Module):
     ''' DGCNN-based VNN encoder network with ResNet blocks.

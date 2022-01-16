@@ -23,6 +23,7 @@ class NDFAlignmentCheck:
         self.perturb_decay = 0.5
         self.n_pts =  1500
         self.n_opt_pts = 500
+        self.n_opt_pts = 1000
         self.query_points = query_points 
     
         self.prepare_inputs(pcd1, pcd2)
@@ -263,6 +264,15 @@ class NDFAlignmentCheck:
         ####################
         # RUN OPTIMIZATION #
         ####################
+        
+        print("Trans size: ", trans.size())
+        # [10, 3]
+
+        trans_shift = np.array([[0, 0, -0.5]])
+        # print(np.repeat(trans_shift, full_opt, axis=0))
+        # print(trans)
+        trans_shift_tensor = torch.from_numpy(np.repeat(trans_shift, full_opt, axis=0)).float().to(self.dev)
+        print("Ref act hat: ", reference_act_hat.size())
 
         pcd_traj_list = {}
         for jj in range(M):
@@ -272,7 +282,10 @@ class NDFAlignmentCheck:
             T_mat = torch_util.angle_axis_to_rotation_matrix(rot).squeeze()
             noise_vec = (torch.randn(X.size()) * (self.perturb_scale / ((i+1)**(self.perturb_decay)))).to(self.dev)
             X_perturbed = X + noise_vec
-            X_new = torch_util.transform_pcd_torch(X_perturbed, T_mat) + trans[:, None, :].repeat((1, X.size(1), 1))
+            X_new = torch_util.transform_pcd_torch(X_perturbed, T_mat) \
+                    + trans[:, None, :].repeat((1, X.size(1), 1))
+                    # + trans_shift_tensor[:, None, :].repeat((1, X.size(1), 1))
+
 
             ######################### stuff for visualizing the reconstruction ##################33
 
@@ -301,6 +314,7 @@ class NDFAlignmentCheck:
                 # bb_scene.show()
 
                 eval_pts = bb.sample_volume(10000)
+                eval_pts = bb.sample_volume(100000)
                 shape_mi['coords'] = torch.from_numpy(eval_pts)[None, :, :].float().to(self.dev).detach()
                 out = self.model(shape_mi)
                 thresh = 0.1
@@ -310,8 +324,9 @@ class NDFAlignmentCheck:
                 in_pts = eval_pts[in_inds]
                 out_pts = eval_pts[out_inds]
                 if self.trimesh_viz:
-                    print('in pts: ', in_pts)
+                    print("Showing in_pts: ")
                     scene = trimesh_util.trimesh_show([in_pts])
+                    print("Showing in_pts, shape_np: ")
                     in_scene = trimesh_util.trimesh_show([in_pts, shape_np])
                 self._cam_frame_scene_dict()
                 plot3d(
@@ -324,9 +339,19 @@ class NDFAlignmentCheck:
             ###############################################################################
 
             act_hat = self.model.forward_latent(opt_latent, X_new)
-            t_size = reference_act_hat.size()
 
-            losses = [self.loss_fn(act_hat[ii].view(t_size), reference_act_hat) for ii in range(M)]
+            # Get occupancy for each query point and take mean for given initialization
+            occ_hat = self.model.forward_occ(opt_latent, X_new)
+            occ_hat_mean = occ_hat.mean(dim=-1)
+            t_size = reference_act_hat.size()
+            # t_size = [1, 405, 2049]
+            # print(act_hat[ii].size())
+            # [405, 2049]
+
+            # Compare generated act_hat to reference for each initialization
+            # bias = occ_hat_mean
+            bias = np.zeros((10)) 
+            losses = [self.loss_fn(act_hat[ii].view(t_size) + bias[ii], reference_act_hat) for ii in range(M)]
 
             loss = torch.mean(torch.stack(losses))
             if i % 100 == 0:
@@ -363,12 +388,19 @@ class NDFAlignmentCheck:
                     scene_dict=self.cam_frame_scene_dict,
                     z_plane=False,
                     extra_data=frame_data)
+        # endfor
 
         best_idx = torch.argmin(torch.stack(losses)).item()
         best_loss = losses[best_idx]
         print('best loss: %f, best_idx: %d' % (best_loss, best_idx))
 
+
         best_X = X_new[best_idx].detach().cpu().numpy()
+        # # Best X with bias
+        # X_final = torch_util.transform_pcd_torch(X, T_mat) \
+        #      + trans[:, None, :].repeat((1, X.size(1), 1))
+
+        # best_X = X_final[best_idx].detach().cpu().numpy()
 
         offset = np.array([0.4, 0, 0])
         vpcd1 = copy.deepcopy(self.pcd1)

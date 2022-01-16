@@ -723,6 +723,7 @@ def main(args, global_dict):
         if not osp.exists(eval_iter_dir):
             os.makedirs(eval_iter_dir)
         sample_fname = osp.join(eval_iter_dir, 'success_rate_eval_implicit.npz')
+        print('Saving eval logs to: %s' % sample_fname)
         np.savez(
             sample_fname,
             obj_shapenet_id=obj_shapenet_id,
@@ -746,6 +747,7 @@ def main(args, global_dict):
         )
 
         robot.pb_client.remove_body(obj_id)
+    #endfor
 
 
 if __name__ == "__main__":

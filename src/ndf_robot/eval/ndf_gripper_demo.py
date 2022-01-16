@@ -22,31 +22,39 @@ def load_grasp_demo_from_shapenet_id(shapenet_id, obj_class='mug'):
     return grasp_data
 
 
-def get_gripper_pts():
+def get_gripper_pts(pnt_type='full_hand'):
     """
-    Get point cloud for full gripper
+    Get point cloud of pnt_type
 
     Args:
+        pnt_type (str, optional): ('full_hand', 'bounding_box'). Defaults to 'full_hand'.
 
     Returns:
-        ndarray: (n x 3) 
+        ndarray: gripper points (n x 3)
     """
-
+    n_pts = 10000
     # For use as query points
     gripper_mesh_file = osp.join(path_util.get_ndf_descriptions(), 'franka_panda/meshes/panda_open_hand_full.obj')
 
     # Load and sample gripper mesh
     full_gripper_mesh = trimesh.load_mesh(gripper_mesh_file)
-    full_gripper_pts = full_gripper_mesh.sample(500)
-    full_gripper_pts_uniform = trimesh.sample.volume_mesh(full_gripper_mesh, 1000)
+    full_gripper_pts = full_gripper_mesh.sample(n_pts)
+    full_gripper_pts_uniform = trimesh.sample.volume_mesh(full_gripper_mesh, n_pts)
     full_gripper_pts_pcd = trimesh.PointCloud(full_gripper_pts_uniform)
-
+    
+    full_gripper_bb = full_gripper_pts_pcd.bounding_box
+    if pnt_type == 'bounding_box':
+        output_pts_pcd = trimesh.PointCloud(full_gripper_bb.sample_volume(n_pts))
+    elif pnt_type == 'full_hand':
+        output_pts_pcd = full_gripper_pts_pcd
+    else:
+        raise ValueError('Invalid pnt_type')
 
     # Transform gripper to appropriate location
-    full_gripper_pts_pcd.apply_translation([0, 0, -0.105]) # Shift gripper so jaws align with pose
-    gripper_pts = np.asarray(full_gripper_pts_pcd.vertices)
+    output_pts_pcd.apply_translation([0, 0, -0.105]) # Shift gripper so jaws align with pose
+    output_pts= np.asarray(output_pts_pcd.vertices)
 
-    return gripper_pts
+    return output_pts 
 
 
 def get_object_pts(grasp_data):
@@ -145,11 +153,18 @@ if __name__ == '__main__':
     demo_shapenet_id = '6aec84952a5ffcf33f60d03e1cb068dc'
 
     demo_grasp_data = load_grasp_demo_from_shapenet_id(demo_shapenet_id)
-    gripper_pts = get_gripper_pts()
+    # gripper_pts = get_gripper_pts(pnt_type='bounding_box')
+    gripper_pts = get_gripper_pts(pnt_type='full_hand')
     demo_obj_pts = get_object_pts(demo_grasp_data)
 
     # Load target
-    target_shapenet_id = '928a383f79698c3fb6d9bc28c8d8a2c4'
+    # Funky target, don't use 
+    # target_shapenet_id = '928a383f79698c3fb6d9bc28c8d8a2c4'
+
+    # Does not work well... need to tune
+    target_shapenet_id = '5c48d471200d2bf16e8a121e6886e18d'
+    # target_shapenet_id = '3143a4accdc23349cac584186c95ce9b'
+
 
     target_grasp_data = load_grasp_demo_from_shapenet_id(target_shapenet_id)
     target_obj_pts = get_object_pts(target_grasp_data)
@@ -187,6 +202,7 @@ if __name__ == '__main__':
     # SCALE AND ROTATE #
     ####################
 
+    # Old?
     scale1 = 0.25
     scale2 = 0.4
     mesh1 = trimesh.load(obj_model1, process=False)
@@ -224,6 +240,7 @@ if __name__ == '__main__':
     # MAKE POINT CLOUDS #
     #####################
 
+    # Old
     pcd1 = mesh1.sample(5000)
     pcd2 = mesh2.sample(5000)  # point cloud representing different shape
     # pcd2 = copy.deepcopy(pcd1)  # debug with the exact same point cloud
@@ -240,21 +257,23 @@ if __name__ == '__main__':
     # RUN OPTIMIZATION #
     ####################
 
-    # Shuffle scanner points 
-    np.random.shuffle(demo_obj_pts)
-    np.random.shuffle(target_obj_pts)
 
     # Substitute target point cloud (NEW)
     pcd1 = demo_obj_pts 
     pcd2 = target_obj_pts 
-    # pcd2 = demo_obj_pts
 
+    # pcd2 = demo_obj_pts
     # (27080, 3)
 
-    # trimesh_util.trimesh_show([demo_obj_pts[:1500, :]])
+    # Shuffle object points (helps with taking sample)
+    np.random.shuffle(pcd1)
+    np.random.shuffle(pcd2)
+
+    # trimesh_util.trimesh_show([pcd2])
 
     # Initialize optimizer object
     ndf_alignment = NDFAlignmentCheck(model, pcd1, pcd2, sigma=args.sigma, trimesh_viz=args.visualize, query_points=gripper_pts)
+    # ndf_alignment = NDFAlignmentCheck(model, pcd1, pcd2, sigma=args.sigma, trimesh_viz=args.visualize, query_points=None)
 
     # Run optimization
     ndf_alignment.sample_pts(show_recon=args.show_recon, render_video=args.video)

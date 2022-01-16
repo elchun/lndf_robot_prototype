@@ -26,8 +26,10 @@ class OccNetOptimizer:
         self.loss_fn =  torch.nn.L1Loss()
         if torch.cuda.is_available():
             self.dev = torch.device('cuda:0')
+            print('Using cuda')
         else:
             self.dev = torch.device('cpu')
+            print('Using cpu')
 
         if self.model is not None:
             self.model = self.model.to(self.dev)

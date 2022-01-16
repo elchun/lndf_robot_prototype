@@ -272,6 +272,7 @@ class NDFAlignmentCheck:
                 # bb_scene.show()
 
                 eval_pts = bb.sample_volume(10000)
+                eval_pts = bb.sample_volume(100000)
                 shape_mi['coords'] = torch.from_numpy(eval_pts)[None, :, :].float().to(self.dev).detach()
                 out = self.model(shape_mi)
                 thresh = 0.1
