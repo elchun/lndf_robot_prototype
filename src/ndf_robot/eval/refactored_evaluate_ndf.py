@@ -6,6 +6,7 @@ import signal
 import torch
 import argparse
 import shutil
+import trimesh
 
 import pybullet as p
 
@@ -32,10 +33,230 @@ from ndf_robot.utils.eval_gen_utils import (
     process_demo_data_rack, process_demo_data_shelf, process_xq_data, process_xq_rs_data, safeRemoveConstraint,
 )
 
-# NEW IMPORTS
-import trimesh
+def _get_demo_filenames(global_dict, args):
+    # get filenames of all the demo files
+    demo_filenames = os.listdir(global_dict['demo_load_dir'])
+    assert len(demo_filenames), 'No demonstrations found in path: %s!' % global_dict['demo_load_dir']
 
-def get_gripper_pts(grasp_data, n_gripper_pts=500, pnt_type='full_hand'):
+    # strip the filenames to properly pair up each demo file
+    grasp_demo_filenames_orig = [osp.join(global_dict['demo_load_dir'], fn) for fn in demo_filenames if 'grasp_demo' in fn]  # use the grasp names as a reference
+
+    place_demo_filenames = []
+    grasp_demo_filenames = []
+    for i, fname in enumerate(grasp_demo_filenames_orig):
+        shapenet_id_npz = fname.split('/')[-1].split('grasp_demo_')[-1]
+        place_fname = osp.join('/'.join(fname.split('/')[:-1]), 'place_demo_' + shapenet_id_npz)
+        if osp.exists(place_fname):
+            grasp_demo_filenames.append(fname)
+            place_demo_filenames.append(place_fname)
+        else:
+            log_warn('Could not find corresponding placement demo: %s, skipping ' % place_fname)
+    
+    if args.n_demos > 0:
+        gp_fns = list(zip(grasp_demo_filenames, place_demo_filenames))
+        gp_fns = random.sample(gp_fns, args.n_demos)
+        grasp_demo_filenames, place_demo_filenames = zip(*gp_fns)
+        grasp_demo_filenames, place_demo_filenames = list(grasp_demo_filenames), list(place_demo_filenames)
+        log_warn('USING ONLY %d DEMONSTRATIONS' % len(grasp_demo_filenames))
+        print(grasp_demo_filenames, place_demo_filenames)
+    else:
+        log_warn('USING ALL %d DEMONSTRATIONS' % len(grasp_demo_filenames))
+
+    grasp_demo_filenames = grasp_demo_filenames[:args.num_demo]
+    place_demo_filenames = place_demo_filenames[:args.num_demo]
+
+    return grasp_demo_filenames, place_demo_filenames
+
+def _load_demo(i, cfg, grasp_demo_fn, place_demo_fn, load_shelf, load_demo_info_lists, optimizer_pts):
+    grasp_data_list = load_demo_info_lists['grasp_data_list']
+    place_data_list = load_demo_info_lists['place_data_list']
+    demo_rel_mat_list = load_demo_info_lists['demo_rel_mat_list']
+    demo_target_info_list = load_demo_info_lists['demo_target_info_list']
+    demo_rack_target_info_list = load_demo_info_lists['demo_rack_target_info_list']
+    demo_shapenet_ids = load_demo_info_lists['demo_shapenet_ids']
+
+    grasp_data = np.load(grasp_demo_fn, allow_pickle=True)
+    place_data = np.load(place_demo_fn, allow_pickle=True)
+
+    grasp_data_list.append(grasp_data)
+    place_data_list.append(place_data)
+
+    start_ee_pose = grasp_data['ee_pose_world'].tolist()
+    end_ee_pose = place_data['ee_pose_world'].tolist()
+    place_rel_mat = util.get_transform(
+        pose_frame_target=util.list2pose_stamped(end_ee_pose),
+        pose_frame_source=util.list2pose_stamped(start_ee_pose)
+    )
+    place_rel_mat = util.matrix_from_pose(place_rel_mat)
+    demo_rel_mat_list.append(place_rel_mat)
+
+    if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
+        target_info, rack_target_info, shapenet_id = process_demo_data_shelf(grasp_data, place_data, cfg=None)
+    else:
+        target_info, rack_target_info, shapenet_id = process_demo_data_rack(grasp_data, place_data, cfg=None)
+
+    if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
+        rack_target_info['demo_query_pts'] = optimizer_pts['place_optimizer_pts']
+    demo_target_info_list.append(target_info)
+    demo_rack_target_info_list.append(rack_target_info)
+    demo_shapenet_ids.append(shapenet_id)
+
+
+def _get_obj_scale(cfg):
+    scale_high, scale_low = cfg.MESH_SCALE_HIGH, cfg.MESH_SCALE_LOW
+    scale_default = cfg.MESH_SCALE_DEFAULT
+    if args.rand_mesh_scale:
+        mesh_scale = [np.random.random() * (scale_high - scale_low) + scale_low] * 3
+    else:
+        mesh_scale=[scale_default] * 3
+    
+    return mesh_scale
+
+
+def _get_obj_pose(args, x_high, x_low, y_high, y_low, table_z, obj_class):
+
+    if obj_class in ['bottle', 'jar', 'bowl', 'mug']:
+        upright_orientation = common.euler2quat([np.pi/2, 0, 0]).tolist()
+    else:
+        upright_orientation = common.euler2quat([0, 0, 0]).tolist()
+
+    if args.any_pose:
+        if obj_class in ['bowl', 'bottle']:
+            rp = np.random.rand(2) * (2 * np.pi / 3) - (np.pi / 3)
+            ori = common.euler2quat([rp[0], rp[1], 0]).tolist()
+        else:
+            rpy = np.random.rand(3) * (2 * np.pi / 3) - (np.pi / 3)
+            ori = common.euler2quat([rpy[0], rpy[1], rpy[2]]).tolist()
+
+        pos = [
+            np.random.random() * (x_high - x_low) + x_low,
+            np.random.random() * (y_high - y_low) + y_low,
+            table_z]
+        pose = pos + ori
+        rand_yaw_t = util.rand_body_yaw_transform(pos, min_theta=-np.pi, max_theta=np.pi)
+        pose_w_yaw = util.transform_pose(util.list2pose_stamped(pose), util.pose_from_matrix(rand_yaw_t))
+        pos, ori = util.pose_stamped2list(pose_w_yaw)[:3], util.pose_stamped2list(pose_w_yaw)[3:]
+    else:
+        pos = [np.random.random() * (x_high - x_low) + x_low, np.random.random() * (y_high - y_low) + y_low, table_z]
+        pose = util.list2pose_stamped(pos + upright_orientation)
+        rand_yaw_t = util.rand_body_yaw_transform(pos, min_theta=-np.pi, max_theta=np.pi)
+        pose_w_yaw = util.transform_pose(pose, util.pose_from_matrix(rand_yaw_t))
+        pos, ori = util.pose_stamped2list(pose_w_yaw)[:3], util.pose_stamped2list(pose_w_yaw)[3:]
+    
+    return pos, ori
+
+def _get_optimizer_pts(cfg, grasp_demo_fn, place_demo_fn, load_shelf):
+    grasp_data = np.load(grasp_demo_fn, allow_pickle=True)
+    place_data = np.load(place_demo_fn, allow_pickle=True)
+
+    optimizer_gripper_pts, rack_optimizer_gripper_pts, shelf_optimizer_gripper_pts = process_xq_data(grasp_data, place_data, shelf=load_shelf)
+    optimizer_gripper_pts_rs, rack_optimizer_gripper_pts_rs, shelf_optimizer_gripper_pts_rs = process_xq_rs_data(grasp_data, place_data, shelf=load_shelf)
+
+    if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
+        print('Using shelf points')
+        place_optimizer_pts = shelf_optimizer_gripper_pts
+        place_optimizer_pts_rs = shelf_optimizer_gripper_pts_rs
+    else:
+        print('Using rack points')
+        place_optimizer_pts = rack_optimizer_gripper_pts
+        place_optimizer_pts_rs = rack_optimizer_gripper_pts_rs
+
+    return {
+        'place_optimizer_pts': place_optimizer_pts,
+        'place_optimizer_pts_rs': place_optimizer_pts_rs,
+        'optimizer_gripper_pts': optimizer_gripper_pts,
+        'optimizer_gripper_pts_rs': optimizer_gripper_pts_rs,
+    }
+
+def _get_test_object_ids(args, demo_shapenet_ids, test_shapenet_ids, avoid_shapenet_ids):
+    # get objects that we can use for testing
+    test_object_ids = []
+    shapenet_id_list = [fn.split('_')[0] for fn in os.listdir(shapenet_obj_dir)] if obj_class == 'mug' else os.listdir(shapenet_obj_dir)
+    for s_id in shapenet_id_list:
+        valid = s_id not in demo_shapenet_ids and s_id not in avoid_shapenet_ids
+        if args.only_test_ids:
+            valid = valid and (s_id in test_shapenet_ids)
+        
+        if valid:
+            test_object_ids.append(s_id)
+
+    if args.single_instance:
+        test_object_ids = [demo_shapenet_ids[0]]
+    
+    return test_object_ids
+
+def _get_obj_point_cloud(cams, viz_dict, obj_id, table_id, rack_link_id):
+
+    # get object point cloud
+    depth_imgs = []
+    seg_idxs = []
+    obj_pcd_pts = []
+    table_pcd_pts = []
+    rack_pcd_pts = []
+
+    obj_pose_world = p.getBasePositionAndOrientation(obj_id)
+    obj_pose_world = util.list2pose_stamped(list(obj_pose_world[0]) + list(obj_pose_world[1]))
+    viz_dict['start_obj_pose'] = util.pose_stamped2list(obj_pose_world)
+    for i, cam in enumerate(cams.cams): 
+        # get image and raw point cloud
+        rgb, depth, seg = cam.get_images(get_rgb=True, get_depth=True, get_seg=True)
+        pts_raw, _ = cam.get_pcd(in_world=True, rgb_image=rgb, depth_image=depth, depth_min=0.0, depth_max=np.inf)
+
+        # flatten and find corresponding pixels in segmentation mask
+        flat_seg = seg.flatten()
+        flat_depth = depth.flatten()
+        obj_inds = np.where(flat_seg == obj_id)
+        table_inds = np.where(flat_seg == table_id)
+        seg_depth = flat_depth[obj_inds[0]]  
+            
+        obj_pts = pts_raw[obj_inds[0], :]
+        obj_pcd_pts.append(util.crop_pcd(obj_pts))
+        table_pts = pts_raw[table_inds[0], :][::int(table_inds[0].shape[0]/500)]
+        table_pcd_pts.append(table_pts)
+
+        if rack_link_id is not None:
+            rack_val = table_id + ((rack_link_id+1) << 24)
+            rack_inds = np.where(flat_seg == rack_val)
+            if rack_inds[0].shape[0] > 0:
+                rack_pts = pts_raw[rack_inds[0], :]
+                rack_pcd_pts.append(rack_pts)
+        
+        depth_imgs.append(seg_depth)
+        seg_idxs.append(obj_inds)
+        
+    target_obj_pcd_obs = np.concatenate(obj_pcd_pts, axis=0)  # object shape point cloud
+    target_pts_mean = np.mean(target_obj_pcd_obs, axis=0)
+    inliers = np.where(np.linalg.norm(target_obj_pcd_obs - target_pts_mean, 2, 1) < 0.2)[0]
+    target_obj_pcd_obs = target_obj_pcd_obs[inliers]
+
+    return target_obj_pcd_obs, obj_pose_world
+
+def _save_viz(obj_shapenet_id, grasp_optimizer, place_optimizer, best_idx, best_rack_idx):
+    analysis_dir = args.model_path + '_' + str(obj_shapenet_id)
+    eval_iter_dir = osp.join(eval_save_dir, analysis_dir)
+    if not osp.exists(eval_iter_dir):
+        os.makedirs(eval_iter_dir)
+    for f_id, fname in enumerate(grasp_optimizer.viz_files):
+        new_viz_fname = fname.split('/')[-1]
+        viz_index = int(new_viz_fname.split('.html')[0].split('_')[-1])
+        new_fname = osp.join(eval_iter_dir, new_viz_fname)
+        if args.save_all_opt_results:
+            shutil.copy(fname, new_fname)
+        else:
+            if viz_index == best_idx:
+                shutil.copy(fname, new_fname)
+    for f_id, fname in enumerate(place_optimizer.viz_files):
+        new_viz_fname = fname.split('/')[-1]
+        viz_index = int(new_viz_fname.split('.html')[0].split('_')[-1])
+        new_fname = osp.join(eval_iter_dir, new_viz_fname)
+        if args.save_all_opt_results:
+            shutil.copy(fname, new_fname)
+        else:
+            if viz_index == best_rack_idx:
+                shutil.copy(fname, new_fname)
+
+
+def get_gripper_pts(n_gripper_pts=500, pnt_type='full_hand'):
     """
     Get point cloud of pnt_type
 
@@ -67,7 +288,7 @@ def get_gripper_pts(grasp_data, n_gripper_pts=500, pnt_type='full_hand'):
         raise ValueError('Invalid pnt_type')
 
     # Transform gripper to appropriate location
-    # output_pts_pcd.apply_translation([0, 0, 0.105]) # Shift gripper so jaws align with pose
+    output_pts_pcd.apply_translation([0, 0, -0.105]) # Shift gripper so jaws align with pose
 
     # # Move gripper to appropriate location on mug
     # gripper_pose_mat = util.matrix_from_pose(util.list2pose_stamped(grasp_data['ee_pose_world']))
@@ -77,10 +298,14 @@ def get_gripper_pts(grasp_data, n_gripper_pts=500, pnt_type='full_hand'):
     output_pts = np.asarray(output_pts_pcd.vertices)
     return output_pts 
 
+
 def main(args, global_dict):
 
-    # Use the real gripper shape as query points
-    use_full_gripper_query_pts=True
+    use_full_gripper_query_pts = args.use_full_hand 
+    if args.use_full_hand:
+        print('Using full hand for query points')
+    else:
+        print('Not using full hand for query points')
 
     if args.debug:
         set_log_level('debug')
@@ -92,6 +317,10 @@ def main(args, global_dict):
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)
+
+    ###########
+    # CONFIGS #
+    ###########
 
     # general experiment + environment setup/scene generation configs
     cfg = get_eval_cfg_defaults()
@@ -117,6 +346,7 @@ def main(args, global_dict):
     util.safe_makedirs(eval_grasp_imgs_dir)
     util.safe_makedirs(eval_teleport_imgs_dir)
 
+    # Set test and demo shapenet ids
     test_shapenet_ids = np.loadtxt(osp.join(path_util.get_ndf_share(), '%s_test_object_split.txt' % obj_class), dtype=str).tolist()
     if obj_class == 'mug':
         avoid_shapenet_ids = bad_shapenet_mug_ids_list + cfg.MUG.AVOID_SHAPENET_IDS
@@ -141,6 +371,7 @@ def main(args, global_dict):
     preplace_horizontal_tf = util.list2pose_stamped(cfg.PREPLACE_HORIZONTAL_OFFSET_TF)
     preplace_offset_tf = util.list2pose_stamped(cfg.PREPLACE_OFFSET_TF)
 
+    # Set model
     if args.dgcnn:
         model = vnn_occupancy_network.VNNOccNet(
             latent_dim=256, 
@@ -166,23 +397,9 @@ def main(args, global_dict):
     else:
         load_shelf = False
 
-    # get filenames of all the demo files
-    demo_filenames = os.listdir(global_dict['demo_load_dir'])
-    assert len(demo_filenames), 'No demonstrations found in path: %s!' % global_dict['demo_load_dir']
-
-    # strip the filenames to properly pair up each demo file
-    grasp_demo_filenames_orig = [osp.join(global_dict['demo_load_dir'], fn) for fn in demo_filenames if 'grasp_demo' in fn]  # use the grasp names as a reference
-
-    place_demo_filenames = []
-    grasp_demo_filenames = []
-    for i, fname in enumerate(grasp_demo_filenames_orig):
-        shapenet_id_npz = fname.split('/')[-1].split('grasp_demo_')[-1]
-        place_fname = osp.join('/'.join(fname.split('/')[:-1]), 'place_demo_' + shapenet_id_npz)
-        if osp.exists(place_fname):
-            grasp_demo_filenames.append(fname)
-            place_demo_filenames.append(place_fname)
-        else:
-            log_warn('Could not find corresponding placement demo: %s, skipping ' % place_fname)
+    ########################
+    # STORAGE DECLARATIONS #
+    ########################
 
     success_list = []
     place_success_list = []
@@ -195,78 +412,51 @@ def main(args, global_dict):
     demo_target_info_list = []
     demo_rack_target_info_list = []
 
-    if args.n_demos > 0:
-        gp_fns = list(zip(grasp_demo_filenames, place_demo_filenames))
-        gp_fns = random.sample(gp_fns, args.n_demos)
-        grasp_demo_filenames, place_demo_filenames = zip(*gp_fns)
-        grasp_demo_filenames, place_demo_filenames = list(grasp_demo_filenames), list(place_demo_filenames)
-        log_warn('USING ONLY %d DEMONSTRATIONS' % len(grasp_demo_filenames))
-        print(grasp_demo_filenames, place_demo_filenames)
-    else:
-        log_warn('USING ALL %d DEMONSTRATIONS' % len(grasp_demo_filenames))
-
-    grasp_demo_filenames = grasp_demo_filenames[:args.num_demo]
-    place_demo_filenames = place_demo_filenames[:args.num_demo]
-
-
     max_bb_volume = 0
     place_xq_demo_idx = 0
     grasp_data_list = []
     place_data_list = []
     demo_rel_mat_list = []
 
+    ##############
+    # LOAD DEMOS #
+    ##############
+
+    grasp_demo_filenames, place_demo_filenames = _get_demo_filenames(global_dict, args)
+
+    load_demo_info_lists = {
+        'grasp_data_list': grasp_data_list,
+        'place_data_list': place_data_list,
+        'demo_rel_mat_list': demo_rel_mat_list,
+        'demo_target_info_list': demo_target_info_list,
+        'demo_rack_target_info_list': demo_rack_target_info_list,
+        'demo_shapenet_ids': demo_shapenet_ids,
+    }
+
     # load all the demo data and look at objects to help decide on query points
     for i, fname in enumerate(grasp_demo_filenames):
         print('Loading demo from fname: %s' % fname)
         grasp_demo_fn = grasp_demo_filenames[i]
         place_demo_fn = place_demo_filenames[i]
-        grasp_data = np.load(grasp_demo_fn, allow_pickle=True)
-        place_data = np.load(place_demo_fn, allow_pickle=True)
-
-        grasp_data_list.append(grasp_data)
-        place_data_list.append(place_data)
-
-        start_ee_pose = grasp_data['ee_pose_world'].tolist()
-        end_ee_pose = place_data['ee_pose_world'].tolist()
-        place_rel_mat = util.get_transform(
-            pose_frame_target=util.list2pose_stamped(end_ee_pose),
-            pose_frame_source=util.list2pose_stamped(start_ee_pose)
-        )
-        place_rel_mat = util.matrix_from_pose(place_rel_mat)
-        demo_rel_mat_list.append(place_rel_mat)
-
         if i == 0:
-            optimizer_gripper_pts, rack_optimizer_gripper_pts, shelf_optimizer_gripper_pts = process_xq_data(grasp_data, place_data, shelf=load_shelf)
-            optimizer_gripper_pts_rs, rack_optimizer_gripper_pts_rs, shelf_optimizer_gripper_pts_rs = process_xq_rs_data(grasp_data, place_data, shelf=load_shelf)
+            optimizer_pts = _get_optimizer_pts(cfg, grasp_demo_fn, place_demo_fn, load_shelf)
+            grasp_data = np.load(grasp_demo_fn, allow_pickle=True)
+        _load_demo(i, cfg, grasp_demo_fn, place_demo_fn, load_shelf, load_demo_info_lists, optimizer_pts)
 
-            if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
-                print('Using shelf points')
-                place_optimizer_pts = shelf_optimizer_gripper_pts
-                place_optimizer_pts_rs = shelf_optimizer_gripper_pts_rs
-            else:
-                print('Using rack points')
-                place_optimizer_pts = rack_optimizer_gripper_pts
-                place_optimizer_pts_rs = rack_optimizer_gripper_pts_rs
-                # print("Rack real points")
-                # trimesh_util.trimesh_show([place_optimizer_pts_rs])
-            
-            if use_full_gripper_query_pts:
-                n_gripper_pts = optimizer_gripper_pts.shape[0]
-                optimizer_gripper_pts = get_gripper_pts(grasp_data, n_gripper_pts=n_gripper_pts, pnt_type='full_hand') 
+    place_optimizer_pts = optimizer_pts['place_optimizer_pts']
+    place_optimizer_pts_rs = optimizer_pts['place_optimizer_pts_rs']
+    optimizer_gripper_pts = optimizer_pts['optimizer_gripper_pts']
+    optimizer_gripper_pts_rs = optimizer_pts['optimizer_gripper_pts_rs']
 
-        if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
-            target_info, rack_target_info, shapenet_id = process_demo_data_shelf(grasp_data, place_data, cfg=None)
-        else:
-            target_info, rack_target_info, shapenet_id = process_demo_data_rack(grasp_data, place_data, cfg=None)
+    # Use gripper shape instead of something else
+    if use_full_gripper_query_pts:
+        n_gripper_pts = optimizer_gripper_pts.shape[0]
+        optimizer_gripper_pts = get_gripper_pts(n_gripper_pts=n_gripper_pts, pnt_type='full_hand')
 
-        if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
-            rack_target_info['demo_query_pts'] = place_optimizer_pts
-        demo_target_info_list.append(target_info)
-        demo_rack_target_info_list.append(rack_target_info)
-        demo_shapenet_ids.append(shapenet_id)
+    ###################
+    # INIT OPTIMIZERS #
+    ###################
 
-    # Create optimizers
-    # trimesh_util.trimesh_show([optimizer_gripper_pts, optimizer_gripper_pts_rs])
     place_optimizer = OccNetOptimizer(
         model,
         query_pts=place_optimizer_pts,
@@ -278,24 +468,11 @@ def main(args, global_dict):
         query_pts=optimizer_gripper_pts,
         query_pts_real_shape=optimizer_gripper_pts_rs,
         opt_iterations=args.opt_iterations)
-    
     grasp_optimizer.set_demo_info(demo_target_info_list)
     place_optimizer.set_demo_info(demo_rack_target_info_list)
 
-
     # get objects that we can use for testing
-    test_object_ids = []
-    shapenet_id_list = [fn.split('_')[0] for fn in os.listdir(shapenet_obj_dir)] if obj_class == 'mug' else os.listdir(shapenet_obj_dir)
-    for s_id in shapenet_id_list:
-        valid = s_id not in demo_shapenet_ids and s_id not in avoid_shapenet_ids
-        if args.only_test_ids:
-            valid = valid and (s_id in test_shapenet_ids)
-        
-        if valid:
-            test_object_ids.append(s_id)
-
-    if args.single_instance:
-        test_object_ids = [demo_shapenet_ids[0]]
+    test_object_ids = _get_test_object_ids(args, demo_shapenet_ids, test_shapenet_ids, avoid_shapenet_ids)
 
     # reset
     robot.arm.reset(force_reset=True)
@@ -354,44 +531,13 @@ def main(args, global_dict):
         eval_iter_dir = osp.join(eval_save_dir, 'trial_%d' % iteration)
         util.safe_makedirs(eval_iter_dir)
 
-        if obj_class in ['bottle', 'jar', 'bowl', 'mug']:
-            upright_orientation = common.euler2quat([np.pi/2, 0, 0]).tolist()
-        else:
-            upright_orientation = common.euler2quat([0, 0, 0]).tolist()
-
         # for testing, use the "normalized" object
         obj_obj_file = osp.join(shapenet_obj_dir, obj_shapenet_id, 'models/model_normalized.obj')
         obj_obj_file_dec = obj_obj_file.split('.obj')[0] + '_dec.obj'
     
-        scale_high, scale_low = cfg.MESH_SCALE_HIGH, cfg.MESH_SCALE_LOW
-        scale_default = cfg.MESH_SCALE_DEFAULT
-        if args.rand_mesh_scale:
-            mesh_scale = [np.random.random() * (scale_high - scale_low) + scale_low] * 3
-        else:
-            mesh_scale=[scale_default] * 3
-
-        if args.any_pose:
-            if obj_class in ['bowl', 'bottle']:
-                rp = np.random.rand(2) * (2 * np.pi / 3) - (np.pi / 3)
-                ori = common.euler2quat([rp[0], rp[1], 0]).tolist()
-            else:
-                rpy = np.random.rand(3) * (2 * np.pi / 3) - (np.pi / 3)
-                ori = common.euler2quat([rpy[0], rpy[1], rpy[2]]).tolist()
-
-            pos = [
-                np.random.random() * (x_high - x_low) + x_low,
-                np.random.random() * (y_high - y_low) + y_low,
-                table_z]
-            pose = pos + ori
-            rand_yaw_T = util.rand_body_yaw_transform(pos, min_theta=-np.pi, max_theta=np.pi)
-            pose_w_yaw = util.transform_pose(util.list2pose_stamped(pose), util.pose_from_matrix(rand_yaw_T))
-            pos, ori = util.pose_stamped2list(pose_w_yaw)[:3], util.pose_stamped2list(pose_w_yaw)[3:]
-        else:
-            pos = [np.random.random() * (x_high - x_low) + x_low, np.random.random() * (y_high - y_low) + y_low, table_z]
-            pose = util.list2pose_stamped(pos + upright_orientation)
-            rand_yaw_T = util.rand_body_yaw_transform(pos, min_theta=-np.pi, max_theta=np.pi)
-            pose_w_yaw = util.transform_pose(pose, util.pose_from_matrix(rand_yaw_T))
-            pos, ori = util.pose_stamped2list(pose_w_yaw)[:3], util.pose_stamped2list(pose_w_yaw)[3:]
+        # Get scale and pose
+        mesh_scale = _get_obj_scale(cfg) 
+        pos, ori = _get_obj_pose(args, x_high, x_low, y_high, y_low, table_z, obj_class)
 
         viz_dict['shapenet_id'] = obj_shapenet_id
         viz_dict['obj_obj_file'] = obj_obj_file
@@ -455,47 +601,8 @@ def main(args, global_dict):
 
         hide_link(table_id, rack_link_id)
 
-        # get object point cloud
-        depth_imgs = []
-        seg_idxs = []
-        obj_pcd_pts = []
-        table_pcd_pts = []
-        rack_pcd_pts = []
-
-        obj_pose_world = p.getBasePositionAndOrientation(obj_id)
-        obj_pose_world = util.list2pose_stamped(list(obj_pose_world[0]) + list(obj_pose_world[1]))
-        viz_dict['start_obj_pose'] = util.pose_stamped2list(obj_pose_world)
-        for i, cam in enumerate(cams.cams): 
-            # get image and raw point cloud
-            rgb, depth, seg = cam.get_images(get_rgb=True, get_depth=True, get_seg=True)
-            pts_raw, _ = cam.get_pcd(in_world=True, rgb_image=rgb, depth_image=depth, depth_min=0.0, depth_max=np.inf)
-
-            # flatten and find corresponding pixels in segmentation mask
-            flat_seg = seg.flatten()
-            flat_depth = depth.flatten()
-            obj_inds = np.where(flat_seg == obj_id)
-            table_inds = np.where(flat_seg == table_id)
-            seg_depth = flat_depth[obj_inds[0]]  
-            
-            obj_pts = pts_raw[obj_inds[0], :]
-            obj_pcd_pts.append(util.crop_pcd(obj_pts))
-            table_pts = pts_raw[table_inds[0], :][::int(table_inds[0].shape[0]/500)]
-            table_pcd_pts.append(table_pts)
-
-            if rack_link_id is not None:
-                rack_val = table_id + ((rack_link_id+1) << 24)
-                rack_inds = np.where(flat_seg == rack_val)
-                if rack_inds[0].shape[0] > 0:
-                    rack_pts = pts_raw[rack_inds[0], :]
-                    rack_pcd_pts.append(rack_pts)
-        
-            depth_imgs.append(seg_depth)
-            seg_idxs.append(obj_inds)
-        
-        target_obj_pcd_obs = np.concatenate(obj_pcd_pts, axis=0)  # object shape point cloud
-        target_pts_mean = np.mean(target_obj_pcd_obs, axis=0)
-        inliers = np.where(np.linalg.norm(target_obj_pcd_obs - target_pts_mean, 2, 1) < 0.2)[0]
-        target_obj_pcd_obs = target_obj_pcd_obs[inliers]
+        # get object point cloud and obj pose
+        target_obj_pcd_obs, obj_pose_world = _get_obj_point_cloud(cams, viz_dict, obj_id, table_id, rack_link_id)
         
         if obj_class == 'mug':
             rack_color = p.getVisualShapeData(table_id)[rack_link_id][7]
@@ -539,30 +646,7 @@ def main(args, global_dict):
 
         # save visualizations for debugging / looking at optimizaiton solutions
         if args.save_vis_per_model:
-            analysis_dir = args.model_path + '_' + str(obj_shapenet_id)
-            eval_iter_dir = osp.join(eval_save_dir, analysis_dir)
-            if not osp.exists(eval_iter_dir):
-                os.makedirs(eval_iter_dir)
-            for f_id, fname in enumerate(grasp_optimizer.viz_files):
-                new_viz_fname = fname.split('/')[-1]
-                viz_index = int(new_viz_fname.split('.html')[0].split('_')[-1])
-                new_fname = osp.join(eval_iter_dir, new_viz_fname)
-                if args.save_all_opt_results:
-                    shutil.copy(fname, new_fname)
-                else:
-                    if viz_index == best_idx:
-                        print('Saving best viz_file to %s' % new_fname)
-                        shutil.copy(fname, new_fname)
-            for f_id, fname in enumerate(place_optimizer.viz_files):
-                new_viz_fname = fname.split('/')[-1]
-                viz_index = int(new_viz_fname.split('.html')[0].split('_')[-1])
-                new_fname = osp.join(eval_iter_dir, new_viz_fname)
-                if args.save_all_opt_results:
-                    shutil.copy(fname, new_fname)
-                else:
-                    if viz_index == best_rack_idx:
-                        print('Saving best viz_file to %s' % new_fname)
-                        shutil.copy(fname, new_fname)
+            _save_viz(obj_shapenet_id, grasp_optimizer, place_optimizer, best_idx, best_rack_idx)
         
         viz_data_list.append(viz_dict)
         viz_sample_fname = osp.join(eval_iter_dir, 'overlay_visualization_data.npz')
@@ -766,7 +850,6 @@ def main(args, global_dict):
         kvs['Place Success'] = sum(place_success_list) / float(len(place_success_list))
         kvs['Place [teleport] Success'] = sum(place_success_teleport_list) / float(len(place_success_teleport_list))
         kvs['Grasp Success'] = sum(grasp_success_list) / float(len(grasp_success_list))
-        print('Place success list: ', place_success_list)
         for k, v in kvs.items():
             log_str += '%s: %.3f, ' % (k, v)
         id_str = ', shapenet_id: %s' % obj_shapenet_id
@@ -776,7 +859,6 @@ def main(args, global_dict):
         if not osp.exists(eval_iter_dir):
             os.makedirs(eval_iter_dir)
         sample_fname = osp.join(eval_iter_dir, 'success_rate_eval_implicit.npz')
-        print('Saving eval logs to: %s' % sample_fname)
         np.savez(
             sample_fname,
             obj_shapenet_id=obj_shapenet_id,
@@ -800,7 +882,6 @@ def main(args, global_dict):
         )
 
         robot.pb_client.remove_body(obj_id)
-    #endfor
 
 
 if __name__ == "__main__":
@@ -835,11 +916,12 @@ if __name__ == "__main__":
     parser.add_argument('--acts', type=str, default='all')
     parser.add_argument('--old_model', action='store_true', help='True if using a model using the old extents centering, else new one uses mean centering + com offset')
     parser.add_argument('--save_all_opt_results', action='store_true', help='If True, then we will save point clouds for all optimization runs, otherwise just save the best one (which we execute)')
-    parser.add_argument('--grasp_viz', action='store_true') # Only works if pybullet_viz is on
+    parser.add_argument('--grasp_viz', action='store_true')
     parser.add_argument('--single_instance', action='store_true')
     parser.add_argument('--non_thin_feature', action='store_true')
     parser.add_argument('--grasp_dist_thresh', type=float, default=0.0025)
     parser.add_argument('--start_iteration', type=int, default=0)
+    parser.add_argument('--use_full_hand', action='store_true')
 
 
     args = parser.parse_args()
@@ -867,8 +949,5 @@ if __name__ == "__main__":
         object_class=obj_class,
         vnn_checkpoint_path=vnn_model_path
     )
-
-    # print("Demo dir", global_dict['demo_load_dir'])
-    # /home/elchun/Documents/LIS/ndf_robot/src/ndf_robot/data/demos/mug/grasp_rim_hang_handle_gaussian_precise_w_shell
 
     main(args, global_dict)

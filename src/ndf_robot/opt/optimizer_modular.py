@@ -58,6 +58,7 @@ class OccNetOptimizer:
         self.rot_grid = util.generate_healpix_grid(size=1e6)
         # self.rot_grid = None
 
+
     def _scene_dict(self):
         self.scene_dict = {}
         plotly_scene = {
@@ -96,34 +97,36 @@ class OccNetOptimizer:
         query_pts_tf_rs = query_pts_tf
         return query_pts_cam_cent_rs, query_pts_tf_rs
     
-    def optimize_transform_implicit(self, shape_pts_world_np, ee=True, *args, **kwargs):
+    def _get_posed_gripper_query_pts(self, single_demo_info):
+        gripper_pcd = trimesh.PointCloud(self.query_pts_origin)
+        gripper_pose_mat = util.matrix_from_pose(util.list2pose_stamped(single_demo_info['demo_ee_pose_world']))
+        gripper_pcd.apply_transform(gripper_pose_mat)
+        gripper_pts = np.asarray(gripper_pcd.vertices)
+        return gripper_pts
+    
+    def _get_activations_from_demos(self, n_pts, opt_pts, perturb_scale, dev, ee):
         """
-        Function to optimzie the transformation of our query points, conditioned on
-        a set of shape points observed in the world
+        Get ndf activations using demos in self.demo_info
 
-        Args:
-            shape_pts_world (np.ndarray): N x 3 array representing 3D point cloud of the object
-                to be manipulated, expressed in the world coordinate system
+        Returns:
+            Tensor: tensor of mean of activations across demos
         """
-        dev = self.dev
-        n_pts = 1500
-        opt_pts = 500 
-        perturb_scale = self.noise_scale
-        perturb_decay = self.noise_decay
-
-        if self.single_object:
-            assert self.target_info is not None, 'Target info not set! Need to set the targets for single object optimization'
-
-        #################################
-        # OBTAIN ACTIVATIONS FROM DEMOS #
-        #################################
-
         demo_feats_list = []
         demo_latents_list = []
         for i in range(len(self.demo_info)):
             # load in information from target
             demo_shape_pts_world = self.demo_info[i]['demo_obj_pts']
             demo_query_pts_world = self.demo_info[i]['demo_query_pts']
+
+            # Derive query points using ee pose so we can use arbitrary query point shapes
+            if ee: 
+                derived_demo_query_pts_world = self._get_posed_gripper_query_pts(self.demo_info[i])
+                # trimesh_util.trimesh_show([demo_query_pts_world, derived_demo_query_pts_world])
+                demo_query_pts_world = derived_demo_query_pts_world
+
+                # # Show shape and gripper pts in space
+                # trimesh_util.trimesh_show([demo_shape_pts_world, derived_demo_query_pts_world])
+
             demo_shape_pts_world = torch.from_numpy(demo_shape_pts_world).float().to(self.dev)
             demo_query_pts_world = torch.from_numpy(demo_query_pts_world).float().to(self.dev)
 
@@ -146,7 +149,57 @@ class OccNetOptimizer:
         target_act_hat_all = torch.stack(demo_feats_list, 0)
         target_act_hat = torch.mean(target_act_hat_all, 0)
 
-        ######################################################################
+        return target_act_hat
+    
+    def _visualize_reconstruction(self, mi, jj):
+        shape_mi = {}
+        shape_mi['point_cloud'] = mi['point_cloud'][jj][None, :, :].detach()
+        shape_np = shape_mi['point_cloud'].cpu().numpy().squeeze()
+        shape_mean = np.mean(shape_np, axis=0)
+        inliers = np.where(np.linalg.norm(shape_np - shape_mean, 2, 1) < 0.2)[0]
+        shape_np = shape_np[inliers]
+        shape_pcd = trimesh.PointCloud(shape_np)
+        bb = shape_pcd.bounding_box
+        bb_scene = trimesh.Scene(); bb_scene.add_geometry([shape_pcd, bb]) 
+
+        eval_pts = bb.sample_volume(10000)
+        shape_mi['coords'] = torch.from_numpy(eval_pts)[None, :, :].float().to(self.dev).detach()
+        out = self.model(shape_mi)
+        thresh = 0.3
+        in_inds = torch.where(out['occ'].squeeze() > thresh)[0].cpu().numpy()
+
+        in_pts = eval_pts[in_inds]
+        self._scene_dict()
+        plot3d(
+            [in_pts, shape_np],
+            ['blue', 'black'], 
+            osp.join(self.debug_viz_path, 'recon_overlay.html'),
+            scene_dict=self.scene_dict,
+            z_plane=False)
+    
+    def optimize_transform_implicit(self, shape_pts_world_np, ee=True, *args, **kwargs):
+        """
+        Function to optimzie the transformation of our query points, conditioned on
+        a set of shape points observed in the world
+
+        Args:
+            shape_pts_world (np.ndarray): N x 3 array representing 3D point cloud of the object
+                to be manipulated, expressed in the world coordinate system
+        """
+        dev = self.dev
+        n_pts = 1500
+        opt_pts = 500 
+        perturb_scale = self.noise_scale
+        perturb_decay = self.noise_decay
+
+        if self.single_object:
+            assert self.target_info is not None, 'Target info not set! Need to set the targets for single object optimization'
+
+        #################################
+        # OBTAIN ACTIVATIONS FROM DEMOS #
+        #################################
+
+        target_act_hat = self._get_activations_from_demos(n_pts, opt_pts, perturb_scale, dev, ee)
 
         ##################################
         # CONVERT POINTS TO CAMERA FRAME #
@@ -239,30 +292,7 @@ class OccNetOptimizer:
             # for jj in range(M):
             if i == 0:
                 jj = 0
-                shape_mi = {}
-                shape_mi['point_cloud'] = mi['point_cloud'][jj][None, :, :].detach()
-                shape_np = shape_mi['point_cloud'].cpu().numpy().squeeze()
-                shape_mean = np.mean(shape_np, axis=0)
-                inliers = np.where(np.linalg.norm(shape_np - shape_mean, 2, 1) < 0.2)[0]
-                shape_np = shape_np[inliers]
-                shape_pcd = trimesh.PointCloud(shape_np)
-                bb = shape_pcd.bounding_box
-                bb_scene = trimesh.Scene(); bb_scene.add_geometry([shape_pcd, bb]) 
-
-                eval_pts = bb.sample_volume(10000)
-                shape_mi['coords'] = torch.from_numpy(eval_pts)[None, :, :].float().to(self.dev).detach()
-                out = self.model(shape_mi)
-                thresh = 0.3
-                in_inds = torch.where(out['occ'].squeeze() > thresh)[0].cpu().numpy()
-
-                in_pts = eval_pts[in_inds]
-                self._scene_dict()
-                plot3d(
-                    [in_pts, shape_np],
-                    ['blue', 'black'], 
-                    osp.join(self.debug_viz_path, 'recon_overlay.html'),
-                    scene_dict=self.scene_dict,
-                    z_plane=False)
+                self._visualize_reconstruction(mi, jj)
 
             ###############################################################################
 
@@ -317,5 +347,5 @@ class OccNetOptimizer:
             else:
                 T_mat = np.linalg.inv(transform_mat_np)
             tf_list.append(T_mat)
-
+        
         return tf_list, best_idx

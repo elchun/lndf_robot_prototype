@@ -272,8 +272,8 @@ if __name__ == '__main__':
     # trimesh_util.trimesh_show([pcd2])
 
     # Initialize optimizer object
-    ndf_alignment = NDFAlignmentCheck(model, pcd1, pcd2, sigma=args.sigma, trimesh_viz=args.visualize, query_points=gripper_pts)
-    # ndf_alignment = NDFAlignmentCheck(model, pcd1, pcd2, sigma=args.sigma, trimesh_viz=args.visualize, query_points=None)
+    # ndf_alignment = NDFAlignmentCheck(model, pcd1, pcd2, sigma=args.sigma, trimesh_viz=args.visualize, query_points=gripper_pts)
+    ndf_alignment = NDFAlignmentCheck(model, pcd1, pcd2, sigma=args.sigma, trimesh_viz=args.visualize, query_points=None)
 
     # Run optimization
     ndf_alignment.sample_pts(show_recon=args.show_recon, render_video=args.video)

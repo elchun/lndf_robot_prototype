@@ -350,7 +350,7 @@ class NDFAlignmentCheck:
 
             # Compare generated act_hat to reference for each initialization
             # bias = occ_hat_mean
-            bias = np.zeros((10)) 
+            bias = np.zeros((full_opt)) 
             losses = [self.loss_fn(act_hat[ii].view(t_size) + bias[ii], reference_act_hat) for ii in range(M)]
 
             loss = torch.mean(torch.stack(losses))
