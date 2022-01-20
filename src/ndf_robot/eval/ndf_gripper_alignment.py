@@ -339,21 +339,34 @@ class NDFAlignmentCheck:
             ###############################################################################
 
             act_hat = self.model.forward_latent(opt_latent, X_new)
-
-            # Get occupancy for each query point and take mean for given initialization
-            occ_hat = self.model.forward_occ(opt_latent, X_new)
-            occ_hat_mean = occ_hat.mean(dim=-1)
+            
             t_size = reference_act_hat.size()
             # t_size = [1, 405, 2049]
             # print(act_hat[ii].size())
             # [405, 2049]
 
+            # Get occupancy for each query point and take mean for given initialization
+            # TODO: Can sub in gripper points instead of X_new
+            occ_hat = self.model.forward_occ(opt_latent, X_new)
+            occ_hat_mean = occ_hat.mean(axis=-1) 
+            # occ_hat_mean = torch.zeros(10) # Use for comparison to no occ
+
+            # Importance of occ
+            occ_hat_scale = 0.5 
+
             # Compare generated act_hat to reference for each initialization
-            # bias = occ_hat_mean
-            bias = np.zeros((full_opt)) 
-            losses = [self.loss_fn(act_hat[ii].view(t_size) + bias[ii], reference_act_hat) for ii in range(M)]
+            losses = []
+            for ii in range(M):
+                # Match descriptors
+                next_loss = self.loss_fn(act_hat[ii].view(t_size), reference_act_hat)
+
+                # Minimize occupancy
+                next_loss += occ_hat_scale * occ_hat_mean[ii]
+                losses.append(next_loss)
 
             loss = torch.mean(torch.stack(losses))
+
+            # Use losses for display but use loss for optimization
             if i % 100 == 0:
                 losses_str = ['%f' % val.item() for val in losses]
                 loss_str = ', '.join(losses_str)
