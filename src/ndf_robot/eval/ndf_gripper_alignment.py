@@ -12,7 +12,10 @@ from ndf_robot.utils.plotly_save import plot3d
 
 
 class NDFAlignmentCheck:
-    def __init__(self, model, pcd1, pcd2, model_type='pointnet', opt_iterations=500, sigma=0.025, trimesh_viz=False, query_points=None):
+    def __init__(self, model, pcd1, pcd2, model_type='pointnet', 
+        opt_iterations=500, sigma=0.025, trimesh_viz=False, 
+        query_points=None, occ_pts=None,
+    ):
         self.model = model
         self.model_type = model_type
         self.opt_iterations = opt_iterations
@@ -25,6 +28,8 @@ class NDFAlignmentCheck:
         self.n_opt_pts = 500
         self.n_opt_pts = 1000
         self.query_points = query_points 
+
+        self.occ_points = occ_pts if occ_pts is not None else query_points
     
         self.prepare_inputs(pcd1, pcd2)
         # trimesh_util.trimesh_show([self.pcd1, self.pcd2, self.query_points])
