@@ -6,3 +6,7 @@ function based)
 # FUTURE IMPROVEMENTS
 
 - Use occupancy of real gripper but any query points
+
+
+# Meeting 2022-01-19 Notes
+- 
