@@ -29,7 +29,7 @@ class NDFAlignmentCheck:
         self.n_opt_pts = 1000
         self.query_points = query_points 
 
-        self.occ_points = occ_pts if occ_pts is not None else query_points
+        self.occ_pts = occ_pts if occ_pts is not None else query_points
     
         self.prepare_inputs(pcd1, pcd2)
         # trimesh_util.trimesh_show([self.pcd1, self.pcd2, self.query_points])
@@ -184,6 +184,14 @@ class NDFAlignmentCheck:
         Add custom query points
         """
         self.query_points = query_points
+
+    # def _pose_occ_pts(self, T_mat, trans):
+    #     occ_pcd = torch.from_numpy(self.occ_pts).float().to(self.dev)
+    #     opt_query_pts = occ_pcd[:self.n_opt_pts][None, :, :].repeat((M, 1, 1))
+    #     occ_pcd = torch_util.transform_pcd_torch(self.occ_pts, T_mat)
+    #     occ_pcd += trans[:, None, :].repeat((1, occ_pcd.size(1), 1))
+
+    #     return occ_pcd 
 
     def sample_pts(self, show_recon=False, return_scene=False, visualize_all_inits=False, render_video=False):
 
@@ -352,12 +360,15 @@ class NDFAlignmentCheck:
 
             # Get occupancy for each query point and take mean for given initialization
             # TODO: Can sub in gripper points instead of X_new
+            # TODO: rewrite for better structure
+            # posed_occ_pts = self._pose_occ_pts(T_mat, trans)
             occ_hat = self.model.forward_occ(opt_latent, X_new)
             occ_hat_mean = occ_hat.mean(axis=-1) 
             # occ_hat_mean = torch.zeros(10) # Use for comparison to no occ
 
             # Importance of occ
-            occ_hat_scale = 0.5 
+            occ_hat_scale = 0 
+            # occ_hat_scale = 0.5
 
             # Compare generated act_hat to reference for each initialization
             losses = []
