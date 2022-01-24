@@ -14,10 +14,16 @@ from ndf_robot.utils.plotly_save import plot3d
 
 class OccNetOptimizer:
     def __init__(self, model, query_pts, query_pts_real_shape=None, opt_iterations=250, 
-                 noise_scale=0.0, noise_decay=0.5, single_object=False):
+                 noise_scale=0.0, noise_decay=0.5, single_object=False, gripper_pts=None,
+                 occ_hat_scale=1):
         self.model = model
         self.model_type = self.model.model_type
         self.query_pts_origin = query_pts 
+        if query_pts_real_shape is None:
+            self.query_pts_origin_real_shape = query_pts
+        else:
+            self.query_pts_origin_real_shape = query_pts_real_shape
+
         if query_pts_real_shape is None:
             self.query_pts_origin_real_shape = query_pts
         else:
@@ -57,6 +63,16 @@ class OccNetOptimizer:
 
         self.rot_grid = util.generate_healpix_grid(size=1e6)
         # self.rot_grid = None
+
+        # For testing occupancy of gripper
+        self.gripper_pts = None
+        self.use_gripper_occ = False
+        self.occ_hat_scale = occ_hat_scale 
+        self.n_gripper_pts = 500
+        if gripper_pts is not None:
+            # may need to shuffle gripper pts
+            self.use_gripper_occ = True
+            self.gripper_pts = gripper_pts
 
 
     def _scene_dict(self):
@@ -253,6 +269,11 @@ class OccNetOptimizer:
         X = torch_util.transform_pcd_torch(X, rand_mat_init)
         X_rs = torch_util.transform_pcd_torch(X_rs, rand_mat_init)
 
+        gripper_pts = None
+        if self.use_gripper_occ:
+            gripper_pts = torch.from_numpy(self.gripper_pts).float().to(self.dev)
+            gripper_pts = gripper_pts[:self.n_gripper_pts][None, :, :].repeat((M, 1, 1))
+
         mi_point_cloud = []
         for ii in range(M):
             rndperm = torch.randperm(shape_pts_cent.size(0))
@@ -298,17 +319,28 @@ class OccNetOptimizer:
 
             # Activations of network
             act_hat = self.model.forward_latent(latent, X_new)
-
-            # Get occupancy of query points #NEW#
-            occ_hat = self.model.forward_occ(latent, X_new)
-            occ_hat_mean = occ_hat.mean(dim=-1)
-
             t_size = target_act_hat.size()
 
-            # bias = occ_hat_mean # <-- need to use true gripper query points otherwise res is bad
-            bias = np.zeros((n_full_opt)) # Either this or occ_hat_mean
-            losses = [self.loss_fn(act_hat[ii].view(t_size) + bias[ii], target_act_hat) for ii in range(M)]
+            if self.use_gripper_occ:
+                # Get occupancy of gripper points #NEW#
+                occ_hat = self.model.forward_occ(latent, gripper_pts)
+                occ_hat_mean = occ_hat.mean(axis=-1)
+            else:
+                occ_hat_mean = np.zeros((M))
+            
+            losses = []
+            for ii in range(M):
+                next_loss = self.loss_fn(act_hat[ii].view(t_size), target_act_hat)
+
+                # Minimize occupancy
+                next_loss += self.occ_hat_scale * occ_hat_mean[ii]
+                losses.append(next_loss)
+
+            # # bias = occ_hat_mean # <-- need to use true gripper query points otherwise res is bad
+            # # bias = np.zeros((n_full_opt)) # Either this or occ_hat_mean
+            # losses = [self.loss_fn(act_hat[ii].view(t_size), target_act_hat) for ii in range(M)]
             loss = torch.mean(torch.stack(losses))
+
             if i % 100 == 0:
                 losses_str = ['%f' % val.item() for val in losses]
                 loss_str = ', '.join(losses_str)
