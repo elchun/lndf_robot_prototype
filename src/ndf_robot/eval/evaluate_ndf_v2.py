@@ -342,7 +342,8 @@ class Evaluate_NDF():
             query_pts=self.demo_loader.get_optimizer_gripper_pts(),
             query_pts_real_shape=self.demo_loader.get_optimizer_gripper_pts_rs(),
             opt_iterations=self.args.opt_iterations,
-            gripper_pts=self.gripper_pts
+            gripper_pts=self.gripper_pts,
+            occ_hat_scale=0.5,
         )
         self.grasp_optimizer.set_demo_info(self.demo_loader.get_demo_target_info_list())
 
@@ -904,6 +905,8 @@ class Evaluate_NDF():
             cfg=util.cn2dict(self.cfg),
             obj_cfg=util.cn2dict(self.obj_cfg)
         )
+
+        self.robot.pb_client.remove_body(obj_id)
     
     def _get_mesh_scale(self):
         scale_high, scale_low = self.cfg.MESH_SCALE_HIGH, self.cfg.MESH_SCALE_LOW

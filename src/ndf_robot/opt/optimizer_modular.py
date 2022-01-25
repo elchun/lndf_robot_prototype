@@ -273,6 +273,7 @@ class OccNetOptimizer:
         if self.use_gripper_occ:
             gripper_pts = torch.from_numpy(self.gripper_pts).float().to(self.dev)
             gripper_pts = gripper_pts[:self.n_gripper_pts][None, :, :].repeat((M, 1, 1))
+            gripper_pts = torch_util.transform_pcd_torch(gripper_pts, rand_mat_init)
 
         mi_point_cloud = []
         for ii in range(M):
@@ -299,14 +300,31 @@ class OccNetOptimizer:
         # RUN OPTIMIZATION #
         ####################
 
+
+
         pcd_traj_list = {}
         for jj in range(M):
             pcd_traj_list[jj] = []
+        
+        cnt_interval = self.opt_iterations // 10
         for i in range(self.opt_iterations):
+
+            # Progress bar
+            if i % cnt_interval == 0:
+                cnt = i // cnt_interval 
+                if cnt == 0:
+                    print('Optimizer progress: ', end='')
+                print('[%i%%]' % ((cnt + 1) * 10), end=' ') 
+                if cnt == 9:
+                    print()
+
             T_mat = torch_util.angle_axis_to_rotation_matrix(rot).squeeze()
             noise_vec = (torch.randn(X.size()) * (perturb_scale / ((i+1)**(perturb_decay)))).to(dev)
             X_perturbed = X + noise_vec
             X_new = torch_util.transform_pcd_torch(X_perturbed, T_mat) + trans[:, None, :].repeat((1, X.size(1), 1))
+
+
+            #TODO Add occ transposed
 
             ######################### visualize the reconstruction ##################33
 
@@ -321,9 +339,12 @@ class OccNetOptimizer:
             act_hat = self.model.forward_latent(latent, X_new)
             t_size = target_act_hat.size()
 
+
             if self.use_gripper_occ:
+                gripper_pts_posed = torch_util.transform_pcd_torch(gripper_pts, T_mat) + trans[:, None, :].repeat((1, gripper_pts.size(1), 1))
+                # trimesh_util.trimesh_show([gripper_pts_posed.detach().cpu().numpy()[1], X_new.detach().cpu().numpy()[1]])
                 # Get occupancy of gripper points #NEW#
-                occ_hat = self.model.forward_occ(latent, gripper_pts)
+                occ_hat = self.model.forward_occ(latent, gripper_pts_posed)
                 occ_hat_mean = occ_hat.mean(axis=-1)
             else:
                 occ_hat_mean = np.zeros((M))
