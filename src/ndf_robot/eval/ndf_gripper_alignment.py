@@ -53,6 +53,7 @@ class NDFAlignmentCheck:
         if not osp.exists(self.video_viz_path):
             os.makedirs(self.video_viz_path)
 
+
         self._cam_frame_scene_dict()
 
     def _cam_frame_scene_dict(self):
@@ -506,3 +507,7 @@ class NDFAlignmentCheck:
                     scene.show()
         if return_scene:
             return best_scene
+
+
+# TODO:
+# Make new directory for progress logs

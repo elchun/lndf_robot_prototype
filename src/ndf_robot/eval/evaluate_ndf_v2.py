@@ -310,6 +310,15 @@ class Evaluate_NDF():
         util.safe_makedirs(self.eval_grasp_imgs_dir)
         util.safe_makedirs(self.eval_teleport_imgs_dir)
 
+        self.eval_log_dir = osp.join(eval_save_dir, 'trial_logs')
+        util.safe_makedirs(self.eval_log_dir)
+
+        if self.args.use_gripper_occ:
+            log_fn = 'log_occ'
+        else:
+            log_fn = 'log_no_occ'
+        self.log_fn = self._get_log_fn(self.eval_log_dir, log_fn)
+
         self.robot = Robot('franka', pb_cfg={'gui': args.pybullet_viz}, arm_cfg={'self_collision': False, 'seed': args.seed})
         self.ik_helper = FrankaIK(gui=False)
 
@@ -388,6 +397,20 @@ class Evaluate_NDF():
         self.place_success_list = []
         self.place_success_teleport_list = []
         self.grasp_success_list = []
+    
+    def _get_log_fn(self, log_repo_path, base_fn='log_num'):
+        f = []
+        for (dirpath, dirnames, filenames) in os.walk(log_repo_path):
+            f.extend(filenames)
+            break
+        
+        max_num = -1 
+        for fn in f:
+            name_parts = fn.split('_')
+            max_num = max(int(name_parts[-1]), max_num)
+        
+        return base_fn + '_' + str(max_num + 1)
+
 
     def _set_model(self):
         args = self.args
@@ -876,8 +899,11 @@ class Evaluate_NDF():
         print('Place success list: ', self.place_success_list)
         for k, v in kvs.items():
             log_str += '%s: %.3f, ' % (k, v)
-        id_str = ', shapenet_id: %s' % obj_shapenet_id
+        id_str = 'shapenet_id: %s' % obj_shapenet_id
         log_info(log_str + id_str)
+
+        with open(osp.join(self.eval_log_dir, self.log_fn), 'a') as f:
+            f.write(log_str + id_str + '\n')
 
         eval_iter_dir = osp.join(eval_save_dir, 'trial_%d' % iteration)
         if not osp.exists(eval_iter_dir):
