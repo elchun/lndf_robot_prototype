@@ -1119,7 +1119,9 @@ if __name__ == "__main__":
     expstr = 'exp--' + str(args.exp)
     modelstr = 'model--' + str(args.model_path)
     seedstr = 'seed--' + str(args.seed)
-    full_experiment_name = '_'.join([expstr, modelstr, seedstr])
+    occstr = 'occ--' + str(args.use_gripper_occ)
+
+    full_experiment_name = '_'.join([expstr, modelstr, occstr, seedstr])
     eval_save_dir = osp.join(path_util.get_ndf_eval_data(), args.eval_data_dir, full_experiment_name)
     util.safe_makedirs(eval_save_dir)
 
