@@ -406,8 +406,9 @@ class Evaluate_NDF():
         
         max_num = -1 
         for fn in f:
-            name_parts = fn.split('_')
-            max_num = max(int(name_parts[-1]), max_num)
+            if base_fn in fn: 
+                name_parts = fn.split('_')
+                max_num = max(int(name_parts[-1]), max_num)
         
         return base_fn + '_' + str(max_num + 1)
 
@@ -633,8 +634,6 @@ class Evaluate_NDF():
         preplace_horizontal_tf_list = self.cfg.PREPLACE_HORIZONTAL_OFFSET_TF
         preplace_horizontal_tf = util.list2pose_stamped(self.cfg.PREPLACE_HORIZONTAL_OFFSET_TF)
         preplace_offset_tf = util.list2pose_stamped(self.cfg.PREPLACE_OFFSET_TF)
-
-
 
 
 
