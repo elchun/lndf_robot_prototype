@@ -395,6 +395,8 @@ class OccNetOptimizer:
                 z_plane=False)
             self.viz_files.append(osp.join('visualization', opt_fname))
 
+            # TODO: Add second plot here
+
             if ee:
                 T_mat = transform_mat_np
             else:

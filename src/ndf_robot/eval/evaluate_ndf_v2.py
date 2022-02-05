@@ -674,8 +674,10 @@ class Evaluate_NDF():
                 os.makedirs(eval_iter_dir)
             for f_id, fname in enumerate(self.grasp_optimizer.viz_files):
                 new_viz_fname = fname.split('/')[-1]
+                new_viz_fname = new_viz_fname.split('.html')[0] + "_Trial_%i" % iteration + '.html'
                 viz_index = int(new_viz_fname.split('.html')[0].split('_')[-1])
                 new_fname = osp.join(eval_iter_dir, new_viz_fname)
+                # print("Copied somthing to %s" % new_fname)
                 if args.save_all_opt_results:
                     shutil.copy(fname, new_fname)
                 else:
@@ -1138,3 +1140,8 @@ if __name__ == "__main__":
     # /home/elchun/Documents/LIS/ndf_robot/src/ndf_robot/data/demos/mug/grasp_rim_hang_handle_gaussian_precise_w_shell
 
     main(args, global_dict)
+
+# TODO: 
+# add good viz; add notice when thing fails and save viz to fails.
+
+# Make simplified testing env?
