@@ -15,7 +15,7 @@ from ndf_robot.utils.plotly_save import plot3d
 class OccNetOptimizer:
     def __init__(self, model, query_pts, query_pts_real_shape=None, opt_iterations=250, 
                  noise_scale=0.0, noise_decay=0.5, single_object=False, gripper_pts=None,
-                 occ_hat_scale=1):
+                 grasp_pts=None, occ_hat_scale=1):
         self.model = model
         self.model_type = self.model.model_type
         self.query_pts_origin = query_pts 
@@ -76,6 +76,7 @@ class OccNetOptimizer:
             # may need to shuffle gripper pts
             self.use_gripper_occ = True
             self.gripper_pts = gripper_pts
+        
 
 
     def _scene_dict(self):
