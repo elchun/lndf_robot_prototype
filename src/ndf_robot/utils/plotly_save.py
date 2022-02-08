@@ -120,6 +120,11 @@ def plot3d(pts_list, colors=['black'], fname='default_3d.html',
         'yaxis': {'nticks': 16, 'range': [-0.5, 0.5]},
         'zaxis': {'nticks': 8, 'range': [-0.01, 1.5]}
     }
+    # default_scene = {
+    #     'xaxis': {'nticks': 10, 'range': [-0.1, 0.9]},
+    #     'yaxis': {'nticks': 10, 'range': [-0.5, 0.5]},
+    #     'zaxis': {'nticks': 15, 'range': [-0.01, 1.5]}
+    # }
     default_width = 1100
     default_margin = {'r': 20, 'l': 10, 'b': 10, 't': 10}
     default_scene_dict = dict(
@@ -141,7 +146,9 @@ def plot3d(pts_list, colors=['black'], fname='default_3d.html',
             scene=scene_dict['scene'],
             scene_camera=scene_dict['camera'],
             width=scene_dict['width'],
-            margin=scene_dict['margin']
+            margin=scene_dict['margin'],
+            scene_aspectmode='manual', # So cup isn't stretched
+            scene_aspectratio=dict(x=1, y=1, z=1),
         )
 
     #png_renderer = pio.renderers['png']

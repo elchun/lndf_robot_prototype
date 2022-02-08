@@ -28,6 +28,8 @@ class OccNetOptimizer:
             self.query_pts_origin_real_shape = query_pts
         else:
             self.query_pts_origin_real_shape = query_pts_real_shape
+        
+        # self.query_pts_origin_real_shape.shape = (500, 3)
 
         self.loss_fn =  torch.nn.L1Loss()
         if torch.cuda.is_available():
@@ -384,7 +386,10 @@ class OccNetOptimizer:
             transform_mat_np = np.matmul(transform_mat_np, rand_query_pts_tf)
             transform_mat_np = np.matmul(shape_mean_trans, transform_mat_np)
 
-            ee_pts_world = util.transform_pcd(self.query_pts_origin_real_shape, transform_mat_np)
+            if self.use_gripper_occ:
+                ee_pts_world = util.transform_pcd(self.gripper_pts, transform_mat_np)
+            else:
+                ee_pts_world = util.transform_pcd(self.query_pts_origin_real_shape, transform_mat_np)
 
             all_pts = [ee_pts_world, shape_pts_world_np]
             opt_fname = 'ee_pose_optimized_%d.html' % j if ee else 'rack_pose_optimized_%d.html' % j
@@ -394,6 +399,8 @@ class OccNetOptimizer:
                 osp.join('visualization', opt_fname), 
                 z_plane=False)
             self.viz_files.append(osp.join('visualization', opt_fname))
+
+            # TODO: Add second plot here
 
             if ee:
                 T_mat = transform_mat_np

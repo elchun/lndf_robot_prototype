@@ -1,4 +1,3 @@
-from hashlib import new
 import os, os.path as osp
 import torch
 import numpy as np
@@ -12,10 +11,7 @@ from ndf_robot.utils.plotly_save import plot3d
 
 
 class NDFAlignmentCheck:
-    def __init__(self, model, pcd1, pcd2, model_type='pointnet', 
-        opt_iterations=500, sigma=0.025, trimesh_viz=False, 
-        query_points=None, occ_pts=None,
-    ):
+    def __init__(self, model, pcd1, pcd2, model_type='pointnet', opt_iterations=500, sigma=0.025, trimesh_viz=False):
         self.model = model
         self.model_type = model_type
         self.opt_iterations = opt_iterations
@@ -26,14 +22,7 @@ class NDFAlignmentCheck:
         self.perturb_decay = 0.5
         self.n_pts =  1500
         self.n_opt_pts = 500
-        self.n_opt_pts = 1000
-        self.query_points = query_points 
-
-        self.occ_pts = occ_pts if occ_pts is not None else query_points
-    
         self.prepare_inputs(pcd1, pcd2)
-        # trimesh_util.trimesh_show([self.pcd1, self.pcd2, self.query_points])
-
 
         self.loss_fn = torch.nn.L1Loss()
         if torch.cuda.is_available():
@@ -52,7 +41,6 @@ class NDFAlignmentCheck:
         self.video_viz_path = 'vid_visualization'
         if not osp.exists(self.video_viz_path):
             os.makedirs(self.video_viz_path)
-
 
         self._cam_frame_scene_dict()
 
@@ -164,35 +152,17 @@ class NDFAlignmentCheck:
             pcd1 (ndarray(dtype=float, ndim=2)): point cloud 1 (n1 x 3)
             pcd2 (ndarray(dtype=float, ndim=2)): point cloud 2 (n2 x 3)
         """
-        pcd1_shift = np.mean(pcd1, axis=0)
         pcd1 = pcd1 - np.mean(pcd1, axis=0)
         pcd2 = pcd2 - np.mean(pcd2, axis=0)
         self.pcd1 = pcd1 # reference model 
         self.pcd2 = pcd2
 
-        if self.query_points is not None:
-            self.query_points = self.query_points - pcd1_shift 
-
+        # Generate triangular mesh?
+        # Seems to be pretty useless rn
         tpcd1 = trimesh.PointCloud(self.pcd1[:self.n_pts])
         tpcd2 = trimesh.PointCloud(self.pcd2[:self.n_pts])
         # tpcd1.show()
         # tpcd2.show()
-
-        # trimesh_util.trimesh_show([pcd1, pcd2])
-    
-    def set_query_points(self, query_points):
-        """
-        Add custom query points
-        """
-        self.query_points = query_points
-
-    # def _pose_occ_pts(self, T_mat, trans):
-    #     occ_pcd = torch.from_numpy(self.occ_pts).float().to(self.dev)
-    #     opt_query_pts = occ_pcd[:self.n_opt_pts][None, :, :].repeat((M, 1, 1))
-    #     occ_pcd = torch_util.transform_pcd_torch(self.occ_pts, T_mat)
-    #     occ_pcd += trans[:, None, :].repeat((1, occ_pcd.size(1), 1))
-
-    #     return occ_pcd 
 
     def sample_pts(self, show_recon=False, return_scene=False, visualize_all_inits=False, render_video=False):
 
@@ -200,30 +170,24 @@ class NDFAlignmentCheck:
         # PREPARE REFERENCE MODEL #
         ###########################
 
-        if self.query_points is None:
-            # sample random query points with mean 0
-            query_pts = np.random.normal(0.0, self.sigma, size=(self.n_opt_pts, 3))
-            
-            # put the query points at one of the points in the point cloud
-            # Centers the querry points at a random point in the point cloud
-            q_offset_ind = np.random.randint(self.pcd1.shape[0])    # Choose index of coordinate in pcd1
-            q_offset = self.pcd1[q_offset_ind]                      # get coordinate in pcd1
-            q_offset *= 1.2                                         # Put point near edge of shape
-            reference_query_pts = query_pts + q_offset              
-        else:
-            # Offset shouldn't do anything here
-            q_offset_ind = np.random.randint(self.pcd1.shape[0])    # Choose index of coordinate in pcd1
-            q_offset = self.pcd1[q_offset_ind]                      # get coordinate in pcd1
-            q_offset *= 1.2                                         # Put point near edge of shape
-            
-            query_pts = self.query_points
-            reference_query_pts = self.query_points
+        # sample random query points with mean 0
+        query_pts = np.random.normal(0.0, self.sigma, size=(self.n_opt_pts, 3))
+        
+        # put the query points at one of the points in the point cloud
+        # Centers the querry points at a random point in the point cloud
+        q_offset_ind = np.random.randint(self.pcd1.shape[0])    # Choose index of coordinate in pcd1
+        q_offset = self.pcd1[q_offset_ind]                      # get coordinate in pcd1
+        q_offset *= 1.2                                         # Put point near edge of shape
+        reference_query_pts = query_pts + q_offset              
 
         reference_model_input = {}
         ref_query_pts = torch.from_numpy(reference_query_pts[:self.n_opt_pts]).float().to(self.dev)
         ref_shape_pcd = torch.from_numpy(self.pcd1[:self.n_pts]).float().to(self.dev)
         reference_model_input['coords'] = ref_query_pts[None, :, :]         # Also adds dimension
         reference_model_input['point_cloud'] = ref_shape_pcd[None, :, :]
+
+        print(reference_model_input['coords'].shape)
+        print(reference_model_input['point_cloud'].shape)
 
         # get the descriptors for these reference query points
         reference_latent = self.model.extract_latent(reference_model_input).detach()
@@ -267,8 +231,6 @@ class NDFAlignmentCheck:
         for ii in range(M):
             mi_point_cloud.append(torch.from_numpy(self.pcd2[:self.n_pts]).float().to(self.dev))
         mi_point_cloud = torch.stack(mi_point_cloud, 0)
-
-        # trimesh_util.trimesh_show([mi_point_cloud.cpu().numpy()])
         opt_model_input['point_cloud'] = mi_point_cloud
         opt_latent = self.model.extract_latent(opt_model_input).detach()
 
@@ -278,15 +240,6 @@ class NDFAlignmentCheck:
         ####################
         # RUN OPTIMIZATION #
         ####################
-        
-        print("Trans size: ", trans.size())
-        # [10, 3]
-
-        trans_shift = np.array([[0, 0, -0.5]])
-        # print(np.repeat(trans_shift, full_opt, axis=0))
-        # print(trans)
-        trans_shift_tensor = torch.from_numpy(np.repeat(trans_shift, full_opt, axis=0)).float().to(self.dev)
-        print("Ref act hat: ", reference_act_hat.size())
 
         pcd_traj_list = {}
         for jj in range(M):
@@ -296,10 +249,7 @@ class NDFAlignmentCheck:
             T_mat = torch_util.angle_axis_to_rotation_matrix(rot).squeeze()
             noise_vec = (torch.randn(X.size()) * (self.perturb_scale / ((i+1)**(self.perturb_decay)))).to(self.dev)
             X_perturbed = X + noise_vec
-            X_new = torch_util.transform_pcd_torch(X_perturbed, T_mat) \
-                    + trans[:, None, :].repeat((1, X.size(1), 1))
-                    # + trans_shift_tensor[:, None, :].repeat((1, X.size(1), 1))
-
+            X_new = torch_util.transform_pcd_torch(X_perturbed, T_mat) + trans[:, None, :].repeat((1, X.size(1), 1))
 
             ######################### stuff for visualizing the reconstruction ##################33
 
@@ -313,12 +263,6 @@ class NDFAlignmentCheck:
                 shape_mi = {}
                 shape_mi['point_cloud'] = opt_model_input['point_cloud'][jj][None, :, :].detach()
                 shape_np = shape_mi['point_cloud'].cpu().numpy().squeeze()
-
-
-                # print("shape_np", shape_np)
-                # print("Shape: ", shape_np.shape)
-                # trimesh_util.trimesh_show([shape_np])
-
                 shape_mean = np.mean(shape_np, axis=0)
                 inliers = np.where(np.linalg.norm(shape_np - shape_mean, 2, 1) < 0.2)[0]
                 shape_np = shape_np[inliers]
@@ -338,9 +282,7 @@ class NDFAlignmentCheck:
                 in_pts = eval_pts[in_inds]
                 out_pts = eval_pts[out_inds]
                 if self.trimesh_viz:
-                    print("Showing in_pts: ")
                     scene = trimesh_util.trimesh_show([in_pts])
-                    print("Showing in_pts, shape_np: ")
                     in_scene = trimesh_util.trimesh_show([in_pts, shape_np])
                 self._cam_frame_scene_dict()
                 plot3d(
@@ -353,37 +295,11 @@ class NDFAlignmentCheck:
             ###############################################################################
 
             act_hat = self.model.forward_latent(opt_latent, X_new)
-            
             t_size = reference_act_hat.size()
-            # t_size = [1, 405, 2049]
-            # print(act_hat[ii].size())
-            # [405, 2049]
 
-            # Get occupancy for each query point and take mean for given initialization
-            # TODO: Can sub in gripper points instead of X_new
-            # TODO: rewrite for better structure
-            # posed_occ_pts = self._pose_occ_pts(T_mat, trans)
-            occ_hat = self.model.forward_occ(opt_latent, X_new)
-            occ_hat_mean = occ_hat.mean(axis=-1) 
-            # occ_hat_mean = torch.zeros(10) # Use for comparison to no occ
-
-            # Importance of occ
-            occ_hat_scale = 0 
-            # occ_hat_scale = 0.5
-
-            # Compare generated act_hat to reference for each initialization
-            losses = []
-            for ii in range(M):
-                # Match descriptors
-                next_loss = self.loss_fn(act_hat[ii].view(t_size), reference_act_hat)
-
-                # Minimize occupancy
-                next_loss += occ_hat_scale * occ_hat_mean[ii]
-                losses.append(next_loss)
+            losses = [self.loss_fn(act_hat[ii].view(t_size), reference_act_hat) for ii in range(M)]
 
             loss = torch.mean(torch.stack(losses))
-
-            # Use losses for display but use loss for optimization
             if i % 100 == 0:
                 losses_str = ['%f' % val.item() for val in losses]
                 loss_str = ', '.join(losses_str)
@@ -418,19 +334,12 @@ class NDFAlignmentCheck:
                     scene_dict=self.cam_frame_scene_dict,
                     z_plane=False,
                     extra_data=frame_data)
-        # endfor
 
         best_idx = torch.argmin(torch.stack(losses)).item()
         best_loss = losses[best_idx]
         print('best loss: %f, best_idx: %d' % (best_loss, best_idx))
 
-
         best_X = X_new[best_idx].detach().cpu().numpy()
-        # # Best X with bias
-        # X_final = torch_util.transform_pcd_torch(X, T_mat) \
-        #      + trans[:, None, :].repeat((1, X.size(1), 1))
-
-        # best_X = X_final[best_idx].detach().cpu().numpy()
 
         offset = np.array([0.4, 0, 0])
         vpcd1 = copy.deepcopy(self.pcd1)
@@ -507,7 +416,3 @@ class NDFAlignmentCheck:
                     scene.show()
         if return_scene:
             return best_scene
-
-
-# TODO:
-# Make new directory for progress logs
