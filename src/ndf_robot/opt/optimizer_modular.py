@@ -44,6 +44,7 @@ class OccNetOptimizer:
             self.model.eval()
 
         self.opt_iterations = opt_iterations
+        self.occ_iterations = 10
 
         self.noise_scale = noise_scale
         self.noise_decay = noise_decay
@@ -204,6 +205,8 @@ class OccNetOptimizer:
             shape_pts_world (np.ndarray): N x 3 array representing 3D point cloud of the object
                 to be manipulated, expressed in the world coordinate system
         """
+        # torch.autograd.set_detect_anomaly(True)
+
         dev = self.dev
         n_pts = 1500
         opt_pts = 500 
@@ -342,21 +345,21 @@ class OccNetOptimizer:
             t_size = target_act_hat.size()
 
 
-            if self.use_gripper_occ:
-                gripper_pts_posed = torch_util.transform_pcd_torch(gripper_pts, T_mat) + trans[:, None, :].repeat((1, gripper_pts.size(1), 1))
-                # trimesh_util.trimesh_show([gripper_pts_posed.detach().cpu().numpy()[1], X_new.detach().cpu().numpy()[1]])
-                # Get occupancy of gripper points #NEW#
-                occ_hat = self.model.forward_occ(latent, gripper_pts_posed)
-                occ_hat_mean = occ_hat.mean(axis=-1)
-            else:
-                occ_hat_mean = np.zeros((M))
+            # if self.use_gripper_occ:
+            #     gripper_pts_posed = torch_util.transform_pcd_torch(gripper_pts, T_mat) + trans[:, None, :].repeat((1, gripper_pts.size(1), 1))
+            #     # trimesh_util.trimesh_show([gripper_pts_posed.detach().cpu().numpy()[1], X_new.detach().cpu().numpy()[1]])
+            #     # Get occupancy of gripper points #NEW#
+            #     occ_hat = self.model.forward_occ(latent, gripper_pts_posed)
+            #     occ_hat_mean = occ_hat.mean(axis=-1)
+            # else:
+            #     occ_hat_mean = np.zeros((M))
             
             losses = []
             for ii in range(M):
                 next_loss = self.loss_fn(act_hat[ii].view(t_size), target_act_hat)
 
                 # Minimize occupancy
-                next_loss += self.occ_hat_scale * occ_hat_mean[ii]
+                # next_loss += self.occ_hat_scale * occ_hat_mean[ii]
                 losses.append(next_loss)
 
             # # bias = occ_hat_mean # <-- need to use true gripper query points otherwise res is bad
@@ -370,12 +373,48 @@ class OccNetOptimizer:
                 log_debug(f'i: {i}, losses: {loss_str}')
             loss_values.append(loss.item())
             full_opt.zero_grad()
-            loss.backward()
+
+            loss.backward(retain_graph=True)
+
             full_opt.step()
+        
+        if self.use_gripper_occ:
+            for i in range(self.occ_iterations):
+                T_mat = torch_util.angle_axis_to_rotation_matrix(rot).squeeze()
+                noise_vec = (torch.randn(X.size()) * (perturb_scale / ((i+1)**(perturb_decay)))).to(dev)
+                X_perturbed = X + noise_vec
+                X_new = torch_util.transform_pcd_torch(X_perturbed, T_mat) + trans[:, None, :].repeat((1, X.size(1), 1))
+
+                gripper_pts_posed = torch_util.transform_pcd_torch(gripper_pts, T_mat) + trans[:, None, :].repeat((1, gripper_pts.size(1), 1))
+                # trimesh_util.trimesh_show([gripper_pts_posed.detach().cpu().numpy()[1], X_new.detach().cpu().numpy()[1]])
+
+                # Get occupancy of gripper points #NEW#
+                occ_hat = self.model.forward_occ(latent, gripper_pts_posed)
+                occ_hat_mean = occ_hat.mean(axis=-1)
+
+                losses = []
+                for ii in range(M):
+
+                    # Minimize occupancy
+                    next_loss = self.occ_hat_scale * occ_hat_mean[ii]
+                    losses.append(next_loss)
+
+                loss = torch.mean(torch.stack(losses))
+
+                if i % 10 == 0:
+                    losses_str = ['%f' % val.item() for val in losses]
+                    loss_str = ', '.join(losses_str)
+                    log_debug(f'Occ optimiztion i: {i}, losses: {loss_str}')
+                loss_values.append(loss.item())
+                full_opt.zero_grad()
+                loss.backward()
+                full_opt.step()
+
 
         best_idx = torch.argmin(torch.stack(losses)).item()
         best_loss = losses[best_idx]
         log_debug('best loss: %f, best_idx: %d' % (best_loss, best_idx))
+
 
         for j in range(M):
             trans_j, rot_j = trans[j], rot[j]

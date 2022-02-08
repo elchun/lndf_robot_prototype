@@ -430,6 +430,8 @@ class Evaluate_NDF():
         viz_dict['final_obj_pose'] = obj_end_pose_list
 
         # save visualizations for debugging / looking at optimizaiton solutions
+
+        best_grasp_pose_fname = None
         if args.save_vis_per_model:
             analysis_dir = args.model_path + '_' + str(obj_shapenet_id)
             eval_iter_dir = osp.join(eval_save_dir, analysis_dir)
@@ -448,10 +450,10 @@ class Evaluate_NDF():
                     if viz_index == best_idx:
                         print('Saving best viz_file to %s' % new_fname)
                         shutil.copy(fname, new_fname)
+                        best_grasp_pose_fname = new_fname
             for f_id, fname in enumerate(self.place_optimizer.viz_files):
                 new_viz_fname = fname.split('/')[-1]
                 viz_index = int(new_viz_fname.split('.html')[0].split('_')[-1])
-                new_fname = osp.join(eval_iter_dir, new_viz_fname)
                 if args.save_all_opt_results:
                     shutil.copy(fname, new_fname)
                 else:
@@ -674,6 +676,12 @@ class Evaluate_NDF():
         if not osp.exists(eval_iter_dir):
             os.makedirs(eval_iter_dir)
         sample_fname = osp.join(eval_iter_dir, 'success_rate_eval_implicit.npz')
+
+        html_trial_fname = osp.join(eval_iter_dir, 'ee_pose_optimized.html')
+        if best_grasp_pose_fname:
+            shutil.copy(best_grasp_pose_fname, html_trial_fname)
+
+
         print('Saving eval logs to: %s' % sample_fname)
 
         np.savez(
