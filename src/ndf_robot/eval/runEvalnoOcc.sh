@@ -1,4 +1,4 @@
-CUDA_VISIBLE_DEVICES=2 python evaluate_ndf_v2.py \
+CUDA_VISIBLE_DEVICES=1 python evaluate_ndf_v2.py \
         --demo_exp grasp_rim_hang_handle_gaussian_precise_w_shelf \
         --object_class mug \
         --opt_iterations 500 \
@@ -8,8 +8,8 @@ CUDA_VISIBLE_DEVICES=2 python evaluate_ndf_v2.py \
         --save_vis_per_model \
         --config eval_mug_gen \
         --exp test_mug_eval \
-        --num_iterations 500 \
-        --use_gripper_occ 
+        --num_iterations 100 \
+#       --use_gripper_occ 
 #       --pybullet_viz \
 #       --use_full_hand \
 #       --grasp_viz \

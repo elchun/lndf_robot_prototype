@@ -11,11 +11,13 @@ from airobot import log_info, log_warn, log_debug, log_critical
 from ndf_robot.utils import util, torch_util, trimesh_util, torch3d_util
 from ndf_robot.utils.plotly_save import plot3d
 
+import code
+
 
 class OccNetOptimizer:
     def __init__(self, model, query_pts, query_pts_real_shape=None, opt_iterations=250, 
                  noise_scale=0.0, noise_decay=0.5, single_object=False, gripper_pts=None,
-                 grasp_pts=None, occ_hat_scale=1):
+                 grip_area_pts=None, occ_hat_scale=0.000, grip_area_scale=0.004):
         self.model = model
         self.model_type = self.model.model_type
         self.query_pts_origin = query_pts 
@@ -76,6 +78,14 @@ class OccNetOptimizer:
             # may need to shuffle gripper pts
             self.use_gripper_occ = True
             self.gripper_pts = gripper_pts
+
+        self.grip_area_pts = None
+        self.use_grip_area_occ = False
+        self.grip_area_scale = grip_area_scale
+        self.n_grip_area_pts = 500
+        if grip_area_pts is not None:
+            self.use_grip_area_occ = True
+            self.grip_area_pts = grip_area_pts
         
 
 
@@ -280,6 +290,11 @@ class OccNetOptimizer:
             gripper_pts = torch.from_numpy(self.gripper_pts).float().to(self.dev)
             gripper_pts = gripper_pts[:self.n_gripper_pts][None, :, :].repeat((M, 1, 1))
             gripper_pts = torch_util.transform_pcd_torch(gripper_pts, rand_mat_init)
+        
+        if self.use_grip_area_occ:
+            grip_area_pts = torch.from_numpy(self.grip_area_pts).float().to(self.dev)
+            grip_area_pts = grip_area_pts[:self.n_grip_area_pts][None, :, :].repeat((M, 1, 1))
+            grip_area_pts = torch_util.transform_pcd_torch(grip_area_pts, rand_mat_init)
 
         mi_point_cloud = []
         for ii in range(M):
@@ -379,7 +394,11 @@ class OccNetOptimizer:
 
             full_opt.step()
         
+        pre_occ_rot = rot.detach().cpu()
+        pre_occ_trans = trans.detach().cpu()
+
         if self.use_gripper_occ:
+            print("Using occ")
             for i in range(self.occ_iterations):
                 T_mat = torch_util.angle_axis_to_rotation_matrix(rot).squeeze()
                 noise_vec = (torch.randn(X.size()) * (perturb_scale / ((i+1)**(perturb_decay)))).to(dev)
@@ -387,21 +406,47 @@ class OccNetOptimizer:
                 X_new = torch_util.transform_pcd_torch(X_perturbed, T_mat) + trans[:, None, :].repeat((1, X.size(1), 1))
 
                 gripper_pts_posed = torch_util.transform_pcd_torch(gripper_pts, T_mat) + trans[:, None, :].repeat((1, gripper_pts.size(1), 1))
+                grip_area_pts_posed = torch_util.transform_pcd_torch(grip_area_pts, T_mat) + trans[:, None, :].repeat((1, grip_area_pts.size(1), 1))
                 # trimesh_util.trimesh_show([gripper_pts_posed.detach().cpu().numpy()[1], X_new.detach().cpu().numpy()[1]])
+
+                # Activations of network
+                act_hat = self.model.forward_latent(latent, X_new)
+                t_size = target_act_hat.size()
 
                 # Get occupancy of gripper points #NEW#
                 occ_hat = self.model.forward_occ(latent, gripper_pts_posed)
                 occ_hat_mean = occ_hat.mean(axis=-1)
 
+                grip_area_occ_hat = self.model.forward_occ(latent, grip_area_pts_posed)
+                grip_area_occ_hat_mean = grip_area_occ_hat.mean(axis=-1)
+
+
                 losses = []
+                gripper_losses = []
+                grip_area_losses = []
+                network_losses = []
                 for ii in range(M):
 
-                    # Minimize occupancy
-                    next_loss = self.occ_hat_scale * occ_hat_mean[ii]
+                    network_loss = self.loss_fn(act_hat[ii].view(t_size), target_act_hat)
+
+                    # Minimize occupancy of gripper and max occupancy of grip area
+                    # next_loss = self.occ_hat_scale * occ_hat_mean[ii]
+                    gripper_loss = self.occ_hat_scale * occ_hat_mean[ii]
+                    grip_area_loss = -self.grip_area_scale * grip_area_occ_hat_mean[ii]
+                    next_loss = gripper_loss + grip_area_loss + network_loss
+                    # next_loss = network_loss
                     losses.append(next_loss)
+                    grip_area_losses.append(grip_area_loss)
+                    gripper_losses.append(gripper_loss)
+                    network_losses.append(network_loss)
+                
+                # For showing relative magnitude of losses
+                best_idx = torch.argmin(torch.stack(losses)).item()
+                print("Network Loss: ", network_losses[best_idx])                
+                print("Grip Area Loss: ", grip_area_losses[best_idx])                
+                print("Gripper Loss: ", gripper_losses[best_idx])                
 
                 loss = torch.mean(torch.stack(losses))
-
                 if i % 10 == 0:
                     losses_str = ['%f' % val.item() for val in losses]
                     loss_str = ', '.join(losses_str)
@@ -417,6 +462,7 @@ class OccNetOptimizer:
         log_debug('best loss: %f, best_idx: %d' % (best_loss, best_idx))
 
 
+
         for j in range(M):
             trans_j, rot_j = trans[j], rot[j]
             transform_mat_np = torch_util.angle_axis_to_rotation_matrix(rot_j.view(1, -1)).squeeze().detach().cpu().numpy()
@@ -426,16 +472,28 @@ class OccNetOptimizer:
             transform_mat_np = np.matmul(transform_mat_np, rand_query_pts_tf)
             transform_mat_np = np.matmul(shape_mean_trans, transform_mat_np)
 
+            pre_occ_trans_j, pre_occ_rot_j = pre_occ_trans[j], pre_occ_rot[j]
+            pre_occ_transform_mat_np = torch_util.angle_axis_to_rotation_matrix(pre_occ_rot_j.view(1, -1)).squeeze().detach().cpu().numpy()
+            pre_occ_transform_mat_np[:-1, -1] = pre_occ_trans_j.detach().cpu().numpy()
+            pre_occ_transform_mat_np = np.matmul(pre_occ_transform_mat_np, rand_query_pts_tf)
+            pre_occ_transform_mat_np = np.matmul(shape_mean_trans, pre_occ_transform_mat_np)
+
             if self.use_gripper_occ:
                 ee_pts_world = util.transform_pcd(self.gripper_pts, transform_mat_np)
+                pre_occ_ee_pts_world = util.transform_pcd(self.gripper_pts, pre_occ_transform_mat_np)
+                grip_area_pts_world = util.transform_pcd(self.grip_area_pts, transform_mat_np)
+                pre_occ_grip_area_pts_world = util.transform_pcd(self.grip_area_pts, pre_occ_transform_mat_np)
+                colors = ['black', 'purple', 'green', 'red', 'orange']
+                all_pts = [ee_pts_world, shape_pts_world_np, grip_area_pts_world, pre_occ_ee_pts_world, pre_occ_grip_area_pts_world]
             else:
                 ee_pts_world = util.transform_pcd(self.query_pts_origin_real_shape, transform_mat_np)
+                colors = ['black', 'purple']
+                all_pts = [ee_pts_world, shape_pts_world_np] 
 
-            all_pts = [ee_pts_world, shape_pts_world_np]
             opt_fname = 'ee_pose_optimized_%d.html' % j if ee else 'rack_pose_optimized_%d.html' % j
             plot3d(
                 all_pts, 
-                ['black', 'purple'], 
+                colors,
                 osp.join('visualization', opt_fname), 
                 z_plane=False)
             self.viz_files.append(osp.join('visualization', opt_fname))

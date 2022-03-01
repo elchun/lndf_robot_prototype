@@ -100,9 +100,11 @@ class Evaluate_NDF():
         self.demo_shapenet_ids = self.demo_loader.get_demo_shapenet_ids()
 
         self.gripper_pts = None
+        self.grip_area_pts = None
         if args.use_gripper_occ:
             print('Using gripper occ')
             self.gripper_pts = self.demo_loader.get_gripper_pts()
+            self.grip_area_pts = self.demo_loader.get_grip_area_pts()
 
 
         self.test_object_ids = []
@@ -115,7 +117,8 @@ class Evaluate_NDF():
             query_pts_real_shape=self.demo_loader.get_optimizer_gripper_pts_rs(),
             opt_iterations=self.args.opt_iterations,
             gripper_pts=self.gripper_pts,
-            occ_hat_scale=0.5,
+            grip_area_pts=self.grip_area_pts,
+            # occ_hat_scale=0.5,
         )
         self.grasp_optimizer.set_demo_info(self.demo_loader.get_demo_target_info_list())
 
@@ -443,6 +446,7 @@ class Evaluate_NDF():
                 new_viz_fname = new_viz_fname.split('.html')[0] + "_Trial_%i" % iteration + '.html'
                 new_fname = osp.join(eval_iter_dir, new_viz_fname)
                 # print("Copied somthing to %s" % new_fname)
+                # print("Grasp fname: ", new_fname)
                 if args.save_all_opt_results:
                     print("Saving all opt results")
                     shutil.copy(fname, new_fname)
@@ -454,6 +458,9 @@ class Evaluate_NDF():
             for f_id, fname in enumerate(self.place_optimizer.viz_files):
                 new_viz_fname = fname.split('/')[-1]
                 viz_index = int(new_viz_fname.split('.html')[0].split('_')[-1])
+                new_viz_fname = new_viz_fname.split('.html')[0] + "_Trial_%i" % iteration + '.html'
+                new_fname = osp.join(eval_iter_dir, new_viz_fname)
+                # print("Place fname: ", new_fname)
                 if args.save_all_opt_results:
                     shutil.copy(fname, new_fname)
                 else:
@@ -670,7 +677,11 @@ class Evaluate_NDF():
         log_info(log_str + id_str)
 
         with open(osp.join(self.eval_log_dir, self.log_fn), 'a') as f:
+            f.write('Trial Num: %d' % iteration + '\n')
+            f.write('Trial Grasp Success: ' + str(grasp_success) + '\n')
+            f.write('Trial Place Success: ' + str(place_success) + '\n')
             f.write(log_str + id_str + '\n')
+            f.write('-----------\n')
 
         eval_iter_dir = osp.join(eval_save_dir, 'trial_%d' % iteration)
         if not osp.exists(eval_iter_dir):

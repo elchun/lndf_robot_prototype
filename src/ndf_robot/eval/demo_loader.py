@@ -211,3 +211,34 @@ class NDF_DemoLoader():
         output_pts_pcd.apply_translation([0, 0, -0.105]) # Shift gripper so jaws align with pose
         output_pts = np.asarray(output_pts_pcd.vertices)
         return output_pts 
+    
+    @staticmethod
+    def get_grip_area_pts(n_grip_area_pts=500):
+        """
+        Load point cloud for grip area
+        """
+
+        n_pts = n_grip_area_pts 
+        # For use as query points
+        grasp_area_mesh_fn = osp.join(path_util.get_ndf_descriptions(), 'franka_panda/meshes/grasp_area.obj')
+
+        # Load and sample gripper mesh
+        grasp_area_mesh= trimesh.load_mesh(grasp_area_mesh_fn)
+        # full_gripper_pts = full_gripper_mesh.sample(n_pts)
+
+
+        # Doesn't always make enough pts so have to sample more, then slice
+        full_grasp_area_pts_uniform = trimesh.sample.volume_mesh(grasp_area_mesh, n_pts*3)[:n_pts]
+        full_grasp_area_pts_pcd = trimesh.PointCloud(full_grasp_area_pts_uniform)
+    
+
+        # Transform gripper to appropriate location
+        # output_pts_pcd.apply_translation([0, 0, 0.105]) # Shift gripper so jaws align with pose
+
+        # # Move gripper to appropriate location on mug
+        # gripper_pose_mat = util.matrix_from_pose(util.list2pose_stamped(grasp_data['ee_pose_world']))
+        # output_pts_pcd.apply_transform(gripper_pose_mat)
+
+        full_grasp_area_pts_pcd.apply_translation([0, 0, -0.105]) # Shift gripper so jaws align with pose
+        output_pts = np.asarray(full_grasp_area_pts_pcd.vertices)
+        return output_pts 

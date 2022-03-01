@@ -6,7 +6,7 @@ import trimesh
 from airobot.utils import common
 
 grip_area = trimesh.load('grasp_area.STL')
-grip_area.apply_translation([-0.031, -0.1, -0.03]) # Move stl to proper location
+grip_area.apply_translation([-0.031, -0.1, -0.04]) # Move stl to proper location
 grip_area.export('grasp_area.obj')
 
 hand = trimesh.load('panda_open_hand_full.obj')
