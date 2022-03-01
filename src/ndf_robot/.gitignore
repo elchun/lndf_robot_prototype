@@ -1,0 +1,9 @@
+descriptions/demo_objects/
+descriptions/objects/
+eval/*
+!eval/*.py
+!eval/*.sh
+!eval/old
+data/
+assets/
+eval_data/
