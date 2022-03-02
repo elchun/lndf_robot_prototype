@@ -55,7 +55,7 @@ marker_dict = {
 
 def plot3d(pts_list, colors=['black'], fname='default_3d.html', 
            auto_scene=False, scene_dict=None, z_plane=True, write=True,
-           extra_data=None):
+           extra_data=None, pts_label_list=None):
     '''
     Function to create a 3D scatter plot in plotly
 
@@ -72,6 +72,7 @@ def plot3d(pts_list, colors=['black'], fname='default_3d.html',
         z_plane (bool): If True, then a gray horizontal plane will be drawn below all the point clouds
         write (bool): If True, then html file with plot will be saved
         extra_data (list): Additional plotly data that we might want to plot, which is created externally
+        pts_label_list (list): Labels that correspond to each entry in pts_list (must be same length as pts_list)
     '''
     fig_data = []
     if not isinstance(pts_list, list):
@@ -83,6 +84,9 @@ def plot3d(pts_list, colors=['black'], fname='default_3d.html',
 
     all_pts = np.concatenate(pts_list, axis=0)
 
+    add_labels = False
+    if pts_label_list is not None and len(pts_label_list) == len(pts_list):
+        add_labels = True
     for i, pts in enumerate(pts_list):
         pcd_data = {
                 'type': 'scatter3d',
@@ -91,6 +95,9 @@ def plot3d(pts_list, colors=['black'], fname='default_3d.html',
                 'z': pts[:, 2],
                 'mode': 'markers',
                 'marker': marker_dict[colors[i]]}
+        
+        if add_labels: 
+            pcd_data['name'] = pts_label_list[i] 
         fig_data.append(pcd_data)
 
     z_height = min(all_pts[:, 2])

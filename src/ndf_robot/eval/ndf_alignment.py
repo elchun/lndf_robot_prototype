@@ -250,12 +250,14 @@ class NDFAlignmentCheck:
                     scene = trimesh_util.trimesh_show([in_pts])
                     in_scene = trimesh_util.trimesh_show([in_pts, shape_np])
                 self._cam_frame_scene_dict()
+                print(f'Saving visualization to: {osp.join(self.viz_path, "recon_overlay_test.html")}')
                 plot3d(
                     [in_pts, shape_np],
                     ['blue', 'black'], 
                     osp.join(self.viz_path, 'recon_overlay_test.html'),
                     scene_dict=self.cam_frame_scene_dict,
-                    z_plane=False)
+                    z_plane=False,
+                    pts_label_list=['in_pts', 'shape_np'])
 
             ###############################################################################
 

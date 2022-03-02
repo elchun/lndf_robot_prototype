@@ -8,7 +8,7 @@ import copy
 from scipy.spatial.transform import Rotation
 
 from ndf_robot.utils import path_util
-import ndf_robot.model.vnn_occupancy_net_pointnet_dgcnn as vnn_occupancy_network
+import ndf_robot.model.vnn_occupancy_net.vnn_occupancy_net_pointnet_dgcnn as vnn_occupancy_network
 from ndf_robot.eval.ndf_alignment import NDFAlignmentCheck
 
 
@@ -66,6 +66,7 @@ if __name__ == '__main__':
 
     model = vnn_occupancy_network.VNNOccNet(latent_dim=256, model_type='pointnet', return_features=True, sigmoid=True).cuda()
     model.load_state_dict(torch.load(model_path))
+
 
     ndf_alignment = NDFAlignmentCheck(model, pcd1, pcd2, sigma=args.sigma, trimesh_viz=args.visualize)
     ndf_alignment.sample_pts(show_recon=args.show_recon, render_video=args.video)

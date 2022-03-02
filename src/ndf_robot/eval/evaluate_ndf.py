@@ -15,7 +15,7 @@ from airobot.utils import common
 from airobot import log_info
 from airobot.utils.common import euler2quat
 
-import ndf_robot.model.vnn_occupancy_net_pointnet_dgcnn as vnn_occupancy_network
+import ndf_robot.model.vnn_occupancy_net.vnn_occupancy_net_pointnet_dgcnn as vnn_occupancy_network
 from ndf_robot.utils import util, trimesh_util
 from ndf_robot.utils.util import np2img
 
