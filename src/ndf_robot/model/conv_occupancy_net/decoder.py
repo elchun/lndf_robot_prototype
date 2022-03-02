@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from src.layers import ResnetBlockFC
-from src.common import normalize_coordinate, normalize_3d_coordinate, map2local
+from ndf_robot.model.conv_occupancy_net.layers import ResnetBlockFC
+from ndf_robot.model.conv_occupancy_net.common import normalize_coordinate, normalize_3d_coordinate, map2local
 
 
 class LocalDecoder(nn.Module):

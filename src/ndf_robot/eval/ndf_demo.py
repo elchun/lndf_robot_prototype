@@ -65,6 +65,7 @@ if __name__ == '__main__':
     # pcd2 = mesh1.sample(5000)  # debug with same shape but different sampled points
 
     model = vnn_occupancy_network.VNNOccNet(latent_dim=256, model_type='pointnet', return_features=True, sigmoid=True).cuda()
+    # model = vnn_occupancy_network.VNNOccNet(latent_dim=256, model_type='pointnet', return_features=False, sigmoid=True).cuda()
     model.load_state_dict(torch.load(model_path))
 
 

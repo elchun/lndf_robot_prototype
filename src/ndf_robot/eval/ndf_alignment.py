@@ -232,6 +232,7 @@ class NDFAlignmentCheck:
                 shape_mean = np.mean(shape_np, axis=0)
                 inliers = np.where(np.linalg.norm(shape_np - shape_mean, 2, 1) < 0.2)[0]
                 shape_np = shape_np[inliers]
+                print("Shape shape: ", shape_np.shape)
                 shape_pcd = trimesh.PointCloud(shape_np)
                 bb = shape_pcd.bounding_box
                 bb_scene = trimesh.Scene(); bb_scene.add_geometry([shape_pcd, bb]) 

@@ -1,4 +1,5 @@
 import os, os.path as osp
+from turtle import shape
 from typing import no_type_check_decorator
 import torch
 import numpy as np
@@ -8,6 +9,7 @@ import argparse
 import copy
 from scipy.spatial.transform import Rotation
 import plotly.graph_objects as go
+from ndf_robot.utils.plotly_save import plot3d
 
 from ndf_robot.utils import path_util
 import ndf_robot.model.vnn_occupancy_net.vnn_occupancy_net_pointnet_dgcnn as vnn_occupancy_network
@@ -111,35 +113,12 @@ def plotly_create_local_frame(transform=None, length=0.03):
     return data
 
 
-def get_bb(shape_np):
-    """
-    Generate mean centered bounding box for shape_np
-
-    Args:
-        shape_np (nd-array): nd-array with shape (n, 3)
-
-    Returns:
-        trimesh bounding box: mean centered bounding box for shape_np
-    """
-    assert len(shape_np.shape) == 2, 'expected pcd to be have two dimensions'
-    assert shape_np.shape[-1] == 3, 'expected points to be 3d'
-    pcd_mean = np.mean(shape_np, axis=0)
-    inliers = np.where(np.linalg.norm(shape_np - pcd_mean, 2, 1) < 0.2)[0]
-    shape_np = shape_np[inliers]
-
-    shape_pcd = trimesh.PointCloud(shape_np)
-    bb = shape_pcd.bounding_box
-    return bb
-
-
 if __name__ == '__main__':
     ### ARG PARSING ###
     parser  = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--show_recon', action='store_true')
-    parser.add_argument('--sigma', type=float, default=0.025)
-    parser.add_argument('--visualize', action='store_true')
-    parser.add_argument('--video', action='store_true')
+    parser.add_argument('--random_rot', action='store_true', help='Apply random rotation to object')
     args = parser.parse_args()
 
 
@@ -152,38 +131,31 @@ if __name__ == '__main__':
 
     ### LOAD OBJECTS ###
     # see the demo object descriptions folder for other object models you can try
-    obj_model1 = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/28f1e7bc572a633cb9946438ed40eeb9/models/model_normalized.obj')
-    obj_model2 = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/586e67c53f181dc22adf8abaa25e0215/models/model_normalized.obj')
+    obj_model = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/28f1e7bc572a633cb9946438ed40eeb9/models/model_normalized.obj')
     model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_demo_mug_weights.pth')  
 
 
     ### INIT OBJECTS ###
     scale1 = 0.25
     scale2 = 0.4
-    mesh1 = trimesh.load(obj_model1, process=False)
-    mesh1.apply_scale(scale1)
-    mesh2 = trimesh.load(obj_model2, process=False) # different instance, different scaling
-    mesh2.apply_scale(scale2)
-    # mesh2 = trimesh.load(obj_model1, process=False)  # use same object model to debug SE(3) equivariance
-    # mesh2.apply_scale(scale1)
+    obj_mesh = trimesh.load(obj_model, process=False)
+    obj_mesh.apply_scale(scale1)
 
     # apply a random initial rotation to the new shape
-    quat = np.random.random(4)
-    quat = quat / np.linalg.norm(quat)
-    rot = np.eye(4)
-    rot[:-1, :-1] = Rotation.from_quat(quat).as_matrix()
-    mesh2.apply_transform(rot)
+    if args.random_rot:
+        quat = np.random.random(4)
+        quat = quat / np.linalg.norm(quat)
+        rot = np.eye(4)
+        rot[:-1, :-1] = Rotation.from_quat(quat).as_matrix()
+        obj_mesh.apply_transform(rot)
+
 
 
     ### GENERATE POINTCLOUD ###
-    pcd1 = mesh1.sample(5000)
-    pcd2 = mesh2.sample(5000)  # point cloud representing different shape
-    # pcd2 = copy.deepcopy(pcd1)  # debug with the exact same point cloud
-    # pcd2 = mesh1.sample(5000)  # debug with same shape but different sampled points
+    obj_pcd = obj_mesh.sample(5000)
 
-    # Mean center pointclouds
-    pcd1 = pcd1 - np.mean(pcd1, axis=0)
-    pcd2 = pcd2 - np.mean(pcd2, axis=0)
+    # Mean center pointcloud
+    obj_pcd = obj_pcd - np.mean(obj_pcd, axis=0)
 
     ### INIT MODEL ###
     if torch.cuda.is_available():
@@ -206,44 +178,44 @@ if __name__ == '__main__':
 
 
     ### PREDICT REFERENCE SHAPE OCC ###
-    ref_shape_pcd = torch.from_numpy(pcd1[:n_pts]).float().to(device)
+    ref_shape_pcd = torch.from_numpy(obj_pcd[:n_pts]).float().to(device)
     ref_pcd = ref_shape_pcd[None, :, :]
-    ref_bb = get_bb(pcd1)
 
+    # Get bounding box
+    shape_np = obj_pcd
+    assert len(shape_np.shape) == 2, 'expected pcd to be have two dimensions'
+    assert shape_np.shape[-1] == 3, 'expected points to be 3d'
+    pcd_mean = np.mean(shape_np, axis=0)
+    inliers = np.where(np.linalg.norm(shape_np - pcd_mean, 2, 1) < 0.2)[0]
+    shape_np = shape_np[inliers]
+
+    shape_pcd = trimesh.PointCloud(shape_np)
+    ref_bb = shape_pcd.bounding_box
+
+    # Get eval points
     eval_pts = ref_bb.sample_volume(10000)
 
     shape_mi = {}
     shape_mi['point_cloud'] = ref_pcd 
     shape_mi['coords'] = torch.from_numpy(eval_pts)[None, :, :].float().to(device).detach()
-    reconstruction = model(shape_mi)
-        
+    out = model(shape_mi)
+
+    thresh = 0.1
+    in_inds = torch.where(out['occ'].squeeze() > thresh)[0].cpu().numpy()
+    out_inds = torch.where(out['occ'].squeeze() < thresh)[0].cpu().numpy()
+
+    in_pts = eval_pts[in_inds]
+    out_pts = eval_pts[out_inds]
 
 
+    cam_frame_scene_dict = make_cam_frame_scene_dict()
 
-    # ref_shape_np = 
-
-
-
-
-
-
-
-
-    # # Init query points
-    # query_pts = np.random.normal(0.0, sigma, size=(n_opt_pts, 3))
-    # # put the query points at one of the points in the point cloud
-    # q_offset_ind = np.random.randint(pcd1.shape[0])
-    # q_offset = pcd1[q_offset_ind]
-    # q_offset *= 1.2
-    # reference_query_pts = query_pts + q_offset
-
-    # reference_model_input = {}
-    # ref_query_pts = torch.from_numpy(reference_query_pts[:n_opt_pts]).float().to(self.dev)
-    # ref_shape_pcd = torch.from_numpy(pcd1[:n_pts]).float().to(device)
-    # reference_model_input['coords'] = ref_query_pts[None, :, :]
-    # reference_model_input['point_cloud'] = ref_shape_pcd[None, :, :]
-
-    # ndf_alignment = NDFAlignmentCheck(model, pcd1, pcd2, sigma=args.sigma, trimesh_viz=args.visualize)
-    # ndf_alignment.sample_pts(show_recon=args.show_recon, render_video=args.video)
-
-
+    viz_fn = osp.join(viz_path, "recon_test.html")
+    print(f'Saving visualization to: {viz_fn}')
+    plot3d(
+        [in_pts, shape_np],
+        ['blue', 'black'], 
+        viz_fn,
+        scene_dict=cam_frame_scene_dict,
+        z_plane=False,
+        pts_label_list=['in_pts', 'shape_np'])

@@ -4,18 +4,24 @@ Based on implementation from: https://pengsongyou.github.io/conv_onet
 import torch
 import torch.nn as nn
 
-from ndf_robot.model.conv_occupancy_net.encoder import (
-    pointnet, voxels, pointnetpp
-)
+from ndf_robot.model.conv_occupancy_net.encoder import (pointnet, pointnetpp)
+from ndf_robot.model.conv_occupancy_net import decoder
 
 
+# Encoder dictionary
 encoder_dict = {
     'pointnet_local_pool': pointnet.LocalPoolPointnet,
     'pointnet_crop_local_pool': pointnet.PatchLocalPoolPointnet,
     'pointnet_plus_plus': pointnetpp.PointNetPlusPlus,
-    'voxel_simple_local': voxels.LocalVoxelEncoder,
+    # 'voxel_simple_local': voxels.LocalVoxelEncoder,
 }
 
+# Decoder dictionary
+decoder_dict = {
+    'simple_local': decoder.LocalDecoder,
+    'simple_local_crop': decoder.PatchLocalDecoder,
+    'simple_local_point': decoder.LocalPointDecoder
+}
 
 class ConvolutionalOccupancyNetwork(nn.Module):
     """
@@ -23,7 +29,7 @@ class ConvolutionalOccupancyNetwork(nn.Module):
 
     Args:
         latent_dim (int): dim of resnet block?
-        model_type (str): type of encoder network to use
+        encoder_type (str): type of encoder network to use
         sigmoid (boolean): use sigmoid in decoder
         return_features (boolean): True to return features in decoder
         acts (str): What type of activations to return select from ('all', 'inp', 'first_rn', 'inp_first_rn')
@@ -31,7 +37,8 @@ class ConvolutionalOccupancyNetwork(nn.Module):
     """
     def __init__(self,
                  latent_dim,
-                 model_type='pointnet',
+                 encoder_type='pointnet_local_pool',
+                 decoder_type='simple_local',
                  sigmoid=True,
                  return_features=False, 
                  acts='all',
@@ -42,14 +49,27 @@ class ConvolutionalOccupancyNetwork(nn.Module):
         self.scaling = scaling  # scaling up the point cloud/query points to be larger helps
         self.return_features = return_features
 
-        if model_type == 'dgcnn':
-            self.model_type = 'dgcnn'
-            self.encoder = VNN_DGCNN(c_dim=latent_dim) # modified resnet-18
-        else:
-            self.model_type = 'pointnet'
-            self.encoder = VNN_ResnetPointnet(c_dim=latent_dim) # modified resnet-18
+        # Options are:
+        #   'pointnet_local_pool'
+        #   'pointnet_crop_local_pool'
+        #   'pointnet_plus_plus'
+        if encoder_type in encoder_dict:
+            self.encoder = encoder_dict[encoder_type](c_dim=latent_dim)
+        else: raise ValueError("Invalid Decoder")
+        
+        if decoder_type in decoder_dict:
+            # TODO: Add arguments to decoder
+            self.decoder = decoder_dict[decoder_type](dim=3, z_dim=latent_dim, c_dim=0) 
+        else: raise ValueError("Invalid Decoder")
 
-        self.decoder = DecoderInner(dim=3, z_dim=latent_dim, c_dim=0, hidden_size=latent_dim, leaky=True, sigmoid=sigmoid, return_features=return_features, acts=acts)
+        # if model_type == 'dgcnn':
+        #     self.model_type = 'dgcnn'
+        #     self.encoder = VNN_DGCNN(c_dim=latent_dim) # modified resnet-18
+        # else:
+        #     self.model_type = 'pointnet'
+        #     self.encoder = VNN_ResnetPointnet(c_dim=latent_dim) # modified resnet-18
+
+        # self.decoder = DecoderInner(dim=3, z_dim=latent_dim, c_dim=0, hidden_size=latent_dim, leaky=True, sigmoid=sigmoid, return_features=return_features, acts=acts)
 
 
     def forward(self, input):
@@ -75,10 +95,29 @@ class ConvolutionalOccupancyNetwork(nn.Module):
 
         if self.return_features:
             out_dict['occ'], out_dict['features'] = self.decoder(query_points, z)
+            # out_dict['occ'] = self.decoder(query_points, z)
+            # out_dict['features'] = None
         else:
             out_dict['occ'] = self.decoder(query_points, z)
 
         return out_dict
+
+    def forward(self, p, inputs, sample=True, **kwargs):
+        ''' Performs a forward pass through the network.
+
+        Args:
+            p (tensor): sampled points
+            inputs (tensor): conditioning input
+            sample (bool): whether to sample for z
+        '''
+        #############
+        if isinstance(p, dict):
+            batch_size = p['p'].size(0)
+        else:
+            batch_size = p.size(0)
+        c = self.encode_inputs(inputs)
+        p_r = self.decode(p, c, **kwargs)
+        return p_r
 
     def extract_latent(self, input):
         """
