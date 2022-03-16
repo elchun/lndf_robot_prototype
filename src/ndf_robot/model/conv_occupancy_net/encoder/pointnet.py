@@ -91,6 +91,9 @@ class LocalPoolPointnet(nn.Module):
         c = c.permute(0, 2, 1)
         fea_grid = scatter_mean(c, index, out=fea_grid) # B x C x reso^3
         fea_grid = fea_grid.reshape(p.size(0), self.c_dim, self.reso_grid, self.reso_grid, self.reso_grid) # sparce matrix (B x 512 x reso x reso)
+        # print('c_dim: ', self.c_dim)
+
+        # print(fea_grid.shape)
 
         if self.unet3d is not None:
             fea_grid = self.unet3d(fea_grid)
@@ -118,6 +121,7 @@ class LocalPoolPointnet(nn.Module):
 
     def forward(self, p):
         batch_size, T, D = p.size()
+        # 16 x 1000 x 3
 
         # acquire the index for each point
         coord = {}

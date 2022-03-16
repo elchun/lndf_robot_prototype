@@ -1,3 +1,8 @@
+"""
+Use select occupancy network to reconstruct mug
+
+For debugging conv occupancy network
+"""
 import os, os.path as osp
 from turtle import shape
 from typing import no_type_check_decorator
@@ -13,10 +18,14 @@ from ndf_robot.utils.plotly_save import plot3d
 
 from ndf_robot.utils import path_util
 import ndf_robot.model.vnn_occupancy_net.vnn_occupancy_net_pointnet_dgcnn as vnn_occupancy_network
-from ndf_robot.eval.ndf_alignment import NDFAlignmentCheck
+import ndf_robot.model.conv_occupancy_net.conv_occupancy_net as conv_occupancy_network
 
 
 def make_cam_frame_scene_dict():
+    """
+    Generate a plotly frame scene dict for 
+    viewing reconstruction
+    """
     cam_frame_scene_dict = {}
     cam_up_vec = [0, 1, 0]
     plotly_camera = {
@@ -66,6 +75,7 @@ def make_cam_frame_scene_dict():
     return cam_frame_scene_dict
 
 def plotly_create_local_frame(transform=None, length=0.03):
+    """???"""
     if transform is None:
         transform = np.eye(4)
 
@@ -131,8 +141,15 @@ if __name__ == '__main__':
 
     ### LOAD OBJECTS ###
     # see the demo object descriptions folder for other object models you can try
-    obj_model = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/28f1e7bc572a633cb9946438ed40eeb9/models/model_normalized.obj')
+    # obj_model = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/28f1e7bc572a633cb9946438ed40eeb9/models/model_normalized.obj')
+    # obj_model = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/1c3fccb84f1eeb97a3d0a41d6c77ec7c/models/model_normalized.obj')
+    obj_model = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/1c9f9e25c654cbca3c71bf3f4dd78475/models/model_normalized.obj')
     model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_demo_mug_weights.pth')  
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/ndf_training_exp_2/checkpoints/model_epoch_0000_iter_000000.pth')  
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_exp/checkpoints/model_epoch_0001_iter_011000.pth')  
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/vnn_occ_exp/checkpoints/model_epoch_0000_iter_001500.pth')  
+
+
 
 
     ### INIT OBJECTS ###
@@ -140,6 +157,8 @@ if __name__ == '__main__':
     scale2 = 0.4
     obj_mesh = trimesh.load(obj_model, process=False)
     obj_mesh.apply_scale(scale1)
+
+
 
     # apply a random initial rotation to the new shape
     if args.random_rot:
@@ -163,13 +182,11 @@ if __name__ == '__main__':
     else:
         device = torch.device('cpu')
 
-    viz_path = 'visualization'
-    if not osp.exists(viz_path):
-        os.makedirs(viz_path)
-
 
     model = vnn_occupancy_network.VNNOccNet(latent_dim=256, model_type='pointnet', return_features=True, sigmoid=True).cuda()
+    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=256, model_type='pointnet', return_features=False, sigmoid=True).cuda()
     # model = vnn_occupancy_network.VNNOccNet(latent_dim=256, model_type='pointnet', return_features=False, sigmoid=True).cuda()
+    # model = torch.nn.DataParallel(model, device_ids=[0, 1, 2, 3, 4, 5])
     model.load_state_dict(torch.load(model_path))
 
 
@@ -208,7 +225,12 @@ if __name__ == '__main__':
     out_pts = eval_pts[out_inds]
 
 
+    ### SAVE VISUALIZATION ###
     cam_frame_scene_dict = make_cam_frame_scene_dict()
+
+    viz_path = 'visualization'
+    if not osp.exists(viz_path):
+        os.makedirs(viz_path)
 
     viz_fn = osp.join(viz_path, "recon_test.html")
     print(f'Saving visualization to: {viz_fn}')

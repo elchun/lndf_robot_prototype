@@ -81,6 +81,19 @@ class VNNOccNet(nn.Module):
 
 
     def forward(self, input):
+        """
+        Forward method
+
+        Args:
+            input (dict): Container for inputs
+                point_cloud: Input point cloud
+                coords: Input query points
+
+        Returns:
+            dict: Dict outputs 
+                occ: predicted occupancy
+                features: latent features
+        """
         out_dict = {}
 
         enc_in = input['point_cloud'] * self.scaling 

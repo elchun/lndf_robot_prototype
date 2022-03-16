@@ -1,5 +1,6 @@
 descriptions/demo_objects/
 descriptions/objects/
+model_weights/
 eval/*
 !eval/*.py
 !eval/*.sh

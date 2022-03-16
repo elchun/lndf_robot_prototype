@@ -81,12 +81,15 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
 
             for step, (model_input, gt) in enumerate(train_dataloader):
                 model_input = util.dict_to_gpu(model_input)
-                gt = util.dict_to_gpu(gt)
+                gt = util.dict_to_gpu(gt) # gt -> Ground truth
 
                 start_time = time.time()
 
                 model_output = model(model_input)
+                # print('model output: ', model_output['occ'].size())
+                # print('gt: ', gt['occ'].size())
                 losses = loss_fn(model_output, gt)
+                # print(losses['occ'])
                 # losses = loss_fn(model_output, gt, model_input, model)
 
                 train_loss = 0.
@@ -109,6 +112,8 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
                 for optim in optimizers:
                     optim.zero_grad()
                 train_loss.backward()
+                
+                # print('train losses: ', train_losses)
 
                 if gpus > 1:
                     average_gradients(model)

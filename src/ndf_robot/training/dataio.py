@@ -35,7 +35,7 @@ class JointOccTrainDataset(Dataset):
             if 'bottle' in obj_class:
                 paths.append(bottle_path)
 
-        print('Loading from paths: ', paths)
+        print('---- \n Loading from paths: ', paths, '\n----')
 
         files_total = []
         for path in paths:
@@ -79,6 +79,17 @@ class JointOccTrainDataset(Dataset):
         return len(self.files)
 
     def get_item(self, index):
+        """
+        Args:
+            index (_type_): _description_
+
+        Returns:
+            res = {'point_cloud': point_cloud.float(),
+                   'coords': coord.float(),
+                   'intrinsics': intrinsics.float(),
+                   'cam_poses': np.zeros(1)}  # cam poses not used
+            return res, {'occ': torch.from_numpy(labels).float()}
+        """
         try:
             data = np.load(self.files[index], allow_pickle=True)
             posecam =  data['object_pose_cam_frame']  # legacy naming, used to use pose expressed in camera frame. global reference frame doesn't matter though
@@ -220,4 +231,15 @@ class JointOccTrainDataset(Dataset):
            return self.get_item(index=random.randint(0, self.__len__() - 1))
 
     def __getitem__(self, index):
+        """
+        Args:
+            index (int): int index of data to get 
+
+        Returns:
+            res = {'point_cloud': point_cloud.float(),
+                   'coords': coord.float(),
+                   'intrinsics': intrinsics.float(),
+                   'cam_poses': np.zeros(1)}  # cam poses not used
+            return res, {'occ': torch.from_numpy(labels).float()}
+        """
         return self.get_item(index)

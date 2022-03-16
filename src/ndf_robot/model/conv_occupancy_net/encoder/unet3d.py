@@ -232,6 +232,7 @@ class Encoder(nn.Module):
                                          num_groups=num_groups)
 
     def forward(self, x):
+        # print('x: ', x.size())
         if self.pooling is not None:
             x = self.pooling(x)
         x = self.basic_module(x)
@@ -449,7 +450,10 @@ class Abstract3DUNet(nn.Module):
     def forward(self, x):
         # encoder part
         encoders_features = []
+        # print(self.encoders)
         for encoder in self.encoders:
+            # print('x: ', x)
+            # print('x size: ', x.size())
             x = encoder(x)
             # reverse the encoder outputs to be aligned with the decoder
             encoders_features.insert(0, x)

@@ -1,4 +1,5 @@
 import torch
+from torch.nn import functional as F
 
 
 def occupancy(model_outputs, ground_truth, val=False):
@@ -15,7 +16,13 @@ def occupancy_net(model_outputs, ground_truth, val=False):
     label = ground_truth['occ'].squeeze()
     label = (label + 1) / 2.
 
-    loss_dict['occ'] = -1 * (label * torch.log(model_outputs['occ'] + 1e-5) + (1 - label) * torch.log(1 - model_outputs['occ'] + 1e-5)).mean()
+    # print('model outputs: ', model_outputs)
+    # loss_dict['occ'] = -1 * (label * torch.log(model_outputs['occ'] + 1e-5) + (1 - label) * torch.log(1 - model_outputs['occ'] + 1e-5)).mean()
+    # print(-1 * (label * torch.log(model_outputs['occ'] + 1e-5) + (1 - label) * torch.log(1 - model_outputs['occ'] + 1e-5)))
+
+    loss = F.binary_cross_entropy_with_logits(model_outputs['occ'], label)
+    # print(loss)
+    loss_dict['occ'] = loss
     return loss_dict
 
 

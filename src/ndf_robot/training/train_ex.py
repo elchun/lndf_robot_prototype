@@ -1,3 +1,6 @@
+'''
+Forgot what this file does but don't think its important
+'''
 import sys
 import os, os.path as osp
 import configargparse
@@ -44,14 +47,22 @@ p.add_argument('--checkpoint_path', default=None, help='Checkpoint to trained mo
 p.add_argument('--dgcnn', action='store_true', help='If you want to use a DGCNN encoder instead of pointnet (requires more GPU memory)')
 opt = p.parse_args()
 
+
+
+# res = {'point_cloud': point_cloud.float(),
+        # 'coords': coord.float(),
+        # 'intrinsics': intrinsics.float(),
+        # 'cam_poses': np.zeros(1)}  # cam poses not used
+# return res, {'occ': torch.from_numpy(labels).float()}
 train_dataset = dataio.JointOccTrainDataset(128, depth_aug=opt.depth_aug, multiview_aug=opt.multiview_aug, obj_class=opt.obj_class)
 val_dataset = dataio.JointOccTrainDataset(128, phase='val', depth_aug=opt.depth_aug, multiview_aug=opt.multiview_aug, obj_class=opt.obj_class)
-
 
 train_dataloader = DataLoader(train_dataset, batch_size=opt.batch_size, shuffle=True,
                               drop_last=True, num_workers=6)
 val_dataloader = DataLoader(val_dataset, batch_size=opt.batch_size, shuffle=True,
                             drop_last=True, num_workers=4)
+
+print("Batch size: ", opt.batch_size)
 
 model = vnn_occupancy_network.VNNOccNet(latent_dim=256).cuda()
 
@@ -70,8 +81,8 @@ summary_fn = summaries.occupancy_net
 root_path = os.path.join(opt.logging_root, opt.experiment_name)
 loss_fn = val_loss_fn = losses.occupancy_net
 
-# training.train(model=model_parallel, train_dataloader=train_dataloader, val_dataloader=val_dataloader, epochs=opt.num_epochs,
-#                lr=opt.lr, steps_til_summary=opt.steps_til_summary, epochs_til_checkpoint=opt.epochs_til_ckpt,
-#                model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt, summary_fn=summary_fn,
-#                clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True)
+training.train(model=model_parallel, train_dataloader=train_dataloader, val_dataloader=val_dataloader, epochs=opt.num_epochs,
+               lr=opt.lr, steps_til_summary=opt.steps_til_summary, epochs_til_checkpoint=opt.epochs_til_ckpt,
+               model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt, summary_fn=summary_fn,
+               clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True)
 
