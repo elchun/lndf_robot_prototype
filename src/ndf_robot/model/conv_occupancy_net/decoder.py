@@ -9,6 +9,8 @@ class LocalDecoder(nn.Module):
     ''' Decoder.
         Instead of conditioning on global features, on plane/volume local features.
 
+        This is the only one that works with NDF right now
+
     Args:
         dim (int): input dimension
         c_dim (int): dimension of latent conditioned code c
@@ -20,7 +22,9 @@ class LocalDecoder(nn.Module):
     '''
 
     def __init__(self, dim=3, c_dim=128,
-                 hidden_size=256, n_blocks=5, leaky=False, sample_mode='bilinear', padding=0.1):
+                 hidden_size=256, n_blocks=5, 
+                 leaky=False, sample_mode='bilinear', 
+                 padding=0.1, return_features=False):
         super().__init__()
         self.c_dim = c_dim
         self.n_blocks = n_blocks

@@ -29,7 +29,7 @@ class ConvolutionalOccupancyNetwork(nn.Module):
     Convolutional Occupancy Network Class
 
     Args:
-        latent_dim (int): dim of resnet block?
+        latent_dim (int): Dimension of latent encoding of shape 
         encoder_type (str): type of encoder network to use
         sigmoid (boolean): use sigmoid in decoder
         return_features (boolean): True to return features in decoder
@@ -37,7 +37,7 @@ class ConvolutionalOccupancyNetwork(nn.Module):
         scaling (float): How much to scale input by
     """
     def __init__(self,
-                 latent_dim,
+                 latent_dim=32,
                  encoder_type='pointnet_local_pool',
                  decoder_type='simple_local',
                  sigmoid=True,
@@ -54,17 +54,19 @@ class ConvolutionalOccupancyNetwork(nn.Module):
         self.scaling = scaling  # scaling up the point cloud/query points to be larger helps
         self.return_features = return_features
 
-        c_dim = 32
+        # c_dim = 32
+        # c_dim = 64 
 
         unet3d_kwargs = {
-            'in_channels': 32,
-            'out_channels': 32,
+            # 'in_channels': 32,
+            'in_channels': latent_dim, # Should be the same as latent_dim 
+            'out_channels': latent_dim, # Should be the same as 'in_channels'
             'num_levels': 3,
-            'f_maps': 32,
+            'f_maps': 32, # UNet feature maps, doesn't affect anything else
         }
 
         encoder_kwargs = {
-            'hidden_dim': 32,
+            'hidden_dim': 32, # Hidden dim of encoder network.  Doesn't affect anything else
             'plane_type': 'grid',
             'grid_resolution': 32,
             'unet3d': True,
@@ -73,7 +75,8 @@ class ConvolutionalOccupancyNetwork(nn.Module):
 
         decoder_kwargs = {
             'sample_mode': 'bilinear', # bilinear / nearest
-            'hidden_size': 32,
+            # 'hidden_size': 32,
+            'hidden_size': 64, # Hidden dim of decoder network. Doesn't affect anything else
         }
 
         fea_type = encoder_kwargs['plane_type']
@@ -89,14 +92,14 @@ class ConvolutionalOccupancyNetwork(nn.Module):
         #   'pointnet_plus_plus'
         if encoder_type in encoder_dict:
             # self.encoder = encoder_dict[encoder_type](c_dim=latent_dim)
-            self.encoder = pointnet.LocalPoolPointnet(dim=3, c_dim=c_dim, **encoder_kwargs)
+            self.encoder = pointnet.LocalPoolPointnet(dim=3, c_dim=latent_dim, **encoder_kwargs)
             # self.encoder = pointnet.PatchLocalPoolPointnet(dim=3, c_dim=latent_dim, **encoder_kwargs)
         else: raise ValueError("Invalid Decoder")
         
         if decoder_type in decoder_dict:
             # TODO: Add arguments to decoder
             # self.decoder = decoder_dict[decoder_type](dim=3, z_dim=latent_dim, c_dim=0) 
-            self.decoder = decoder.LocalDecoder(dim=3, c_dim=c_dim, **decoder_kwargs)
+            self.decoder = decoder.LocalDecoder(dim=3, c_dim=latent_dim, **decoder_kwargs)
         else: raise ValueError("Invalid Decoder")
 
     def forward(self, input):

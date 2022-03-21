@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch import nn
 
-# import ndf_robot.model.vnn_occupancy_net.vnn_occupancy_net_pointnet_dgcnn as vnn_occupancy_network
+import ndf_robot.model.vnn_occupancy_net.vnn_occupancy_net_pointnet_dgcnn as vnn_occupancy_network
 import ndf_robot.model.conv_occupancy_net.conv_occupancy_net as conv_occupancy_network
 from ndf_robot.training import summaries, losses, training, dataio, config
 from ndf_robot.utils import path_util
@@ -43,6 +43,7 @@ p.add_argument('--multiview_aug', action='store_true', help='multiview_augmentat
 
 p.add_argument('--checkpoint_path', default=None, help='Checkpoint to trained model.')
 p.add_argument('--dgcnn', action='store_true', help='If you want to use a DGCNN encoder instead of pointnet (requires more GPU memory)')
+# p.add_argument('--conv', action='store_true', help='If you want to train convolutional occ instead of non-convolutional')
 opt = p.parse_args()
 
 train_dataset = dataio.JointOccTrainDataset(128, depth_aug=opt.depth_aug, multiview_aug=opt.multiview_aug, obj_class=opt.obj_class)
@@ -54,8 +55,8 @@ train_dataloader = DataLoader(train_dataset, batch_size=opt.batch_size, shuffle=
 val_dataloader = DataLoader(val_dataset, batch_size=opt.batch_size, shuffle=True,
                             drop_last=True, num_workers=4)
 
+model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=64).cuda()
 # model = vnn_occupancy_network.VNNOccNet(latent_dim=256).cuda()
-model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=256).cuda()
 
 print(model)
 
@@ -73,6 +74,7 @@ root_path = os.path.join(opt.logging_root, opt.experiment_name)
 summary_fn = summaries.occupancy_net
 root_path = os.path.join(opt.logging_root, opt.experiment_name)
 loss_fn = val_loss_fn = losses.occupancy_net
+loss_fn = val_loss_fn = losses.conv_occupancy_net
 
 training.train(model=model_parallel, train_dataloader=train_dataloader, val_dataloader=val_dataloader, epochs=opt.num_epochs,
                lr=opt.lr, steps_til_summary=opt.steps_til_summary, epochs_til_checkpoint=opt.epochs_til_ckpt,

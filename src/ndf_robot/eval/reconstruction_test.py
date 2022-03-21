@@ -143,11 +143,24 @@ if __name__ == '__main__':
     # see the demo object descriptions folder for other object models you can try
     # obj_model = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/28f1e7bc572a633cb9946438ed40eeb9/models/model_normalized.obj')
     # obj_model = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/1c3fccb84f1eeb97a3d0a41d6c77ec7c/models/model_normalized.obj')
-    obj_model = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/1c9f9e25c654cbca3c71bf3f4dd78475/models/model_normalized.obj')
-    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_demo_mug_weights.pth')  
-    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/ndf_training_exp_2/checkpoints/model_epoch_0000_iter_000000.pth')  
-    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_exp/checkpoints/model_epoch_0001_iter_011000.pth')  
-    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/vnn_occ_exp/checkpoints/model_epoch_0000_iter_001500.pth')  
+    # obj_model = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/1c9f9e25c654cbca3c71bf3f4dd78475/models/model_normalized.obj') # May be train data
+
+    # TEST DATA
+    # obj_model = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/d75af64aa166c24eacbe2257d0988c9c/models/model_normalized.obj')
+    # obj_model = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/daee5cf285b8d210eeb8d422649e5f2b/models/model_normalized.obj')
+    # obj_model = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/e984fd7e97c2be347eaeab1f0c9120b7/models/model_normalized.obj')
+    obj_model = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/f7d776fd68b126f23b67070c4a034f08/models/model_normalized.obj')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_demo_mug_weights.pth')  
+
+    # CONV WEIGHTS
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_exp_archive/checkpoints/model_epoch_0010_iter_074720.pth')  # Looks sort of fine
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_exp_archive/checkpoints/model_epoch_0015_iter_112080.pth')  # Looks eh
+    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_exp_archive/checkpoints/model_epoch_0020_iter_149500.pth')  # Looks sort of fine <-- Lets go with 20 for now
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_exp_archive/checkpoints/model_epoch_0040_iter_298880.pth')  # Looks fine
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_exp_archive/checkpoints/model_epoch_0099_iter_747100.pth')  # Looks fine
+
+    # VNN WEIGHTS
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/vnn_occ_exp/checkpoints/model_epoch_0003_iter_026700.pth')  
 
 
 
@@ -183,8 +196,8 @@ if __name__ == '__main__':
         device = torch.device('cpu')
 
 
-    model = vnn_occupancy_network.VNNOccNet(latent_dim=256, model_type='pointnet', return_features=True, sigmoid=True).cuda()
-    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=256, model_type='pointnet', return_features=False, sigmoid=True).cuda()
+    # model = vnn_occupancy_network.VNNOccNet(latent_dim=256, model_type='pointnet', return_features=True, sigmoid=True).cuda()
+    model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=256, model_type='pointnet', return_features=False, sigmoid=True).cuda()
     # model = vnn_occupancy_network.VNNOccNet(latent_dim=256, model_type='pointnet', return_features=False, sigmoid=True).cuda()
     # model = torch.nn.DataParallel(model, device_ids=[0, 1, 2, 3, 4, 5])
     model.load_state_dict(torch.load(model_path))
@@ -210,7 +223,7 @@ if __name__ == '__main__':
     ref_bb = shape_pcd.bounding_box
 
     # Get eval points
-    eval_pts = ref_bb.sample_volume(10000)
+    eval_pts = ref_bb.sample_volume(100000)
 
     shape_mi = {}
     shape_mi['point_cloud'] = ref_pcd 
