@@ -12,6 +12,7 @@ def occupancy(model_outputs, ground_truth, val=False):
 
 
 def occupancy_net(model_outputs, ground_truth, val=False):
+    # Good if using sigmoid on output of decoder
     loss_dict = dict()
     label = ground_truth['occ'].squeeze()
     label = (label + 1) / 2.
@@ -22,6 +23,7 @@ def occupancy_net(model_outputs, ground_truth, val=False):
 
 
 def conv_occupancy_net(model_outputs, ground_truth, val=False):
+    # Good if not using sigmoid on output of decoder
     loss_dict = dict()
     label = ground_truth['occ'].squeeze()
     label = (label + 1) / 2.

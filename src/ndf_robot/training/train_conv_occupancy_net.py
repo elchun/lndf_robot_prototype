@@ -74,7 +74,7 @@ root_path = os.path.join(opt.logging_root, opt.experiment_name)
 summary_fn = summaries.occupancy_net
 root_path = os.path.join(opt.logging_root, opt.experiment_name)
 loss_fn = val_loss_fn = losses.occupancy_net
-loss_fn = val_loss_fn = losses.conv_occupancy_net
+# loss_fn = val_loss_fn = losses.conv_occupancy_net
 
 training.train(model=model_parallel, train_dataloader=train_dataloader, val_dataloader=val_dataloader, epochs=opt.num_epochs,
                lr=opt.lr, steps_til_summary=opt.steps_til_summary, epochs_til_checkpoint=opt.epochs_til_ckpt,

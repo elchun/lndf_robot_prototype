@@ -197,7 +197,8 @@ if __name__ == '__main__':
 
 
     # model = vnn_occupancy_network.VNNOccNet(latent_dim=256, model_type='pointnet', return_features=True, sigmoid=True).cuda()
-    model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=256, model_type='pointnet', return_features=False, sigmoid=True).cuda()
+    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, model_type='pointnet', return_features=False, sigmoid=True).cuda()
+    model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, model_type='pointnet', return_features=True, sigmoid=False).cuda()
     # model = vnn_occupancy_network.VNNOccNet(latent_dim=256, model_type='pointnet', return_features=False, sigmoid=True).cuda()
     # model = torch.nn.DataParallel(model, device_ids=[0, 1, 2, 3, 4, 5])
     model.load_state_dict(torch.load(model_path))

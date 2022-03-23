@@ -33,8 +33,359 @@ from ndf_robot.utils.eval_gen_utils import (
     process_demo_data_rack, process_demo_data_shelf, process_xq_data, process_xq_rs_data, safeRemoveConstraint,
 )
 
+class Evaluate_NDF():
+    def __init__(self, args, global_dict):
+        self.args = args
+        self.global_dict = global_dict
+
+        # Seed
+        torch.manual_seed(args.seed)
+        random.seed(args.seed)
+        np.random.seed(args.seed)
+
+        if args.debug:
+            set_log_level('debug')
+        else:
+            set_log_level('info')
+        
+        self.use_conv = not args.no_conv
+        self.sto_dir_path = Evaluate_NDF.__make_temp_viz_save()
+
+        # Init robot
+        self.robot = Robot('franka', pb_cfg={'gui': args.pybullet_viz}, arm_cfg={'self_collision': False, 'seed': args.seed})
+        self.ik_helper = FrankaIK(gui=False)
+
+        # general experiment + environment setup/scene generation configs
+        self.cfg = self.__get_cfg()
+        
+        # object specific configs
+        self.obj_cfg = self.__get_obj_cfg()
+
+
+        self.grasp_demo_filenames, self.place_demo_filenames = self.__get_demo_fnames()
+        demo_data = self.__load_demos()
+
+        self.sample_grasp_data = demo_data['sample_grasp_data']
+
+        model = self.__init_model()
+        self.place_optimizer, self.grasp_optimizer = self.__set_optimizers(model, demo_data) 
+
+        self.test_object_ids = self.__get_test_object_ids(demo_data['demo_shapenet_ids'], 
+            demo_data['avoid_shapenet_ids'], 
+            demo_data['test_shapenet_ids'],
+        )
+
+        pybullet_ids = {} # TODO: Add all ids here
+        finger_joint_id = 9
+        left_pad_id = 9
+        right_pad_id = 10
+        p.changeDynamics(self.robot.arm.robot_id, left_pad_id, lateralFriction=1.0)
+        p.changeDynamics(self.robot.arm.robot_id, right_pad_id, lateralFriction=1.0)
+
+        x_low, x_high = self.cfg.OBJ_SAMPLE_X_HIGH_LOW
+        y_low, y_high = self.cfg.OBJ_SAMPLE_Y_HIGH_LOW
+        table_z = self.cfg.TABLE_Z
+
+        preplace_horizontal_tf_list = self.cfg.PREPLACE_HORIZONTAL_OFFSET_TF
+        preplace_horizontal_tf = util.list2pose_stamped(self.cfg.PREPLACE_HORIZONTAL_OFFSET_TF)
+        preplace_offset_tf = util.list2pose_stamped(self.cfg.PREPLACE_OFFSET_TF)
+
+        # reset
+        self.robot.arm.reset(force_reset=True)
+
+        self.robot.cam.setup_camera(
+            focus_pt=[0.4, 0.0, table_z],
+            dist=0.9,
+            yaw=45,
+            pitch=-25,
+            roll=0)
+
+        self.cams = MultiCams(self.cfg.CAMERA, self.robot.pb_client, n_cams=self.cfg.N_CAMERAS)
+        cam_info = {}
+        cam_info['pose_world'] = []
+        for cam in self.cams.cams:
+            cam_info['pose_world'].append(util.pose_from_matrix(cam.cam_ext_mat))
+
+        if obj_class == 'mug':
+            rack_link_id = 0
+            shelf_link_id = 1
+        elif obj_class in ['bowl', 'bottle']:
+            rack_link_id = None
+            shelf_link_id = 0
+
+        if self.cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
+            placement_link_id = shelf_link_id
+        else:
+            placement_link_id = rack_link_id 
+
+        # directory paths
+        self.shapenet_obj_dir = global_dict['shapenet_obj_dir']
+        self.obj_class = global_dict['object_class']
+        self.eval_save_dir = global_dict['eval_save_dir']
+
+
+
+    @staticmethod
+    def __make_temp_viz_save():
+        """
+        Make temp dir path with lowest index
+
+        Raises:
+            ValueError: If more than max_dirs are made
+
+        Returns:
+            string: path of save directory
+        """
+        max_n_dirs = 50
+
+        dir_path_template = 'temp/exp_{}'
+        i = 0
+        dir_path = dir_path_template.format(i)
+        while (osp.exists(dir_path)):
+            i += 1
+            if i == max_n_dirs:
+                raise ValueError('Too many dirs created')
+            dir_path = dir_path_template.format(i)
+        os.makedirs(dir_path)
+        return dir_path  
+
+    def __get_cfg(self):
+        cfg = get_eval_cfg_defaults()
+        config_fname = osp.join(path_util.get_ndf_config(), 'eval_cfgs', self.args.config + '.yaml')
+        if osp.exists(config_fname):
+            cfg.merge_from_file(config_fname)
+        else:
+            log_info('Config file %s does not exist, using defaults' % config_fname)
+        cfg.freeze()
+        return cfg
+    
+    def __get_obj_cfg(self):
+        obj_cfg = get_obj_cfg_defaults()
+        obj_config_name = osp.join(path_util.get_ndf_config(), args.object_class + '_obj_cfg.yaml')
+        obj_cfg.merge_from_file(obj_config_name)
+        obj_cfg.freeze()
+        return obj_cfg
+
+    def __init_model(self):
+        # Set model to use
+        if self.use_conv:
+            print('Using conv occupancy network')
+            model = conv_occupancy_network.ConvolutionalOccupancyNetwork(
+                latent_dim=32, 
+                model_type='pointnet', 
+                return_features=True, 
+                sigmoid=False).cuda()
+        else:
+            print('Using non-conv occupancy network')
+            if args.dgcnn:
+                model = vnn_occupancy_network.VNNOccNet(
+                    latent_dim=256, 
+                    model_type='dgcnn',
+                    return_features=True, 
+                    sigmoid=True,
+                    acts=args.acts).cuda()
+            else:
+                model = vnn_occupancy_network.VNNOccNet(
+                    latent_dim=256, 
+                    model_type='pointnet',
+                    return_features=True, 
+                    sigmoid=True).cuda()
+
+        if not args.random:
+            if self.use_conv:
+                checkpoint_path = global_dict['conv_checkpoint_path']
+            else:
+                checkpoint_path = global_dict['vnn_checkpoint_path']
+            model.load_state_dict(torch.load(checkpoint_path))
+        else:
+            pass
+
+        return model
+
+    def __get_demo_fnames(self):
+        """
+        Load demo fnames using self.args and self.global_dict
+
+        Returns:
+            tuple(list, list):
+                grasp_demo_filenames: list of fnames of grasp demos
+                place_demo_filenames: list of fnames of place demos 
+        """
+        # get filenames of all the demo files
+        demo_filenames = os.listdir(self.global_dict['demo_load_dir'])
+        assert len(demo_filenames), 'No demonstrations found in path: %s!' % self.global_dict['demo_load_dir']
+
+        # strip the filenames to properly pair up each demo file
+        grasp_demo_filenames_orig = [osp.join(self.global_dict['demo_load_dir'], fn) 
+            for fn in demo_filenames if 'grasp_demo' in fn]  # use the grasp names as a reference
+
+        place_demo_filenames = []
+        grasp_demo_filenames = []
+        for i, fname in enumerate(grasp_demo_filenames_orig):
+            shapenet_id_npz = fname.split('/')[-1].split('grasp_demo_')[-1]
+            place_fname = osp.join('/'.join(fname.split('/')[:-1]), 'place_demo_' + shapenet_id_npz)
+            if osp.exists(place_fname):
+                grasp_demo_filenames.append(fname)
+                place_demo_filenames.append(place_fname)
+            else:
+                log_warn('Could not find corresponding placement demo: %s, skipping ' % place_fname)
+
+        if self.args.n_demos > 0:
+            gp_fns = list(zip(grasp_demo_filenames, place_demo_filenames))
+            gp_fns = random.sample(gp_fns, self.args.n_demos)
+            grasp_demo_filenames, place_demo_filenames = zip(*gp_fns)
+            grasp_demo_filenames, place_demo_filenames = list(grasp_demo_filenames), list(place_demo_filenames)
+            log_warn('USING ONLY %d DEMONSTRATIONS' % len(grasp_demo_filenames))
+            print(grasp_demo_filenames, place_demo_filenames)
+        else:
+            log_warn('USING ALL %d DEMONSTRATIONS' % len(grasp_demo_filenames))
+
+        grasp_demo_filenames = grasp_demo_filenames[:self.args.num_demo]
+        place_demo_filenames = place_demo_filenames[:self.args.num_demo]
+
+        return grasp_demo_filenames, place_demo_filenames
+
+    def __load_demos(self):
+        if self.cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
+            load_shelf = True
+        else:
+            load_shelf = False
+        
+        grasp_data_list = []
+        place_data_list = []
+        demo_rel_mat_list = []
+
+        demo_target_info_list = []
+        demo_rack_target_info_list = []
+
+        demo_shapenet_ids = []
+
+        test_shapenet_ids = np.loadtxt(osp.join(path_util.get_ndf_share(), '%s_test_object_split.txt' % obj_class), dtype=str).tolist()
+        if obj_class == 'mug':
+            avoid_shapenet_ids = bad_shapenet_mug_ids_list + self.cfg.MUG.AVOID_SHAPENET_IDS
+        elif obj_class == 'bowl':
+            avoid_shapenet_ids = bad_shapenet_bowls_ids_list + self.cfg.BOWL.AVOID_SHAPENET_IDS
+        elif obj_class == 'bottle':
+            avoid_shapenet_ids = bad_shapenet_bottles_ids_list + self.cfg.BOTTLE.AVOID_SHAPENET_IDS 
+        else:
+            test_shapenet_ids = []
+
+        grasp_demo_filenames, place_demo_filenames = self.__get_demo_fnames()
+        for i, fname in enumerate(grasp_demo_filenames):
+            print('Loading demo from fname: %s' % fname)
+            grasp_demo_fn = grasp_demo_filenames[i]
+            place_demo_fn = place_demo_filenames[i]
+            grasp_data = np.load(grasp_demo_fn, allow_pickle=True)
+            place_data = np.load(place_demo_fn, allow_pickle=True)
+
+            grasp_data_list.append(grasp_data)
+            place_data_list.append(place_data)
+
+            start_ee_pose = grasp_data['ee_pose_world'].tolist()
+            end_ee_pose = place_data['ee_pose_world'].tolist()
+            place_rel_mat = util.get_transform(
+                pose_frame_target=util.list2pose_stamped(end_ee_pose),
+                pose_frame_source=util.list2pose_stamped(start_ee_pose)
+            )
+            place_rel_mat = util.matrix_from_pose(place_rel_mat)
+            demo_rel_mat_list.append(place_rel_mat)
+
+            if i == 0:
+                optimizer_gripper_pts, rack_optimizer_gripper_pts, shelf_optimizer_gripper_pts = process_xq_data(grasp_data, place_data, shelf=load_shelf)
+                optimizer_gripper_pts_rs, rack_optimizer_gripper_pts_rs, shelf_optimizer_gripper_pts_rs = process_xq_rs_data(grasp_data, place_data, shelf=load_shelf)
+
+                if self.cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
+                    print('Using shelf points')
+                    place_optimizer_pts = shelf_optimizer_gripper_pts
+                    place_optimizer_pts_rs = shelf_optimizer_gripper_pts_rs
+                else:
+                    print('Using rack points')
+                    place_optimizer_pts = rack_optimizer_gripper_pts
+                    place_optimizer_pts_rs = rack_optimizer_gripper_pts_rs
+
+            if self.cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
+                target_info, rack_target_info, shapenet_id = process_demo_data_shelf(grasp_data, place_data, cfg=None)
+            else:
+                target_info, rack_target_info, shapenet_id = process_demo_data_rack(grasp_data, place_data, cfg=None)
+
+            if self.cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
+                rack_target_info['demo_query_pts'] = place_optimizer_pts
+            demo_target_info_list.append(target_info)
+            demo_rack_target_info_list.append(rack_target_info)
+            demo_shapenet_ids.append(shapenet_id)
+
+            return {
+                'place_optimizer_pts': place_optimizer_pts,
+                'place_optimizer_pts_rs': place_optimizer_pts_rs,
+                'optimizer_gripper_pts': optimizer_gripper_pts,
+                'optimizer_gripper_pts_rs': optimizer_gripper_pts_rs,
+                'demo_target_info_list': demo_target_info_list,
+                'demo_rack_target_info_list': demo_rack_target_info_list,
+                'demo_shapenet_ids': demo_shapenet_ids,
+                'test_shapenet_ids': test_shapenet_ids,
+                'avoid_shapenet_ids': avoid_shapenet_ids,
+                'sample_grasp_data': grasp_data,
+            }
+    
+    def __set_optimizers(self, model, demo_data):
+
+        place_optimizer_pts = demo_data['place_optimizer_pts']
+        place_optimizer_pts_rs = demo_data['place_optimizer_pts_rs']
+        optimizer_gripper_pts = demo_data['optimizer_gripper_pts']
+        optimizer_gripper_pts_rs = demo_data['optimizer_gripper_pts_rs']
+        demo_target_info_list = demo_data['demo_target_info_list']
+        demo_rack_target_info_list = demo_data['demo_rack_target_info_list']
+
+        place_optimizer = OccNetOptimizer(
+            model,
+            query_pts=place_optimizer_pts,
+            query_pts_real_shape=place_optimizer_pts_rs,
+            opt_iterations=args.opt_iterations)
+
+        grasp_optimizer = OccNetOptimizer(
+            model,
+            query_pts=optimizer_gripper_pts,
+            query_pts_real_shape=optimizer_gripper_pts_rs,
+            opt_iterations=args.opt_iterations)
+        grasp_optimizer.set_demo_info(demo_target_info_list)
+        place_optimizer.set_demo_info(demo_rack_target_info_list)
+
+        return place_optimizer, grasp_optimizer
+
+    def __get_test_object_ids(self, demo_shapenet_ids, avoid_shapenet_ids, test_shapenet_ids):
+        test_object_ids = []
+        shapenet_id_list = [fn.split('_')[0] for fn in os.listdir(shapenet_obj_dir)] if obj_class == 'mug' else os.listdir(shapenet_obj_dir)
+        for s_id in shapenet_id_list:
+            valid = s_id not in demo_shapenet_ids and s_id not in avoid_shapenet_ids
+            if args.only_test_ids:
+                valid = valid and (s_id in test_shapenet_ids)
+            
+            if valid:
+                test_object_ids.append(s_id)
+
+        if self.args.single_instance:
+            test_object_ids = [demo_shapenet_ids[0]]
+        
+        return test_object_ids
+
+    @staticmethod
+    def hide_link(obj_id, link_id): 
+        if link_id is not None:
+            p.changeVisualShape(obj_id, link_id, rgbaColor=[0, 0, 0, 0])
+    
+    @staticmethod
+    def show_link(obj_id, link_id, color):
+        if link_id is not None:
+            p.changeVisualShape(obj_id, link_id, rgbaColor=color)
+
 
 def main(args, global_dict):
+
+    ndf_evaluator = Evaluate_NDF(args, global_dict)
+
+    robot = ndf_evaluator.robot
+    ik_helper = ndf_evaluator.ik_helper
+
     if args.debug:
         set_log_level('debug')
     else:
@@ -42,36 +393,45 @@ def main(args, global_dict):
     
     use_conv = not args.no_conv
 
-    robot = Robot('franka', pb_cfg={'gui': args.pybullet_viz}, arm_cfg={'self_collision': False, 'seed': args.seed})
-    ik_helper = FrankaIK(gui=False)
-    torch.manual_seed(args.seed)
-    random.seed(args.seed)
-    np.random.seed(args.seed)
+
+    ### Set up temporary storage dirs ###
+    # sto_dir_path = make_temp_viz_save()
+
+    # ### Init robot ###
+    # robot = Robot('franka', pb_cfg={'gui': args.pybullet_viz}, arm_cfg={'self_collision': False, 'seed': args.seed})
+    # ik_helper = FrankaIK(gui=False)
+    # torch.manual_seed(args.seed)
+    # random.seed(args.seed)
+    # np.random.seed(args.seed)
 
     # general experiment + environment setup/scene generation configs
-    cfg = get_eval_cfg_defaults()
-    config_fname = osp.join(path_util.get_ndf_config(), 'eval_cfgs', args.config + '.yaml')
-    if osp.exists(config_fname):
-        cfg.merge_from_file(config_fname)
-    else:
-        log_info('Config file %s does not exist, using defaults' % config_fname)
-    cfg.freeze()
+    # cfg = get_eval_cfg_defaults()
+    # config_fname = osp.join(path_util.get_ndf_config(), 'eval_cfgs', args.config + '.yaml')
+    # if osp.exists(config_fname):
+    #     cfg.merge_from_file(config_fname)
+    # else:
+    #     log_info('Config file %s does not exist, using defaults' % config_fname)
+    # cfg.freeze()
+    cfg = ndf_evaluator.cfg
+    obj_cfg = ndf_evaluator.obj_cfg
 
-    # object specific configs
-    obj_cfg = get_obj_cfg_defaults()
-    obj_config_name = osp.join(path_util.get_ndf_config(), args.object_class + '_obj_cfg.yaml')
-    obj_cfg.merge_from_file(obj_config_name)
-    obj_cfg.freeze()
+    # # object specific configs
+    # obj_cfg = get_obj_cfg_defaults()
+    # obj_config_name = osp.join(path_util.get_ndf_config(), args.object_class + '_obj_cfg.yaml')
+    # obj_cfg.merge_from_file(obj_config_name)
+    # obj_cfg.freeze()
 
     shapenet_obj_dir = global_dict['shapenet_obj_dir']
     obj_class = global_dict['object_class']
     eval_save_dir = global_dict['eval_save_dir']
 
-    eval_grasp_imgs_dir = osp.join(eval_save_dir, 'grasp_imgs')
-    eval_teleport_imgs_dir = osp.join(eval_save_dir, 'teleport_imgs')
-    util.safe_makedirs(eval_grasp_imgs_dir)
-    util.safe_makedirs(eval_teleport_imgs_dir)
+    eval_grasp_imgs_dir = osp.join(eval_save_dir, 'grasp_imgs') # skipped
+    eval_teleport_imgs_dir = osp.join(eval_save_dir, 'teleport_imgs') # skipped
+    util.safe_makedirs(eval_grasp_imgs_dir) # skipped
+    util.safe_makedirs(eval_teleport_imgs_dir) # skipped
 
+    ### 
+    #
     test_shapenet_ids = np.loadtxt(osp.join(path_util.get_ndf_share(), '%s_test_object_split.txt' % obj_class), dtype=str).tolist()
     if obj_class == 'mug':
         avoid_shapenet_ids = bad_shapenet_mug_ids_list + cfg.MUG.AVOID_SHAPENET_IDS
@@ -96,60 +456,62 @@ def main(args, global_dict):
     preplace_horizontal_tf = util.list2pose_stamped(cfg.PREPLACE_HORIZONTAL_OFFSET_TF)
     preplace_offset_tf = util.list2pose_stamped(cfg.PREPLACE_OFFSET_TF)
 
-    if use_conv:
-        print('Using conv occupancy network')
-        model = conv_occupancy_network.ConvolutionalOccupancyNetwork(
-            latent_dim=32, 
-            model_type='pointnet', 
-            return_features=True, 
-            sigmoid=False).cuda()
-    else:
-        print('Using non-conv occupancy network')
-        if args.dgcnn:
-            model = vnn_occupancy_network.VNNOccNet(
-                latent_dim=256, 
-                model_type='dgcnn',
-                return_features=True, 
-                sigmoid=True,
-                acts=args.acts).cuda()
-        else:
-            model = vnn_occupancy_network.VNNOccNet(
-                latent_dim=256, 
-                model_type='pointnet',
-                return_features=True, 
-                sigmoid=True).cuda()
+    #
+    ###
+    # if use_conv:
+    #     print('Using conv occupancy network')
+    #     model = conv_occupancy_network.ConvolutionalOccupancyNetwork(
+    #         latent_dim=32, 
+    #         model_type='pointnet', 
+    #         return_features=True, 
+    #         sigmoid=False).cuda()
+    # else:
+    #     print('Using non-conv occupancy network')
+    #     if args.dgcnn:
+    #         model = vnn_occupancy_network.VNNOccNet(
+    #             latent_dim=256, 
+    #             model_type='dgcnn',
+    #             return_features=True, 
+    #             sigmoid=True,
+    #             acts=args.acts).cuda()
+    #     else:
+    #         model = vnn_occupancy_network.VNNOccNet(
+    #             latent_dim=256, 
+    #             model_type='pointnet',
+    #             return_features=True, 
+    #             sigmoid=True).cuda()
 
-    if not args.random:
-        if use_conv:
-            checkpoint_path = global_dict['conv_checkpoint_path']
-        else:
-            checkpoint_path = global_dict['vnn_checkpoint_path']
-        model.load_state_dict(torch.load(checkpoint_path))
-    else:
-        pass
+    # if not args.random:
+    #     if use_conv:
+    #         checkpoint_path = global_dict['conv_checkpoint_path']
+    #     else:
+    #         checkpoint_path = global_dict['vnn_checkpoint_path']
+    #     model.load_state_dict(torch.load(checkpoint_path))
+    # else:
+    #     pass
 
-    if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
-        load_shelf = True
-    else:
-        load_shelf = False
+    # if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
+    #     load_shelf = True
+    # else:
+    #     load_shelf = False
 
-    # get filenames of all the demo files
-    demo_filenames = os.listdir(global_dict['demo_load_dir'])
-    assert len(demo_filenames), 'No demonstrations found in path: %s!' % global_dict['demo_load_dir']
+    # # get filenames of all the demo files
+    # demo_filenames = os.listdir(global_dict['demo_load_dir'])
+    # assert len(demo_filenames), 'No demonstrations found in path: %s!' % global_dict['demo_load_dir']
 
-    # strip the filenames to properly pair up each demo file
-    grasp_demo_filenames_orig = [osp.join(global_dict['demo_load_dir'], fn) for fn in demo_filenames if 'grasp_demo' in fn]  # use the grasp names as a reference
+    # # strip the filenames to properly pair up each demo file
+    # grasp_demo_filenames_orig = [osp.join(global_dict['demo_load_dir'], fn) for fn in demo_filenames if 'grasp_demo' in fn]  # use the grasp names as a reference
 
-    place_demo_filenames = []
-    grasp_demo_filenames = []
-    for i, fname in enumerate(grasp_demo_filenames_orig):
-        shapenet_id_npz = fname.split('/')[-1].split('grasp_demo_')[-1]
-        place_fname = osp.join('/'.join(fname.split('/')[:-1]), 'place_demo_' + shapenet_id_npz)
-        if osp.exists(place_fname):
-            grasp_demo_filenames.append(fname)
-            place_demo_filenames.append(place_fname)
-        else:
-            log_warn('Could not find corresponding placement demo: %s, skipping ' % place_fname)
+    # place_demo_filenames = []
+    # grasp_demo_filenames = []
+    # for i, fname in enumerate(grasp_demo_filenames_orig):
+    #     shapenet_id_npz = fname.split('/')[-1].split('grasp_demo_')[-1]
+    #     place_fname = osp.join('/'.join(fname.split('/')[:-1]), 'place_demo_' + shapenet_id_npz)
+    #     if osp.exists(place_fname):
+    #         grasp_demo_filenames.append(fname)
+    #         place_demo_filenames.append(place_fname)
+    #     else:
+    #         log_warn('Could not find corresponding placement demo: %s, skipping ' % place_fname)
 
     success_list = []
     place_success_list = []
@@ -159,100 +521,110 @@ def main(args, global_dict):
     demo_shapenet_ids = []
 
     # get info from all demonstrations
-    demo_target_info_list = []
-    demo_rack_target_info_list = []
+    # demo_target_info_list = []
+    # demo_rack_target_info_list = []
 
-    if args.n_demos > 0:
-        gp_fns = list(zip(grasp_demo_filenames, place_demo_filenames))
-        gp_fns = random.sample(gp_fns, args.n_demos)
-        grasp_demo_filenames, place_demo_filenames = zip(*gp_fns)
-        grasp_demo_filenames, place_demo_filenames = list(grasp_demo_filenames), list(place_demo_filenames)
-        log_warn('USING ONLY %d DEMONSTRATIONS' % len(grasp_demo_filenames))
-        print(grasp_demo_filenames, place_demo_filenames)
-    else:
-        log_warn('USING ALL %d DEMONSTRATIONS' % len(grasp_demo_filenames))
+    # if args.n_demos > 0:
+    #     gp_fns = list(zip(grasp_demo_filenames, place_demo_filenames))
+    #     gp_fns = random.sample(gp_fns, args.n_demos)
+    #     grasp_demo_filenames, place_demo_filenames = zip(*gp_fns)
+    #     grasp_demo_filenames, place_demo_filenames = list(grasp_demo_filenames), list(place_demo_filenames)
+    #     log_warn('USING ONLY %d DEMONSTRATIONS' % len(grasp_demo_filenames))
+    #     print(grasp_demo_filenames, place_demo_filenames)
+    # else:
+    #     log_warn('USING ALL %d DEMONSTRATIONS' % len(grasp_demo_filenames))
 
-    grasp_demo_filenames = grasp_demo_filenames[:args.num_demo]
-    place_demo_filenames = place_demo_filenames[:args.num_demo]
+    # grasp_demo_filenames = grasp_demo_filenames[:args.num_demo]
+    # place_demo_filenames = place_demo_filenames[:args.num_demo]
+
+    # grasp_demo_filenames = ndf_evaluator.grasp_demo_filenames
+    # place_demo_filenames = ndf_evaluator.place_demo_filenames
 
 
-    max_bb_volume = 0
-    place_xq_demo_idx = 0
-    grasp_data_list = []
-    place_data_list = []
-    demo_rel_mat_list = []
+    # max_bb_volume = 0
+    # place_xq_demo_idx = 0
+    # grasp_data_list = []
+    # place_data_list = []
+    # demo_rel_mat_list = []
 
-    # load all the demo data and look at objects to help decide on query points
-    for i, fname in enumerate(grasp_demo_filenames):
-        print('Loading demo from fname: %s' % fname)
-        grasp_demo_fn = grasp_demo_filenames[i]
-        place_demo_fn = place_demo_filenames[i]
-        grasp_data = np.load(grasp_demo_fn, allow_pickle=True)
-        place_data = np.load(place_demo_fn, allow_pickle=True)
+    # # load all the demo data and look at objects to help decide on query points
+    # for i, fname in enumerate(grasp_demo_filenames):
+    #     print('Loading demo from fname: %s' % fname)
+    #     grasp_demo_fn = grasp_demo_filenames[i]
+    #     place_demo_fn = place_demo_filenames[i]
+    #     grasp_data = np.load(grasp_demo_fn, allow_pickle=True)
+    #     place_data = np.load(place_demo_fn, allow_pickle=True)
 
-        grasp_data_list.append(grasp_data)
-        place_data_list.append(place_data)
+    #     grasp_data_list.append(grasp_data)
+    #     place_data_list.append(place_data)
 
-        start_ee_pose = grasp_data['ee_pose_world'].tolist()
-        end_ee_pose = place_data['ee_pose_world'].tolist()
-        place_rel_mat = util.get_transform(
-            pose_frame_target=util.list2pose_stamped(end_ee_pose),
-            pose_frame_source=util.list2pose_stamped(start_ee_pose)
-        )
-        place_rel_mat = util.matrix_from_pose(place_rel_mat)
-        demo_rel_mat_list.append(place_rel_mat)
+    #     start_ee_pose = grasp_data['ee_pose_world'].tolist()
+    #     end_ee_pose = place_data['ee_pose_world'].tolist()
+    #     place_rel_mat = util.get_transform(
+    #         pose_frame_target=util.list2pose_stamped(end_ee_pose),
+    #         pose_frame_source=util.list2pose_stamped(start_ee_pose)
+    #     )
+    #     place_rel_mat = util.matrix_from_pose(place_rel_mat)
+    #     demo_rel_mat_list.append(place_rel_mat)
 
-        if i == 0:
-            optimizer_gripper_pts, rack_optimizer_gripper_pts, shelf_optimizer_gripper_pts = process_xq_data(grasp_data, place_data, shelf=load_shelf)
-            optimizer_gripper_pts_rs, rack_optimizer_gripper_pts_rs, shelf_optimizer_gripper_pts_rs = process_xq_rs_data(grasp_data, place_data, shelf=load_shelf)
+    #     if i == 0:
+    #         optimizer_gripper_pts, rack_optimizer_gripper_pts, shelf_optimizer_gripper_pts = process_xq_data(grasp_data, place_data, shelf=load_shelf)
+    #         optimizer_gripper_pts_rs, rack_optimizer_gripper_pts_rs, shelf_optimizer_gripper_pts_rs = process_xq_rs_data(grasp_data, place_data, shelf=load_shelf)
 
-            if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
-                print('Using shelf points')
-                place_optimizer_pts = shelf_optimizer_gripper_pts
-                place_optimizer_pts_rs = shelf_optimizer_gripper_pts_rs
-            else:
-                print('Using rack points')
-                place_optimizer_pts = rack_optimizer_gripper_pts
-                place_optimizer_pts_rs = rack_optimizer_gripper_pts_rs
+    #         if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
+    #             print('Using shelf points')
+    #             place_optimizer_pts = shelf_optimizer_gripper_pts
+    #             place_optimizer_pts_rs = shelf_optimizer_gripper_pts_rs
+    #         else:
+    #             print('Using rack points')
+    #             place_optimizer_pts = rack_optimizer_gripper_pts
+    #             place_optimizer_pts_rs = rack_optimizer_gripper_pts_rs
 
-        if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
-            target_info, rack_target_info, shapenet_id = process_demo_data_shelf(grasp_data, place_data, cfg=None)
-        else:
-            target_info, rack_target_info, shapenet_id = process_demo_data_rack(grasp_data, place_data, cfg=None)
+    #     if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
+    #         target_info, rack_target_info, shapenet_id = process_demo_data_shelf(grasp_data, place_data, cfg=None)
+    #     else:
+    #         target_info, rack_target_info, shapenet_id = process_demo_data_rack(grasp_data, place_data, cfg=None)
 
-        if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
-            rack_target_info['demo_query_pts'] = place_optimizer_pts
-        demo_target_info_list.append(target_info)
-        demo_rack_target_info_list.append(rack_target_info)
-        demo_shapenet_ids.append(shapenet_id)
+    #     if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
+    #         rack_target_info['demo_query_pts'] = place_optimizer_pts
+    #     demo_target_info_list.append(target_info)
+    #     demo_rack_target_info_list.append(rack_target_info)
+    #     demo_shapenet_ids.append(shapenet_id)
 
-    place_optimizer = OccNetOptimizer(
-        model,
-        query_pts=place_optimizer_pts,
-        query_pts_real_shape=place_optimizer_pts_rs,
-        opt_iterations=args.opt_iterations)
+    # place_optimizer = OccNetOptimizer(
+    #     model,
+    #     query_pts=place_optimizer_pts,
+    #     query_pts_real_shape=place_optimizer_pts_rs,
+    #     opt_iterations=args.opt_iterations)
 
-    grasp_optimizer = OccNetOptimizer(
-        model,
-        query_pts=optimizer_gripper_pts,
-        query_pts_real_shape=optimizer_gripper_pts_rs,
-        opt_iterations=args.opt_iterations)
-    grasp_optimizer.set_demo_info(demo_target_info_list)
-    place_optimizer.set_demo_info(demo_rack_target_info_list)
+    # grasp_optimizer = OccNetOptimizer(
+    #     model,
+    #     query_pts=optimizer_gripper_pts,
+    #     query_pts_real_shape=optimizer_gripper_pts_rs,
+    #     opt_iterations=args.opt_iterations)
+    # grasp_optimizer.set_demo_info(demo_target_info_list)
+    # place_optimizer.set_demo_info(demo_rack_target_info_list)
 
-    # get objects that we can use for testing
-    test_object_ids = []
-    shapenet_id_list = [fn.split('_')[0] for fn in os.listdir(shapenet_obj_dir)] if obj_class == 'mug' else os.listdir(shapenet_obj_dir)
-    for s_id in shapenet_id_list:
-        valid = s_id not in demo_shapenet_ids and s_id not in avoid_shapenet_ids
-        if args.only_test_ids:
-            valid = valid and (s_id in test_shapenet_ids)
+    grasp_optimizer = ndf_evaluator.grasp_optimizer
+    place_optimizer = ndf_evaluator.place_optimizer
+
+    grasp_data = ndf_evaluator.sample_grasp_data
+
+    # # get objects that we can use for testing
+    # test_object_ids = []
+    # shapenet_id_list = [fn.split('_')[0] for fn in os.listdir(shapenet_obj_dir)] if obj_class == 'mug' else os.listdir(shapenet_obj_dir)
+    # for s_id in shapenet_id_list:
+    #     valid = s_id not in demo_shapenet_ids and s_id not in avoid_shapenet_ids
+    #     if args.only_test_ids:
+    #         valid = valid and (s_id in test_shapenet_ids)
         
-        if valid:
-            test_object_ids.append(s_id)
+    #     if valid:
+    #         test_object_ids.append(s_id)
 
-    if args.single_instance:
-        test_object_ids = [demo_shapenet_ids[0]]
+    # if args.single_instance:
+    #     test_object_ids = [demo_shapenet_ids[0]]
+
+    test_object_ids = ndf_evaluator.test_object_ids
 
     # reset
     robot.arm.reset(force_reset=True)
@@ -494,35 +866,35 @@ def main(args, global_dict):
         obj_end_pose_list = util.pose_stamped2list(obj_end_pose)
         viz_dict['final_obj_pose'] = obj_end_pose_list
 
-        # # save visualizations for debugging / looking at optimizaiton solutions
-        # if args.save_vis_per_model:
-        #     analysis_dir = args.model_path + '_' + str(obj_shapenet_id)
-        #     eval_iter_dir = osp.join(eval_save_dir, analysis_dir)
-        #     if not osp.exists(eval_iter_dir):
-        #         os.makedirs(eval_iter_dir)
-        #     for f_id, fname in enumerate(grasp_optimizer.viz_files):
-        #         new_viz_fname = fname.split('/')[-1]
-        #         viz_index = int(new_viz_fname.split('.html')[0].split('_')[-1])
-        #         new_fname = osp.join(eval_iter_dir, new_viz_fname)
-        #         if args.save_all_opt_results:
-        #             shutil.copy(fname, new_fname)
-        #         else:
-        #             if viz_index == best_idx:
-        #                 shutil.copy(fname, new_fname)
-        #     for f_id, fname in enumerate(place_optimizer.viz_files):
-        #         new_viz_fname = fname.split('/')[-1]
-        #         viz_index = int(new_viz_fname.split('.html')[0].split('_')[-1])
-        #         new_fname = osp.join(eval_iter_dir, new_viz_fname)
-        #         if args.save_all_opt_results:
-        #             shutil.copy(fname, new_fname)
-        #         else:
-        #             if viz_index == best_rack_idx:
-        #                 shutil.copy(fname, new_fname)
+        # save visualizations for debugging / looking at optimizaiton solutions
+        if args.save_vis_per_model:
+            analysis_dir = args.model_path + '_' + str(obj_shapenet_id)
+            eval_iter_dir = osp.join(eval_save_dir, analysis_dir)
+            if not osp.exists(eval_iter_dir):
+                os.makedirs(eval_iter_dir)
+            for f_id, fname in enumerate(grasp_optimizer.viz_files):
+                new_viz_fname = fname.split('/')[-1]
+                viz_index = int(new_viz_fname.split('.html')[0].split('_')[-1])
+                new_fname = osp.join(eval_iter_dir, new_viz_fname)
+                if args.save_all_opt_results:
+                    shutil.copy(fname, new_fname)
+                else:
+                    if viz_index == best_idx:
+                        shutil.copy(fname, new_fname)
+            for f_id, fname in enumerate(place_optimizer.viz_files):
+                new_viz_fname = fname.split('/')[-1]
+                viz_index = int(new_viz_fname.split('.html')[0].split('_')[-1])
+                new_fname = osp.join(eval_iter_dir, new_viz_fname)
+                if args.save_all_opt_results:
+                    shutil.copy(fname, new_fname)
+                else:
+                    if viz_index == best_rack_idx:
+                        shutil.copy(fname, new_fname)
         
-        # viz_data_list.append(viz_dict)
-        # viz_sample_fname = osp.join(eval_iter_dir, 'overlay_visualization_data.npz')
-        # print('Saving viz to: ', viz_sample_fname)
-        # np.savez(viz_sample_fname, viz_dict=viz_dict, viz_data_list=viz_data_list)
+        viz_data_list.append(viz_dict)
+        viz_sample_fname = osp.join(eval_iter_dir, 'overlay_visualization_data.npz')
+        print('Saving viz to: ', viz_sample_fname)
+        np.savez(viz_sample_fname, viz_dict=viz_dict, viz_data_list=viz_data_list)
 
         # reset object to placement pose to detect placement success
         safeCollisionFilterPair(obj_id, table_id, -1, -1, enableCollision=False)
@@ -752,41 +1124,6 @@ def main(args, global_dict):
             cfg=util.cn2dict(cfg),
             obj_cfg=util.cn2dict(obj_cfg)
         )
-
-        # save visualizations for debugging / looking at optimizaiton solutions
-        if args.save_vis_per_model:
-            eval_iter_viz_dir = osp.join(eval_iter_dir, obj_shapenet_id)
-            if not osp.exists(eval_iter_viz_dir):
-                os.makedirs(eval_iter_viz_dir)
-            for f_id, fname in enumerate(grasp_optimizer.viz_files):
-                new_viz_fname = fname.split('/')[-1]
-                viz_index = int(new_viz_fname.split('.html')[0].split('_')[-1])
-                new_fname = osp.join(eval_iter_viz_dir, new_viz_fname)
-                if args.save_all_opt_results:
-                    shutil.copy(fname, new_fname)
-                else:
-                    if viz_index == best_idx:
-                        shutil.copy(fname, new_fname)
-            for f_id, fname in enumerate(place_optimizer.viz_files):
-                new_viz_fname = fname.split('/')[-1]
-                viz_index = int(new_viz_fname.split('.html')[0].split('_')[-1])
-                new_fname = osp.join(eval_iter_viz_dir, new_viz_fname)
-                if args.save_all_opt_results:
-                    shutil.copy(fname, new_fname)
-                else:
-                    if viz_index == best_rack_idx:
-                        shutil.copy(fname, new_fname)
-        
-        viz_data_list.append(viz_dict)
-        viz_sample_fname = osp.join(eval_iter_viz_dir, 'overlay_visualization_data.npz')
-        print('Saving viz to: ', viz_sample_fname)
-        np.savez(viz_sample_fname, viz_dict=viz_dict, viz_data_list=viz_data_list)
-
-        summary_fname = 'trail_%d_summary.txt' % iteration 
-        with open(summary_fname, 'a') as f:
-            f.write('Grasp success: %s\n' % grasp_success)
-            f.write('Place success: %s\n' % place_success)
-            f.write('Shapenet id: %s\n' % shapenet_id)
 
         robot.pb_client.remove_body(obj_id)
 

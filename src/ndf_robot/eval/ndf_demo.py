@@ -9,6 +9,7 @@ from scipy.spatial.transform import Rotation
 
 from ndf_robot.utils import path_util
 import ndf_robot.model.vnn_occupancy_net.vnn_occupancy_net_pointnet_dgcnn as vnn_occupancy_network
+import ndf_robot.model.conv_occupancy_net.conv_occupancy_net as conv_occupancy_network
 from ndf_robot.eval.ndf_alignment import NDFAlignmentCheck
 
 
@@ -21,6 +22,9 @@ if __name__ == '__main__':
     parser.add_argument('--video', action='store_true')
     args = parser.parse_args()
 
+    use_conv = True
+    # use_conv = False 
+
     seed = args.seed
     np.random.seed(seed)
     random.seed(seed)
@@ -28,8 +32,16 @@ if __name__ == '__main__':
 
     # see the demo object descriptions folder for other object models you can try
     obj_model1 = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/28f1e7bc572a633cb9946438ed40eeb9/models/model_normalized.obj')
-    obj_model2 = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/586e67c53f181dc22adf8abaa25e0215/models/model_normalized.obj')
-    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_demo_mug_weights.pth')  
+    # obj_model2 = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/586e67c53f181dc22adf8abaa25e0215/models/model_normalized.obj')
+    obj_model2 = osp.join(path_util.get_ndf_obj_descriptions(), 'bowl_centered_obj_normalized/1b4d7803a3298f8477bdcb8816a3fac9/models/model_normalized.obj')
+
+    if use_conv:
+        # Conv model path
+        model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_exp_archive/checkpoints/model_epoch_0020_iter_149500.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_exp_archive/checkpoints/model_epoch_0099_iter_747100.pth')
+    else:
+        # VNN model path
+        model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_demo_mug_weights.pth')  
 
     scale1 = 0.25
     scale2 = 0.4
@@ -64,7 +76,12 @@ if __name__ == '__main__':
     # pcd2 = copy.deepcopy(pcd1)  # debug with the exact same point cloud
     # pcd2 = mesh1.sample(5000)  # debug with same shape but different sampled points
 
-    model = vnn_occupancy_network.VNNOccNet(latent_dim=256, model_type='pointnet', return_features=True, sigmoid=True).cuda()
+    if use_conv: 
+        model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, model_type='pointnet', return_features=True, sigmoid=False).cuda()
+    else:
+        model = vnn_occupancy_network.VNNOccNet(latent_dim=256, model_type='pointnet', return_features=True, sigmoid=True).cuda()
+
+
     # model = vnn_occupancy_network.VNNOccNet(latent_dim=256, model_type='pointnet', return_features=False, sigmoid=True).cuda()
     model.load_state_dict(torch.load(model_path))
 

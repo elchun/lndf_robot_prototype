@@ -24,10 +24,14 @@ class LocalDecoder(nn.Module):
     def __init__(self, dim=3, c_dim=128,
                  hidden_size=256, n_blocks=5, 
                  leaky=False, sample_mode='bilinear', 
-                 padding=0.1, return_features=False):
+                 padding=0.1, return_features=False,
+                 sigmoid=True, acts='all'):
         super().__init__()
         self.c_dim = c_dim
         self.n_blocks = n_blocks
+        self.return_features = return_features
+        self.sigmoid = sigmoid
+        self.acts = acts
 
         if c_dim != 0:
             self.fc_c = nn.ModuleList([
@@ -69,6 +73,11 @@ class LocalDecoder(nn.Module):
 
 
     def forward(self, p, c_plane, **kwargs):
+        acts = []
+        acts_inp = []
+        acts_first_rn = []
+        acts_inp_first_rn = []
+
         if self.c_dim != 0:
             plane_type = list(c_plane.keys())
             c = 0
@@ -83,18 +92,40 @@ class LocalDecoder(nn.Module):
             c = c.transpose(1, 2)
 
         p = p.float()
+        acts.append(p)
+        acts_inp.append(p)
+
         net = self.fc_p(p)
+        acts.append(net)
 
         for i in range(self.n_blocks):
             if self.c_dim != 0:
                 net = net + self.fc_c[i](c)
 
             net = self.blocks[i](net)
+            acts.append(net)
+        
+        last_act = net
 
         out = self.fc_out(self.actvn(net))
         out = out.squeeze(-1)
 
-        return out
+        if self.sigmoid:
+            out = F.sigmoid(out)
+
+        if self.return_features:
+            if self.acts == 'all':
+                acts = torch.cat(acts, dim=-1)
+            elif self.acts == 'inp':
+                acts = torch.cat(acts_inp, dim=-1)
+            elif self.acts == 'last':
+                acts = last_act
+            elif self.acts == 'inp_first_rn': # Appears to return an empty list?
+                acts = torch.cat(acts_inp_first_rn, dim=-1)
+            acts = F.normalize(acts, p=2, dim=-1)
+            return out, acts
+        else:
+            return out
 
 
 class PatchLocalDecoder(nn.Module):

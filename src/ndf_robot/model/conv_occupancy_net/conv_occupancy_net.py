@@ -53,6 +53,7 @@ class ConvolutionalOccupancyNetwork(nn.Module):
 
         self.scaling = scaling  # scaling up the point cloud/query points to be larger helps
         self.return_features = return_features
+        self.model_type = 'conv'
 
         # c_dim = 32
         # c_dim = 64 
@@ -76,7 +77,7 @@ class ConvolutionalOccupancyNetwork(nn.Module):
         decoder_kwargs = {
             'sample_mode': 'bilinear', # bilinear / nearest
             # 'hidden_size': 32,
-            'hidden_size': 64, # Hidden dim of decoder network. Doesn't affect anything else
+            'hidden_size': 32, # Hidden dim of decoder network. Doesn't affect anything else
         }
 
         fea_type = encoder_kwargs['plane_type']
@@ -99,7 +100,8 @@ class ConvolutionalOccupancyNetwork(nn.Module):
         if decoder_type in decoder_dict:
             # TODO: Add arguments to decoder
             # self.decoder = decoder_dict[decoder_type](dim=3, z_dim=latent_dim, c_dim=0) 
-            self.decoder = decoder.LocalDecoder(dim=3, c_dim=latent_dim, **decoder_kwargs)
+            self.decoder = decoder.LocalDecoder(dim=3, c_dim=latent_dim, sigmoid=sigmoid, 
+                return_features=return_features, acts=acts, **decoder_kwargs)
         else: raise ValueError("Invalid Decoder")
 
     def forward(self, input):
@@ -135,6 +137,7 @@ class ConvolutionalOccupancyNetwork(nn.Module):
             out_dict['occ'], out_dict['features'] = self.decoder(query_points, z)
             # out_dict['occ'] = self.decoder(query_points, z)
             # out_dict['features'] = None
+            # print('act size: ', out_dict['features'].size())
         else:
             out_dict['occ'] = self.decoder(query_points, z) 
 
@@ -166,11 +169,11 @@ class ConvolutionalOccupancyNetwork(nn.Module):
                 pointcloud to get activations for
 
         Returns:
-            Concatenated activations from network _description_
+            Returns latent code for object and pointcloud
         """
         enc_in = input['point_cloud'] * self.scaling 
         z = self.encoder(enc_in)
-        return z
+        return z['grid']
 
     def forward_latent(self, z, coords):
         """
@@ -183,6 +186,7 @@ class ConvolutionalOccupancyNetwork(nn.Module):
         Returns:
             ???: Concatenated activations of decoder
         """
+        z = {'grid': z}
         out_dict = {}
         coords = coords * self.scaling 
         out_dict['occ'], out_dict['features'] = self.decoder(coords, z)

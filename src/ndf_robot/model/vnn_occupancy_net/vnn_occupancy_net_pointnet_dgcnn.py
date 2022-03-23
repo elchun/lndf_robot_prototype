@@ -303,6 +303,11 @@ class DecoderInner(nn.Module):
         out = self.fc_out(self.actvn(net))
         out = out.squeeze(-1)
 
+        # print('acts: ')
+        # for act in acts:
+        #     print(act.size()) 
+        # print('---')
+
         if self.sigmoid:
             out = F.sigmoid(out)
 
