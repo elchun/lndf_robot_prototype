@@ -42,6 +42,7 @@ def main(args, global_dict):
     
     use_conv = not args.no_conv
 
+
     robot = Robot('franka', pb_cfg={'gui': args.pybullet_viz}, arm_cfg={'self_collision': False, 'seed': args.seed})
     ik_helper = FrankaIK(gui=False)
     torch.manual_seed(args.seed)
@@ -71,6 +72,8 @@ def main(args, global_dict):
     eval_teleport_imgs_dir = osp.join(eval_save_dir, 'teleport_imgs')
     util.safe_makedirs(eval_grasp_imgs_dir)
     util.safe_makedirs(eval_teleport_imgs_dir)
+
+    global_summary_fname = osp.join(eval_save_dir, 'global_summary.txt')
 
     test_shapenet_ids = np.loadtxt(osp.join(path_util.get_ndf_share(), '%s_test_object_split.txt' % obj_class), dtype=str).tolist()
     if obj_class == 'mug':
@@ -758,6 +761,9 @@ def main(args, global_dict):
             eval_iter_viz_dir = osp.join(eval_iter_dir, obj_shapenet_id)
             if not osp.exists(eval_iter_viz_dir):
                 os.makedirs(eval_iter_viz_dir)
+            else:
+                shutil.rmtree(eval_iter_viz_dir)
+                os.makedirs(eval_iter_viz_dir)
             for f_id, fname in enumerate(grasp_optimizer.viz_files):
                 new_viz_fname = fname.split('/')[-1]
                 viz_index = int(new_viz_fname.split('.html')[0].split('_')[-1])
@@ -782,11 +788,19 @@ def main(args, global_dict):
         print('Saving viz to: ', viz_sample_fname)
         np.savez(viz_sample_fname, viz_dict=viz_dict, viz_data_list=viz_data_list)
 
-        summary_fname = 'trail_%d_summary.txt' % iteration 
-        with open(summary_fname, 'a') as f:
+        summary_fname = 'trial_%d_summary.txt' % iteration 
+        summary_fname = osp.join(eval_iter_dir, summary_fname)
+        with open(summary_fname, 'w') as f:
             f.write('Grasp success: %s\n' % grasp_success)
             f.write('Place success: %s\n' % place_success)
-            f.write('Shapenet id: %s\n' % shapenet_id)
+            f.write('Shapenet id: %s\n' % obj_shapenet_id)
+        
+        with open(global_summary_fname, 'a') as f:
+            f.write('Trial number %d\n' % iteration)
+            f.write('Grasp success: %s\n' % grasp_success)
+            f.write('Place success: %s\n' % place_success)
+            f.write('Shapenet id: %s\n' % obj_shapenet_id)
+            f.write('\n')
 
         robot.pb_client.remove_body(obj_id)
 
