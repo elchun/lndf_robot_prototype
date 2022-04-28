@@ -7,19 +7,24 @@ import os.path as osp
 from scipy.spatial.transform import Rotation
 import pickle
 
-from ndf_robot.utils import path_util, geometry
+from ndf_robot.utils import path_util, geometry, torch3d_util, torch_util
 
 
 class JointOccTrainDataset(Dataset):
-    def __init__(self, sidelength, depth_aug=False, multiview_aug=False, phase='train', obj_class='all'):
+    def __init__(self, sidelength, depth_aug=False, multiview_aug=False, 
+        phase='train', obj_class='all'):
 
         # Path setup (change to folder where your training data is kept)
         ## these are the names of the full dataset folders
-        mug_path = osp.join(path_util.get_ndf_data(), 'training_data/mug_table_all_pose_4_cam_half_occ_full_rand_scale')
-        bottle_path = osp.join(path_util.get_ndf_data(), 'training/bottle_table_all_pose_4_cam_half_occ_full_rand_scale')
-        bowl_path = osp.join(path_util.get_ndf_data(), 'training/bowl_table_all_pose_4_cam_half_occ_full_rand_scale')
+        mug_path = osp.join(path_util.get_ndf_data(), 
+            'training_data/mug_table_all_pose_4_cam_half_occ_full_rand_scale')
+        bottle_path = osp.join(path_util.get_ndf_data(), 
+            'training/bottle_table_all_pose_4_cam_half_occ_full_rand_scale')
+        bowl_path = osp.join(path_util.get_ndf_data(), 
+            'training/bowl_table_all_pose_4_cam_half_occ_full_rand_scale')
 
-        ## these are the names of the mini-dataset folders, to ensure everything is up and running
+        ## these are the names of the mini-dataset folders, to ensure everything 
+            # is up and running
         # mug_path = osp.join(path_util.get_ndf_data(), 'training_data/test_mug')
         # bottle_path = osp.join(path_util.get_ndf_data(), 'training_data/test_bottle')
         # bowl_path = osp.join(path_util.get_ndf_data(), 'training_data/test_bowl')
@@ -62,11 +67,16 @@ class JointOccTrainDataset(Dataset):
         self.bs = bs
         self.hbs = hbs
 
-        self.shapenet_mug_dict = pickle.load(open(osp.join(path_util.get_ndf_data(), 'training_data/occ_shapenet_mug.p'), 'rb'))
-        self.shapenet_bowl_dict = pickle.load(open(osp.join(path_util.get_ndf_data(), 'training_data/occ_shapenet_bowl.p'), "rb"))
-        self.shapenet_bottle_dict = pickle.load(open(osp.join(path_util.get_ndf_data(), 'training_data/occ_shapenet_bottle.p'), "rb"))
+        self.shapenet_mug_dict = pickle.load(open(osp.join(path_util.get_ndf_data(), 
+            'training_data/occ_shapenet_mug.p'), 'rb'))
+        self.shapenet_bowl_dict = pickle.load(open(osp.join(path_util.get_ndf_data(), 
+            'training_data/occ_shapenet_bowl.p'), "rb"))
+        self.shapenet_bottle_dict = pickle.load(open(osp.join(path_util.get_ndf_data(), 
+            'training_data/occ_shapenet_bottle.p'), "rb"))
 
-        self.shapenet_dict = {'03797390': self.shapenet_mug_dict, '02880940': self.shapenet_bowl_dict, '02876657': self.shapenet_bottle_dict}
+        self.shapenet_dict = {'03797390': self.shapenet_mug_dict, 
+            '02880940': self.shapenet_bowl_dict, 
+            '02876657': self.shapenet_bottle_dict}
 
         self.projection_mode = "perspective"
 
@@ -88,11 +98,19 @@ class JointOccTrainDataset(Dataset):
                    'coords': coord.float(),
                    'intrinsics': intrinsics.float(),
                    'cam_poses': np.zeros(1)}  # cam poses not used
+            'point_cloud' --> torch.tensor
+            'coords' --> torch.tensor
+            'intrinsics' --> torch.tensor
             return res, {'occ': torch.from_numpy(labels).float()}
         """
         try:
             data = np.load(self.files[index], allow_pickle=True)
-            posecam =  data['object_pose_cam_frame']  # legacy naming, used to use pose expressed in camera frame. global reference frame doesn't matter though
+
+            # legacy naming, used to use pose expressed in camera frame. 
+            # global reference frame doesn't matter though
+            posecam =  data['object_pose_cam_frame']  
+
+            # What is the numbers of transforms
 
             idxs = list(range(posecam.shape[0]))
             random.shuffle(idxs)
@@ -103,6 +121,8 @@ class JointOccTrainDataset(Dataset):
 
             poses = []
             quats = []
+
+            # print('idxs: ', idxs)
             for i in idxs:
                 pos = posecam[i, :3]
                 quat = posecam[i, 3:]
@@ -187,8 +207,11 @@ class JointOccTrainDataset(Dataset):
                 transform[:3, -1] = pos
                 transform = torch.from_numpy(transform)
                 transforms.append(transform)
+            
+            # print('transforms: ', transforms)
 
 
+            # Why take the first transform?
             transform = transforms[0]
             coord = torch.cat([coord, torch.ones_like(coord[..., :1])], dim=-1)
             coord = torch.sum(transform[None, :, :] * coord[:, None, :], dim=-1)
@@ -196,6 +219,7 @@ class JointOccTrainDataset(Dataset):
 
             points_world = []
 
+            # print('dp_nps: ', dp_nps)
             for i, dp_np in enumerate(dp_nps):
                 point_transform = torch.matmul(transform, torch.inverse(transforms[i]))
                 dp_np = torch.sum(point_transform[None, :, :] * dp_np[:, None, :], dim=-1)
@@ -218,11 +242,27 @@ class JointOccTrainDataset(Dataset):
 
             labels = label
 
-            # at the end we have 3D point cloud observation from depth images, voxel occupancy values and corresponding voxel coordinates
+
+            # Generate a new random rotation and create object 
+            random_transform = torch.tensor(JointOccTrainDataset.__random_rot_transform())
+
+            point_cloud_transformed = torch_util.transform_pcd_torch(point_cloud, 
+                random_transform) 
+            
+            coords_transformed = torch_util.transform_pcd_torch(coord, 
+                random_transform)
+
+            # # at the end we have 3D point cloud observation from depth images, 
+            # voxel occupancy values and corresponding voxel coordinates
+
             res = {'point_cloud': point_cloud.float(),
                    'coords': coord.float(),
                    'intrinsics': intrinsics.float(),
-                   'cam_poses': np.zeros(1)}  # cam poses not used
+                   'rot_point_cloud': point_cloud_transformed.float(),
+                   'rot_coords': coords_transformed}
+                #    'rot_intrinsics': torch.tensor([])}
+                #    'cam_poses': np.zeros(1)}  # cam poses not used
+            # print('dataio pcd: ', point_cloud.shape)
             return res, {'occ': torch.from_numpy(labels).float()}
 
         except Exception as e:
@@ -243,3 +283,50 @@ class JointOccTrainDataset(Dataset):
             return res, {'occ': torch.from_numpy(labels).float()}
         """
         return self.get_item(index)
+
+    @staticmethod
+    def __random_quaternions(n: int):
+        """
+        Generate random quaternions representing rotations,
+        i.e. versors with nonnegative real part.
+
+        Modified from random_quaternions in util.torch3d_util.py
+
+        Args:
+            n: Number of quaternions in a batch to return.
+            dtype: Type to return.
+            device: Desired device of returned tensor. Default:
+                uses the current device for the default tensor type.
+
+        Returns:
+            Quaternions as tensor of shape (N, 4).
+        """
+        o = torch.randn((n, 4))
+        s = (o * o).sum(1)
+        o = o / torch3d_util._copysign(torch.sqrt(s), o[:, 0])[:, None]
+        return o
+    
+    @staticmethod
+    def __random_rot_transform():
+        """
+        Generate a random rotation transform
+
+        Args:
+            translate (bool, optional): True to include translation in transform.
+                Defaults to False.
+
+        Raises:
+            NotImplementedError: translation not done yet
+
+        Returns: 
+            Transform with random rotation
+        """
+        rand_quat = JointOccTrainDataset.__random_quaternions(1)
+
+        rand_rot = Rotation.from_quat(rand_quat)
+        rand_rot = rand_rot.as_matrix()
+
+        transform = np.eye(4)
+        transform[:3, :3] = rand_rot
+
+        return transform

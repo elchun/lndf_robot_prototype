@@ -7,7 +7,11 @@ from torch import nn
 
 import ndf_robot.model.vnn_occupancy_net.vnn_occupancy_net_pointnet_dgcnn as vnn_occupancy_network
 import ndf_robot.model.conv_occupancy_net.conv_occupancy_net as conv_occupancy_network
-from ndf_robot.training import summaries, losses, training, dataio, config
+
+# from ndf_robot.training import summaries, losses, training, dataio, config
+from ndf_robot.training import summaries, losses, training
+from ndf_robot.training import dataio_conv as dataio
+
 from ndf_robot.utils import path_util
 
 p = configargparse.ArgumentParser()
@@ -75,6 +79,13 @@ summary_fn = summaries.occupancy_net
 root_path = os.path.join(opt.logging_root, opt.experiment_name)
 loss_fn = val_loss_fn = losses.occupancy_net
 # loss_fn = val_loss_fn = losses.conv_occupancy_net
+
+# loss_fn = val_loss_fn = losses.rotated
+
+# training.train(model=model_parallel, train_dataloader=train_dataloader, val_dataloader=val_dataloader, epochs=opt.num_epochs,
+#                lr=opt.lr, steps_til_summary=opt.steps_til_summary, epochs_til_checkpoint=opt.epochs_til_ckpt,
+#                model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt, summary_fn=summary_fn,
+#                clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True, conv=True)
 
 training.train(model=model_parallel, train_dataloader=train_dataloader, val_dataloader=val_dataloader, epochs=opt.num_epochs,
                lr=opt.lr, steps_til_summary=opt.steps_til_summary, epochs_til_checkpoint=opt.epochs_til_ckpt,
