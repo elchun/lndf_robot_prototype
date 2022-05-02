@@ -59,26 +59,106 @@ def semantic(model_outputs, ground_truth, val=False):
 def rotated(model_outputs, ground_truth, val=False):
     """
     https://towardsdatascience.com/contrastive-loss-explaned-159f2d4a87ec
-    model_outputs = {'standard': <>, 'rot': <>}
+    model_outputs = {'standard': <>, 'rot': <>, 
+        'standard_latent': <>, 'rot_latent': <>}
     """
 
-    # print('Im running rotated loss')
-    # Good if using sigmoid on output of decoder
     loss_dict = dict()
     label = ground_truth['occ'].squeeze()
     label = (label + 1) / 2.
 
+    # Get outputs from dict
     standard_outputs = model_outputs['standard']
     rot_outputs = model_outputs['rot']
+    standard_latent = torch.flatten(model_outputs['standard_latent'], start_dim=1)
+    rot_latent = torch.flatten(model_outputs['rot_latent'], start_dim=1)
 
-    # print('model outputs: ', model_outputs)
+
+    # Calculate loss of occupancy
     standard_loss_occ = -1 * (label * torch.log(standard_outputs['occ'] + 1e-5) 
         + (1 - label) * torch.log(1 - standard_outputs['occ'] + 1e-5)).mean()
     rot_loss_occ = -1 * (label * torch.log(rot_outputs['occ'] + 1e-5) 
         + (1 - label) * torch.log(1 - rot_outputs['occ'] + 1e-5)).mean()
+    
+    occ_loss = (standard_loss_occ + rot_loss_occ) / 2
+    
+    # Calculate loss from similarity between latent descriptors 
+    device = standard_latent.get_device()
+    latent_loss = F.cosine_embedding_loss(standard_latent, rot_latent, 
+        torch.ones(standard_latent.shape[0]).to(device))
 
-    loss_dict['occ'] = standard_loss_occ
+    # latent_loss = F.mse_loss(standard_latent, rot_latent)
+
+    latent_loss = latent_loss.mean()
+
+    latent_loss_scale = 100
+
+    loss_dict['occ'] = occ_loss + latent_loss_scale * latent_loss
+
+    print('occ loss: ', occ_loss)
+    print('latent loss: ', latent_loss)
+
+    # occ was 0.14 with scale at 1
+    # latent was at 0.006 with scale at 1
+
+    # occ was 0.3 with scale 10000
+    # latent was 1.5 * 10^-7 with scale 10000
+
+    # occ was 0.3 with scale 100
+    # latent was 1.5 * 10^-5 with scale 100
     return loss_dict
 
 
-    pass
+def rotated_triplet(model_outputs, ground_truth, val=False):
+    """
+    https://towardsdatascience.com/contrastive-loss-explaned-159f2d4a87ec
+    model_outputs = {'standard': <>, 'rot': <>, 
+        'standard_latent': <>, 'rot_latent': <>}
+    """
+
+    loss_dict = dict()
+    label = ground_truth['occ'].squeeze()
+    label = (label + 1) / 2.
+
+    # Get outputs from dict
+    standard_outputs = model_outputs['standard']
+    rot_outputs = model_outputs['rot']
+    standard_latent = torch.flatten(model_outputs['standard_latent'], start_dim=1)
+    rot_latent = torch.flatten(model_outputs['rot_latent'], start_dim=1)
+
+
+    # Calculate loss of occupancy
+    standard_loss_occ = -1 * (label * torch.log(standard_outputs['occ'] + 1e-5) 
+        + (1 - label) * torch.log(1 - standard_outputs['occ'] + 1e-5)).mean()
+    rot_loss_occ = -1 * (label * torch.log(rot_outputs['occ'] + 1e-5) 
+        + (1 - label) * torch.log(1 - rot_outputs['occ'] + 1e-5)).mean()
+    
+    occ_loss = (standard_loss_occ + rot_loss_occ) / 2
+    
+    # Calculate loss from similarity between latent descriptors 
+    device = standard_latent.get_device()
+    latent_loss = F.cosine_embedding_loss(standard_latent, rot_latent, 
+        torch.ones(standard_latent.shape[0]).to(device))
+
+    # latent_loss = F.mse_loss(standard_latent, rot_latent)
+
+    latent_loss = latent_loss.mean()
+
+    latent_loss_scale = 100
+
+    loss_dict['occ'] = occ_loss + latent_loss_scale * latent_loss
+
+    print('occ loss: ', occ_loss)
+    print('latent loss: ', latent_loss)
+
+    # occ was 0.14 with scale at 1
+    # latent was at 0.006 with scale at 1
+
+    # occ was 0.3 with scale 10000
+    # latent was 1.5 * 10^-7 with scale 10000
+
+    # occ was 0.3 with scale 100
+    # latent was 1.5 * 10^-5 with scale 100
+    return loss_dict
+# Add rotated with contrastive
+# contrast to point that was not moved

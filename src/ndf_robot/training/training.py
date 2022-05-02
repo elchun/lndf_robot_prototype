@@ -45,16 +45,16 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
           overwrite=True, optimizers=None, batches_per_validation=10, gpus=1, rank=0, max_steps=None,
           conv=False):
     
-    if conv:
-        old_summary_fn = summary_fn
-        def summary_fn_wrapper(model, model_input, ground_truth, model_output, writer, iter, prefix=""):
-            standard_input = {key: model_input[key] for key in 
-                ['point_cloud', 'coords', 'intrinsics']}
+    # if conv:
+    #     old_summary_fn = summary_fn
+    #     def summary_fn_wrapper(model, model_input, ground_truth, model_output, writer, iter, prefix=""):
+    #         standard_input = {key: model_input[key] for key in 
+    #             ['point_cloud', 'coords', 'intrinsics']}
             
-            standard_output = model_output['standard']
+    #         standard_output = model_output['standard']
 
-            return old_summary_fn(model, standard_input, ground_truth, standard_output, writer, iter, prefix)
-        summary_fn = summary_fn_wrapper
+    #         return old_summary_fn(model, standard_input, ground_truth, standard_output, writer, iter, prefix)
+    #     summary_fn = summary_fn_wrapper
 
     if optimizers is None:
         optimizers = [torch.optim.Adam(lr=lr, params=model.parameters())]
@@ -333,19 +333,17 @@ def train_feature(model, train_dataloader, corr_model, epochs, lr, steps_til_sum
 
 def train_conv(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_checkpoint, model_dir, loss_fn,
           summary_fn=None, iters_til_checkpoint=None, val_dataloader=None, clip_grad=False, val_loss_fn=None,
-          overwrite=True, optimizers=None, batches_per_validation=10, gpus=1, rank=0, max_steps=None,
-          conv=False):
+          overwrite=True, optimizers=None, batches_per_validation=10, gpus=1, rank=0, max_steps=None):
     
-    if conv:
-        old_summary_fn = summary_fn
-        def summary_fn_wrapper(model, model_input, ground_truth, model_output, writer, iter, prefix=""):
-            standard_input = {key: model_input[key] for key in 
-                ['point_cloud', 'coords', 'intrinsics']}
+    old_summary_fn = summary_fn
+    def summary_fn_wrapper(model, model_input, ground_truth, model_output, writer, iter, prefix=""):
+        standard_input = {key: model_input[key] for key in 
+            ['point_cloud', 'coords', 'intrinsics']}
             
-            standard_output = model_output['standard']
+        standard_output = model_output['standard']
 
-            return old_summary_fn(model, standard_input, ground_truth, standard_output, writer, iter, prefix)
-        summary_fn = summary_fn_wrapper
+        return old_summary_fn(model, standard_input, ground_truth, standard_output, writer, iter, prefix)
+    summary_fn = summary_fn_wrapper
 
     if optimizers is None:
         optimizers = [torch.optim.Adam(lr=lr, params=model.parameters())]
@@ -388,32 +386,29 @@ def train_conv(model, train_dataloader, epochs, lr, steps_til_summary, epochs_ti
 
                 start_time = time.time()
 
-                if conv: 
-                    standard_input = {key: model_input[key] for key in 
-                        ['point_cloud', 'coords', 'intrinsics']}
+                standard_input = {key: model_input[key] for key in 
+                    ['point_cloud', 'coords', 'intrinsics']}
 
 
-                    rot_input = {
-                        'point_cloud': model_input['rot_point_cloud'],
-                        'coords': model_input['rot_coords'],
-                        'intrinsics': model_input['intrinsics']
-                    }
+                rot_input = {
+                    'point_cloud': model_input['rot_point_cloud'],
+                    'coords': model_input['rot_coords'],
+                    'intrinsics': model_input['intrinsics']
+                }
 
-                    standard_output = model(standard_input)
-                    rot_output = model(rot_input)
+                standard_output = model(standard_input)
+                standard_latent = model.extract_latent(standard_input)
 
-                    model_output = {'standard': standard_output, 
-                        'rot': rot_output} 
+                rot_output = model(rot_input)
+                rot_latent = model.extract_latent(rot_input)
+
+                model_output = {
+                    'standard': standard_output, 
+                    'rot': rot_output,
+                    'standard_latent': standard_latent,
+                    'rot_latent': rot_latent} 
                     
-                    losses = loss_fn(model_output, gt)
-                else:
-                    model_output = model(model_input)
-                    # print('model output: ', model_output['occ'].size())
-                    # print('gt: ', gt['occ'].size())
-                    losses = loss_fn(model_output, gt)
-                    # print(losses['occ'])
-                    # losses = loss_fn(model_output, gt, model_input, model)
-
+                losses = loss_fn(model_output, gt)
 
                 train_loss = 0.
                 for loss_name, loss in losses.items():
@@ -464,34 +459,29 @@ def train_conv(model, train_dataloader, epochs, lr, steps_til_summary, epochs_ti
                             for val_i, (model_input, gt) in enumerate(val_dataloader):
                                 model_input = util.dict_to_gpu(model_input)
                                 gt = util.dict_to_gpu(gt)
-                                if conv: 
-                                    standard_input = {key: model_input[key] for key in 
-                                        ['point_cloud', 'coords', 'intrinsics']}
+                                standard_input = {key: model_input[key] for key in 
+                                    ['point_cloud', 'coords', 'intrinsics']}
 
 
-                                    rot_input = {
-                                        'point_cloud': model_input['rot_point_cloud'],
-                                        'coords': model_input['rot_coords'],
-                                        'intrinsics': model_input['intrinsics']
-                                    }
+                                rot_input = {
+                                    'point_cloud': model_input['rot_point_cloud'],
+                                    'coords': model_input['rot_coords'],
+                                    'intrinsics': model_input['intrinsics']
+                                }
 
-                                    standard_output = model(standard_input)
-                                    rot_output = model(rot_input)
+                                standard_output = model(standard_input)
+                                standard_latent = model.extract_latent(standard_input)
 
-                                    model_output = {'standard': standard_output, 
-                                        'rot': rot_output} 
-                    
-                                    val_loss = val_loss_fn(model_output, gt)
-                                else:
-                                    model_output = model(model_input)
-                                    # print('model output: ', model_output['occ'].size())
-                                    # print('gt: ', gt['occ'].size())
-                                    val_loss = val_loss_fn(model_output, gt)
-                                    # print(losses['occ'])
-                                    # losses = loss_fn(model_output, gt, model_input, model)
+                                rot_output = model(rot_input)
+                                rot_latent = model.extract_latent(rot_input)
 
-                                # model_output = model(model_input)
-                                # val_loss = val_loss_fn(model_output, gt, val=True)
+                                model_output = {
+                                    'standard': standard_output, 
+                                    'rot': rot_output,
+                                    'standard_latent': standard_latent,
+                                    'rot_latent': rot_latent} 
+
+                                val_loss = val_loss_fn(model_output, gt)
 
                                 for name, value in val_loss.items():
                                     val_losses[name].append(value.cpu().numpy())
