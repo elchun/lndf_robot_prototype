@@ -7,7 +7,7 @@ CUDA_VISIBLE_DEVICES=5 python evaluate_ndf.py \
         --model_path multi_category_weights \
         --save_vis_per_model \
         --config eval_mug_gen \
-        --exp conv_eval_latent_any_1x100_d32 \
+	--exp conv_eval_latent_any_adaptive_2_99000_d32 \
         --num_iterations 100 \
         --any_pose \
 #       --pybullet_viz \

@@ -259,7 +259,7 @@ class JointOccTrainDataset(Dataset):
                    'coords': coord.float(),
                    'intrinsics': intrinsics.float(),
                    'rot_point_cloud': point_cloud_transformed.float(),
-                   'rot_coords': coords_transformed}
+                   'rot_coords': coords_transformed.float()}
                 #    'rot_intrinsics': torch.tensor([])}
                 #    'cam_poses': np.zeros(1)}  # cam poses not used
             # print('dataio pcd: ', point_cloud.shape)

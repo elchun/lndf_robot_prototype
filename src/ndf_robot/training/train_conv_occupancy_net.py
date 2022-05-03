@@ -81,7 +81,9 @@ root_path = os.path.join(opt.logging_root, opt.experiment_name)
 loss_fn = val_loss_fn = losses.occupancy_net
 # loss_fn = val_loss_fn = losses.conv_occupancy_net
 
-loss_fn = val_loss_fn = losses.rotated
+# loss_fn = val_loss_fn = losses.rotated
+# loss_fn = val_loss_fn = losses.rotated_triplet
+loss_fn = val_loss_fn = losses.rotated_adaptive
 
 
 # training.train(model=model_parallel, train_dataloader=train_dataloader, val_dataloader=val_dataloader, epochs=opt.num_epochs,
@@ -96,3 +98,10 @@ training.train_conv(model=model_parallel, train_dataloader=train_dataloader,
     epochs_til_checkpoint=opt.epochs_til_ckpt,
     model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt, 
     summary_fn=summary_fn,clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True)
+
+# training.train_conv_triplet(model=model_parallel, train_dataloader=train_dataloader, 
+#     val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr, 
+#     steps_til_summary=opt.steps_til_summary, 
+#     epochs_til_checkpoint=opt.epochs_til_ckpt,
+#     model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt, 
+#     summary_fn=summary_fn,clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True)

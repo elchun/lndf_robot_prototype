@@ -396,17 +396,222 @@ def train_conv(model, train_dataloader, epochs, lr, steps_til_summary, epochs_ti
                     'intrinsics': model_input['intrinsics']
                 }
 
+                # extract_latent extracts the latent with respect
+                # to its input 'point_cloud' but this is actually
+                # the 'coords' from our dataloader :(
                 standard_output = model(standard_input)
-                standard_latent = model.extract_latent(standard_input)
+                standard_latent = model.extract_latent({'point_cloud': model_input['coords']})
 
                 rot_output = model(rot_input)
-                rot_latent = model.extract_latent(rot_input)
+                rot_latent = model.extract_latent({'point_cloud': model_input['rot_coords']})
 
                 model_output = {
                     'standard': standard_output, 
                     'rot': rot_output,
                     'standard_latent': standard_latent,
                     'rot_latent': rot_latent} 
+                    
+                losses = loss_fn(model_output, gt, it=total_steps)
+
+                train_loss = 0.
+                for loss_name, loss in losses.items():
+                    single_loss = loss.mean()
+
+                    if rank == 0:
+                        writer.add_scalar(loss_name, single_loss, total_steps)
+                    train_loss += single_loss
+
+                train_losses.append(train_loss.item())
+                if rank == 0:
+                    writer.add_scalar("total_train_loss", train_loss, total_steps)
+
+                if not total_steps % steps_til_summary and rank == 0:
+                    torch.save(model.state_dict(),
+                               os.path.join(checkpoints_dir, 'model_current.pth'))
+                    summary_fn(model, model_input, gt, model_output, writer, total_steps)
+
+                for optim in optimizers:
+                    optim.zero_grad()
+                train_loss.backward()
+                
+                # print('train losses: ', train_losses)
+
+                if gpus > 1:
+                    average_gradients(model)
+
+                if clip_grad:
+                    if isinstance(clip_grad, bool):
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.)
+                    else:
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=clip_grad)
+
+                for optim in optimizers:
+                    optim.step()
+
+                if rank == 0:
+                    pbar.update(1)
+
+                if not total_steps % steps_til_summary and rank == 0:
+                    print("Epoch %d, Total loss %0.6f, iteration time %0.6f" % (epoch, train_loss, time.time() - start_time))
+
+                    if val_dataloader is not None:
+                        print("Running validation set...")
+                        with torch.no_grad():
+                            model.eval()
+                            val_losses = defaultdict(list)
+                            for val_i, (model_input, gt) in enumerate(val_dataloader):
+                                model_input = util.dict_to_gpu(model_input)
+                                gt = util.dict_to_gpu(gt)
+                                standard_input = {key: model_input[key] for key in 
+                                    ['point_cloud', 'coords', 'intrinsics']}
+
+
+                                rot_input = {
+                                    'point_cloud': model_input['rot_point_cloud'],
+                                    'coords': model_input['rot_coords'],
+                                    'intrinsics': model_input['intrinsics']
+                                }
+
+                                # extract_latent extracts the latent with respect
+                                # to its input 'point_cloud' but this is actually
+                                # the 'coords' from our dataloader :(
+                                standard_output = model(standard_input)
+                                standard_latent = model.extract_latent({'point_cloud': model_input['coords']})
+
+                                rot_output = model(rot_input)
+                                rot_latent = model.extract_latent({'point_cloud': model_input['rot_coords']})
+
+                                model_output = {
+                                    'standard': standard_output, 
+                                    'rot': rot_output,
+                                    'standard_latent': standard_latent,
+                                    'rot_latent': rot_latent} 
+
+                                val_loss = val_loss_fn(model_output, gt, it=total_steps)
+
+                                for name, value in val_loss.items():
+                                    val_losses[name].append(value.cpu().numpy())
+
+                                if val_i == batches_per_validation:
+                                    break
+
+                        for loss_name, loss in val_losses.items():
+                            single_loss = np.mean(loss)
+                            summary_fn(model, model_input, gt, model_output, writer, total_steps, 'val_')
+                            writer.add_scalar('val_' + loss_name, single_loss, total_steps)
+
+                        model.train()
+
+                if (iters_til_checkpoint is not None) and (not total_steps % iters_til_checkpoint) and rank == 0:
+                    torch.save(model.state_dict(),
+                               os.path.join(checkpoints_dir, 'model_epoch_%04d_iter_%06d.pth' % (epoch, total_steps)))
+                    np.savetxt(os.path.join(checkpoints_dir, 'train_losses_%04d_iter_%06d.pth' % (epoch, total_steps)),
+                               np.array(train_losses))
+
+                total_steps += 1
+                if max_steps is not None and total_steps==max_steps:
+                    break
+
+            if max_steps is not None and total_steps==max_steps:
+                break
+
+        torch.save(model.state_dict(),
+                   os.path.join(checkpoints_dir, 'model_final.pth'))
+        np.savetxt(os.path.join(checkpoints_dir, 'train_losses_final.txt'),
+                   np.array(train_losses))
+
+        return model, optimizers
+
+
+def train_conv_triplet(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_checkpoint, model_dir, loss_fn,
+          summary_fn=None, iters_til_checkpoint=None, val_dataloader=None, clip_grad=False, val_loss_fn=None,
+          overwrite=True, optimizers=None, batches_per_validation=10, gpus=1, rank=0, max_steps=None):
+    
+    old_summary_fn = summary_fn
+    def summary_fn_wrapper(model, model_input, ground_truth, model_output, writer, iter, prefix=""):
+        standard_input = {key: model_input[key] for key in 
+            ['point_cloud', 'coords', 'intrinsics']}
+            
+        standard_output = model_output['standard']
+
+        return old_summary_fn(model, standard_input, ground_truth, standard_output, writer, iter, prefix)
+    summary_fn = summary_fn_wrapper
+
+    if optimizers is None:
+        optimizers = [torch.optim.Adam(lr=lr, params=model.parameters())]
+
+    if val_dataloader is not None:
+        assert val_loss_fn is not None, "If validation set is passed, have to pass a validation loss_fn!"
+
+    if rank == 0:
+        if os.path.exists(model_dir):
+            if overwrite:
+                shutil.rmtree(model_dir)
+            else:
+                val = input("The model directory %s exists. Overwrite? (y/n)"%model_dir)
+                if val == 'y' or overwrite:
+                    shutil.rmtree(model_dir)
+
+        os.makedirs(model_dir)
+
+        summaries_dir = os.path.join(model_dir, 'summaries')
+        util.cond_mkdir(summaries_dir)
+
+        checkpoints_dir = os.path.join(model_dir, 'checkpoints')
+        util.cond_mkdir(checkpoints_dir)
+
+        writer = SummaryWriter(summaries_dir)
+
+    total_steps = 0
+    with tqdm(total=len(train_dataloader) * epochs) as pbar:
+        train_losses = []
+        for epoch in range(epochs):
+            if not epoch % epochs_til_checkpoint and epoch and rank == 0:
+                torch.save(model.state_dict(),
+                           os.path.join(checkpoints_dir, 'model_epoch_%04d_iter_%06d.pth' % (epoch, total_steps)))
+                np.savetxt(os.path.join(checkpoints_dir, 'train_losses_%04d_iter_%06d.pth' % (epoch, total_steps)),
+                           np.array(train_losses))
+
+            for step, (model_input, gt) in enumerate(train_dataloader):
+                model_input = util.dict_to_gpu(model_input)
+                gt = util.dict_to_gpu(gt) # gt -> Ground truth
+
+                start_time = time.time()
+
+                standard_input = {key: model_input[key] for key in 
+                    ['point_cloud', 'coords', 'intrinsics']}
+
+
+                rot_input = {
+                    'point_cloud': model_input['rot_point_cloud'],
+                    'coords': model_input['rot_coords'],
+                    'intrinsics': model_input['intrinsics']
+                }
+
+                # print('rot coord: ', model_input['rot_coords'][0,:10])
+                # print('coord: ', model_input['coords'][0,:10])
+
+                rot_negative_input = {
+                    'point_cloud': model_input['rot_point_cloud'],
+                    'coords': model_input['coords'],
+                    'intrinsics': model_input['intrinsics']
+                }
+
+                standard_output = model(standard_input)
+                standard_latent = model.extract_latent({'point_cloud': model_input['coords']})
+
+                rot_output = model(rot_input)
+                rot_latent = model.extract_latent({'point_cloud': model_input['rot_coords']})
+
+                rot_negative_output = model(rot_negative_input)
+                rot_negative_latent = model.extract_latent({'point_cloud': model_input['coords']})
+
+                model_output = {
+                    'standard': standard_output, 
+                    'rot': rot_output,
+                    'standard_latent': standard_latent,
+                    'rot_latent': rot_latent,
+                    'rot_negative_latent': rot_negative_latent} 
                     
                 losses = loss_fn(model_output, gt)
 
@@ -469,17 +674,30 @@ def train_conv(model, train_dataloader, epochs, lr, steps_til_summary, epochs_ti
                                     'intrinsics': model_input['intrinsics']
                                 }
 
+                                rot_negative_input = {
+                                    'point_cloud': model_input['rot_point_cloud'],
+                                    'coords': model_input['coords'],
+                                    'intrinsics': model_input['intrinsics']
+                                }
+
                                 standard_output = model(standard_input)
-                                standard_latent = model.extract_latent(standard_input)
+                                standard_latent = model.extract_latent(
+                                        {'point_cloud': model_input['coords']})
 
                                 rot_output = model(rot_input)
-                                rot_latent = model.extract_latent(rot_input)
+                                rot_latent = model.extract_latent(
+                                    {'point_cloud': model_input['rot_coords']})
+
+                                rot_negative_output = model(rot_negative_input)
+                                rot_negative_latent = model.extract_latent(
+                                    {'point_cloud': model_input['coords']})
 
                                 model_output = {
                                     'standard': standard_output, 
                                     'rot': rot_output,
                                     'standard_latent': standard_latent,
-                                    'rot_latent': rot_latent} 
+                                    'rot_latent': rot_latent,
+                                    'rot_negative_latent': rot_negative_latent} 
 
                                 val_loss = val_loss_fn(model_output, gt)
 
@@ -515,4 +733,3 @@ def train_conv(model, train_dataloader, epochs, lr, steps_til_summary, epochs_ti
                    np.array(train_losses))
 
         return model, optimizers
-
