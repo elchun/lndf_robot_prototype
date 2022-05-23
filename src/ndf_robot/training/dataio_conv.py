@@ -186,6 +186,8 @@ class JointOccTrainDataset(Dataset):
 
             rix = np.random.permutation(coord.shape[0])
 
+            # print(coord.size())
+
             coord = coord[rix[:1500]]
             label = voxel_bool[rix[:1500]]
 
@@ -251,7 +253,12 @@ class JointOccTrainDataset(Dataset):
             
             coords_transformed = torch_util.transform_pcd_torch(coord, 
                 random_transform)
-
+            
+            # Generate shuffled coordinates.  Simulates random sampling in 
+            # bounding box for negative triplet loss example
+            shuffler = torch.randperm(coords_transformed.shape[0])
+            coords_transformed_shuffled = coords_transformed[shuffler]
+            
             # # at the end we have 3D point cloud observation from depth images, 
             # voxel occupancy values and corresponding voxel coordinates
 
@@ -259,7 +266,8 @@ class JointOccTrainDataset(Dataset):
                    'coords': coord.float(),
                    'intrinsics': intrinsics.float(),
                    'rot_point_cloud': point_cloud_transformed.float(),
-                   'rot_coords': coords_transformed.float()}
+                   'rot_coords': coords_transformed.float(),
+                   'rot_coords_shuffled': coords_transformed_shuffled.float()}
                 #    'rot_intrinsics': torch.tensor([])}
                 #    'cam_poses': np.zeros(1)}  # cam poses not used
             # print('dataio pcd: ', point_cloud.shape)

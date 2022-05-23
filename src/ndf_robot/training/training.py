@@ -396,20 +396,19 @@ def train_conv(model, train_dataloader, epochs, lr, steps_til_summary, epochs_ti
                     'intrinsics': model_input['intrinsics']
                 }
 
-                # extract_latent extracts the latent with respect
-                # to its input 'point_cloud' but this is actually
-                # the 'coords' from our dataloader :(
                 standard_output = model(standard_input)
-                standard_latent = model.extract_latent({'point_cloud': model_input['coords']})
+                standard_latent = model.extract_latent(model_input)
+                standard_act_hat = model.forward_latent(standard_latent, model_input['coords'])
 
                 rot_output = model(rot_input)
-                rot_latent = model.extract_latent({'point_cloud': model_input['rot_coords']})
+                rot_latent = model.extract_latent(rot_input)
+                rot_act_hat = model.forward_latent(rot_latent, rot_input['coords'])
 
                 model_output = {
                     'standard': standard_output, 
                     'rot': rot_output,
-                    'standard_latent': standard_latent,
-                    'rot_latent': rot_latent} 
+                    'standard_act_hat': standard_act_hat,
+                    'rot_act_hat': rot_act_hat}
                     
                 losses = loss_fn(model_output, gt, it=total_steps)
 
@@ -472,20 +471,19 @@ def train_conv(model, train_dataloader, epochs, lr, steps_til_summary, epochs_ti
                                     'intrinsics': model_input['intrinsics']
                                 }
 
-                                # extract_latent extracts the latent with respect
-                                # to its input 'point_cloud' but this is actually
-                                # the 'coords' from our dataloader :(
                                 standard_output = model(standard_input)
-                                standard_latent = model.extract_latent({'point_cloud': model_input['coords']})
+                                standard_latent = model.extract_latent(model_input)
+                                standard_act_hat = model.forward_latent(standard_latent, model_input['coords'])
 
                                 rot_output = model(rot_input)
-                                rot_latent = model.extract_latent({'point_cloud': model_input['rot_coords']})
+                                rot_latent = model.extract_latent(rot_input)
+                                rot_act_hat = model.forward_latent(rot_latent, rot_input['coords'])
 
                                 model_output = {
                                     'standard': standard_output, 
                                     'rot': rot_output,
-                                    'standard_latent': standard_latent,
-                                    'rot_latent': rot_latent} 
+                                    'standard_act_hat': standard_act_hat,
+                                    'rot_act_hat': rot_act_hat}
 
                                 val_loss = val_loss_fn(model_output, gt, it=total_steps)
 
@@ -588,32 +586,49 @@ def train_conv_triplet(model, train_dataloader, epochs, lr, steps_til_summary, e
                     'intrinsics': model_input['intrinsics']
                 }
 
-                # print('rot coord: ', model_input['rot_coords'][0,:10])
-                # print('coord: ', model_input['coords'][0,:10])
+                # print('pcd: ', model_input['point_cloud'][0, :5])
+                # print('rot_pcd: ', model_input['rot_point_cloud'][0, :5])
+                # print('rot coord: ', model_input['rot_coords'][0,:5])
+                # print('coord: ', model_input['coords'][0,:5])
 
+                # Negative input using unrotated coords
+                # rot_negative_input = {
+                #     'point_cloud': model_input['rot_point_cloud'],
+                #     'coords': model_input['coords'],
+                #     'intrinsics': model_input['intrinsics']
+                # }
+
+                # Negative input using shuffled coordinates
                 rot_negative_input = {
                     'point_cloud': model_input['rot_point_cloud'],
-                    'coords': model_input['coords'],
+                    'coords': model_input['rot_coords_shuffled'],
                     'intrinsics': model_input['intrinsics']
                 }
 
+        # reference_latent = self.model.extract_latent(reference_model_input).detach()
+        # reference_act_hat = self.model.forward_latent(reference_latent, reference_model_input['coords']).detach()
+
                 standard_output = model(standard_input)
-                standard_latent = model.extract_latent({'point_cloud': model_input['coords']})
+                standard_latent = model.extract_latent(model_input)
+                standard_act_hat = model.forward_latent(standard_latent, model_input['coords'])
 
                 rot_output = model(rot_input)
-                rot_latent = model.extract_latent({'point_cloud': model_input['rot_coords']})
+                rot_latent = model.extract_latent(rot_input)
+                rot_act_hat = model.forward_latent(rot_latent, rot_input['coords'])
 
-                rot_negative_output = model(rot_negative_input)
-                rot_negative_latent = model.extract_latent({'point_cloud': model_input['coords']})
+                # rot_negative_output = model(rot_negative_input)
+                rot_negative_latent = model.extract_latent(rot_negative_input)
+                rot_negative_act_hat = model.forward_latent(rot_negative_latent, rot_negative_input['coords'])
+
 
                 model_output = {
                     'standard': standard_output, 
                     'rot': rot_output,
-                    'standard_latent': standard_latent,
-                    'rot_latent': rot_latent,
-                    'rot_negative_latent': rot_negative_latent} 
+                    'standard_act_hat': standard_act_hat,
+                    'rot_act_hat': rot_act_hat,
+                    'rot_negative_act_hat': rot_negative_act_hat} 
                     
-                losses = loss_fn(model_output, gt)
+                losses = loss_fn(model_output, gt, it=total_steps)
 
                 train_loss = 0.
                 for loss_name, loss in losses.items():
@@ -680,24 +695,45 @@ def train_conv_triplet(model, train_dataloader, epochs, lr, steps_til_summary, e
                                     'intrinsics': model_input['intrinsics']
                                 }
 
+                                # standard_output = model(standard_input)
+                                # standard_latent = model.extract_latent(
+                                #         {'point_cloud': model_input['coords']})
+
+                                # rot_output = model(rot_input)
+                                # rot_latent = model.extract_latent(
+                                #     {'point_cloud': model_input['rot_coords']})
+
+                                # rot_negative_output = model(rot_negative_input)
+                                # rot_negative_latent = model.extract_latent(
+                                #     {'point_cloud': model_input['coords']})
+
+                                # model_output = {
+                                #     'standard': standard_output, 
+                                #     'rot': rot_output,
+                                #     'standard_latent': standard_latent,
+                                #     'rot_latent': rot_latent,
+                                #     'rot_negative_latent': rot_negative_latent} 
+
                                 standard_output = model(standard_input)
-                                standard_latent = model.extract_latent(
-                                        {'point_cloud': model_input['coords']})
+                                standard_latent = model.extract_latent(model_input)
+                                standard_act_hat = model.forward_latent(standard_latent, model_input['coords'])
 
                                 rot_output = model(rot_input)
-                                rot_latent = model.extract_latent(
-                                    {'point_cloud': model_input['rot_coords']})
+                                rot_latent = model.extract_latent(rot_input)
+                                rot_act_hat = model.forward_latent(rot_latent, rot_input['coords'])
 
-                                rot_negative_output = model(rot_negative_input)
-                                rot_negative_latent = model.extract_latent(
-                                    {'point_cloud': model_input['coords']})
+                                # rot_negative_output = model(rot_negative_input)
+                                rot_negative_latent = model.extract_latent(rot_negative_input)
+                                rot_negative_act_hat = model.forward_latent(rot_negative_latent, 
+                                    rot_negative_input['coords'])
+
 
                                 model_output = {
                                     'standard': standard_output, 
                                     'rot': rot_output,
-                                    'standard_latent': standard_latent,
-                                    'rot_latent': rot_latent,
-                                    'rot_negative_latent': rot_negative_latent} 
+                                    'standard_act_hat': standard_act_hat,
+                                    'rot_act_hat': rot_act_hat,
+                                    'rot_negative_act_hat': rot_negative_act_hat} 
 
                                 val_loss = val_loss_fn(model_output, gt)
 

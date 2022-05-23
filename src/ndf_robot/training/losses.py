@@ -70,8 +70,8 @@ def rotated(model_outputs, ground_truth, val=False, **kwargs):
     # Get outputs from dict
     standard_outputs = model_outputs['standard']
     rot_outputs = model_outputs['rot']
-    standard_latent = torch.flatten(model_outputs['standard_latent'], start_dim=1)
-    rot_latent = torch.flatten(model_outputs['rot_latent'], start_dim=1)
+    standard_act_hat = torch.flatten(model_outputs['standard_act_hat'], start_dim=1)
+    rot_act_hat = torch.flatten(model_outputs['rot_act_hat'], start_dim=1)
 
 
     # Calculate loss of occupancy
@@ -83,15 +83,15 @@ def rotated(model_outputs, ground_truth, val=False, **kwargs):
     occ_loss = (standard_loss_occ + rot_loss_occ) / 2
     
     # Calculate loss from similarity between latent descriptors 
-    device = standard_latent.get_device()
-    latent_loss = F.cosine_embedding_loss(standard_latent, rot_latent, 
-        torch.ones(standard_latent.shape[0]).to(device))
+    device = standard_act_hat.get_device()
+    latent_loss = F.cosine_embedding_loss(standard_act_hat, rot_act_hat, 
+        torch.ones(standard_act_hat.shape[0]).to(device))
 
     # latent_loss = F.mse_loss(standard_latent, rot_latent)
 
     latent_loss = latent_loss.mean()
 
-    latent_loss_scale = 100
+    latent_loss_scale = 1
 
     loss_dict['occ'] = occ_loss + latent_loss_scale * latent_loss
 
@@ -123,8 +123,8 @@ def rotated_triplet(model_outputs, ground_truth, val=False, **kwargs):
     # Get outputs from dict
     standard_outputs = model_outputs['standard']
     rot_outputs = model_outputs['rot']
-    standard_latent = torch.flatten(model_outputs['standard_latent'], start_dim=1)
-    rot_latent = torch.flatten(model_outputs['rot_latent'], start_dim=1)
+    standard_act_hat = torch.flatten(model_outputs['standard_act_hat'], start_dim=1)
+    rot_act_hat = torch.flatten(model_outputs['rot_act_hat'], start_dim=1)
 
     rot_negative_latent = torch.flatten(model_outputs['rot_negative_latent'], 
         start_dim=1)
@@ -143,7 +143,7 @@ def rotated_triplet(model_outputs, ground_truth, val=False, **kwargs):
     # latent_loss = F.cosine_embedding_loss(standard_latent, rot_latent, 
     #     torch.ones(standard_latent.shape[0]).to(device))
     
-    latent_loss = F.triplet_margin_loss(standard_latent, rot_latent, 
+    latent_loss = F.triplet_margin_loss(standard_act_hat, rot_act_hat, 
         rot_negative_latent, margin=0.0001)
 
     # latent_loss = F.mse_loss(standard_latent, rot_latent)
@@ -177,8 +177,8 @@ def rotated_adaptive(model_outputs, ground_truth, it=-1,val=False):
     # Get outputs from dict
     standard_outputs = model_outputs['standard']
     rot_outputs = model_outputs['rot']
-    standard_latent = torch.flatten(model_outputs['standard_latent'], start_dim=1)
-    rot_latent = torch.flatten(model_outputs['rot_latent'], start_dim=1)
+    standard_act_hat = torch.flatten(model_outputs['standard_act_hat'], start_dim=1)
+    rot_act_hat = torch.flatten(model_outputs['rot_act_hat'], start_dim=1)
 
 
     # Calculate loss of occupancy
@@ -190,9 +190,9 @@ def rotated_adaptive(model_outputs, ground_truth, it=-1,val=False):
     occ_loss = (standard_loss_occ + rot_loss_occ) / 2
     
     # Calculate loss from similarity between latent descriptors 
-    device = standard_latent.get_device()
-    latent_loss = F.cosine_embedding_loss(standard_latent, rot_latent, 
-        torch.ones(standard_latent.shape[0]).to(device))
+    device = standard_act_hat.get_device()
+    latent_loss = F.cosine_embedding_loss(standard_act_hat, rot_act_hat, 
+        torch.ones(standard_act_hat.shape[0]).to(device))
 
     # latent_loss = F.mse_loss(standard_latent, rot_latent)
 
@@ -210,7 +210,7 @@ def rotated_adaptive(model_outputs, ground_truth, it=-1,val=False):
     elif (it < 20000):
         latent_loss_scale = 500
     else:
-        latent_loss_scale = 1000
+        latent_loss_scale = 500
 
     loss_dict['occ'] = occ_loss + latent_loss_scale * latent_loss
 
@@ -228,7 +228,7 @@ def rotated_adaptive(model_outputs, ground_truth, it=-1,val=False):
     # latent was 1.5 * 10^-5 with scale 100
     return loss_dict
 
-def rotated_triplet(model_outputs, ground_truth, val=False, **kwargs):
+def custom_rotated_triplet(model_outputs, ground_truth, it=-1, val=False, **kwargs):
     """
     https://towardsdatascience.com/contrastive-loss-explaned-159f2d4a87ec
     model_outputs = {'standard': <>, 'rot': <>, 
@@ -242,11 +242,14 @@ def rotated_triplet(model_outputs, ground_truth, val=False, **kwargs):
     # Get outputs from dict
     standard_outputs = model_outputs['standard']
     rot_outputs = model_outputs['rot']
-    standard_latent = torch.flatten(model_outputs['standard_latent'], start_dim=1)
-    rot_latent = torch.flatten(model_outputs['rot_latent'], start_dim=1)
+    standard_act_hat = torch.flatten(model_outputs['standard_act_hat'], start_dim=1)
+    rot_act_hat = torch.flatten(model_outputs['rot_act_hat'], start_dim=1)
 
-    rot_negative_latent = torch.flatten(model_outputs['rot_negative_latent'], 
+    rot_negative_act_hat = torch.flatten(model_outputs['rot_negative_act_hat'], 
         start_dim=1)
+
+    # print(standard_act_hat[0, :5])
+    # print(rot_negative_act_hat[0, :5])
 
 
     # Calculate loss of occupancy
@@ -258,22 +261,38 @@ def rotated_triplet(model_outputs, ground_truth, val=False, **kwargs):
     occ_loss = (standard_loss_occ + rot_loss_occ) / 2
     
     # Calculate loss from similarity between latent descriptors 
-    # device = standard_latent.get_device()
-    # latent_loss = F.cosine_embedding_loss(standard_latent, rot_latent, 
-    #     torch.ones(standard_latent.shape[0]).to(device))
-    
-    latent_loss = F.triplet_margin_loss(standard_latent, rot_latent, 
-        rot_negative_latent, margin=0.0001)
+    device = standard_act_hat.get_device()
+    latent_positive_loss = F.cosine_embedding_loss(standard_act_hat, rot_act_hat, 
+        torch.ones(standard_act_hat.shape[0]).to(device))
 
-    # latent_loss = F.mse_loss(standard_latent, rot_latent)
+    latent_negative_loss = F.cosine_embedding_loss(standard_act_hat, rot_negative_act_hat, 
+        -torch.ones(standard_act_hat.shape[0]).to(device), margin=0.5)
 
-    latent_loss = latent_loss.mean()
 
-    latent_loss_scale = 1
+    latent_loss_scale_default = 4
+    # if it == -1:
+    #     latent_loss_scale = latent_loss_scale_default 
+    # elif it < 10000:
+    #     latent_loss_scale = 0
+    # else:
+    #     latent_loss_scale = latent_loss_scale_default 
 
-    loss_dict['occ'] = occ_loss + latent_loss_scale * latent_loss
+    occ_loss_threshold = 0.20
+    if occ_loss < occ_loss_threshold:
+        latent_loss_scale = latent_loss_scale_default
+    else:
+        latent_loss_scale = 0
+
+    latent_positive_loss = latent_positive_loss.mean()
+    latent_negative_loss = latent_negative_loss.mean()
+
+
+    loss_dict['occ'] = occ_loss \
+        + latent_loss_scale * (latent_positive_loss + latent_negative_loss)
 
     print('occ loss: ', occ_loss)
-    print('latent loss: ', latent_loss)
+    print('latent_scale: ', latent_loss_scale)
+    print('latent pos loss: ', latent_positive_loss)
+    print('latent neg loss: ', latent_negative_loss)
 
     return loss_dict

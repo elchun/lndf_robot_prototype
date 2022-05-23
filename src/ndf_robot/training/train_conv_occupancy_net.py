@@ -11,6 +11,7 @@ import ndf_robot.model.conv_occupancy_net.conv_occupancy_net as conv_occupancy_n
 # from ndf_robot.training import summaries, losses, training, dataio, config
 from ndf_robot.training import summaries, losses, training
 from ndf_robot.training import dataio_conv as dataio
+# from ndf_robot.training import dataio as dataio
 
 from ndf_robot.utils import path_util
 
@@ -60,30 +61,28 @@ val_dataloader = DataLoader(val_dataset, batch_size=opt.batch_size, shuffle=True
                             drop_last=True, num_workers=4)
 
 # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=64).cuda()
-model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32).cuda()
+model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True).cuda()
 # model = vnn_occupancy_network.VNNOccNet(latent_dim=256).cuda()
 
 print(model)
 
 if opt.checkpoint_path is not None:
-    model.load_state_dict(torch.load(opt.checkpoint_path))
+    checkpoint_path = osp.join(path_util.get_ndf_model_weights(), opt.checkpoint_path)
+    model.load_state_dict(torch.load(checkpoint_path))
 
 # Can use if have multiple gpus (best to not use for now cuz it increases complexity)
 # model_parallel = nn.DataParallel(model, device_ids=[0, 1, 2, 3, 4, 5])
 model_parallel = model
 
 # Define the loss
-root_path = os.path.join(opt.logging_root, opt.experiment_name)
-
-# Define the loss
 summary_fn = summaries.occupancy_net
 root_path = os.path.join(opt.logging_root, opt.experiment_name)
-loss_fn = val_loss_fn = losses.occupancy_net
+# loss_fn = val_loss_fn = losses.occupancy_net
 # loss_fn = val_loss_fn = losses.conv_occupancy_net
 
 # loss_fn = val_loss_fn = losses.rotated
-# loss_fn = val_loss_fn = losses.rotated_triplet
-loss_fn = val_loss_fn = losses.rotated_adaptive
+# loss_fn = val_loss_fn = losses.rotated_adaptive
+loss_fn = val_loss_fn = losses.custom_rotated_triplet
 
 
 # training.train(model=model_parallel, train_dataloader=train_dataloader, val_dataloader=val_dataloader, epochs=opt.num_epochs,
@@ -92,16 +91,16 @@ loss_fn = val_loss_fn = losses.rotated_adaptive
 #                clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True)
 
 
-training.train_conv(model=model_parallel, train_dataloader=train_dataloader, 
-    val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr, 
-    steps_til_summary=opt.steps_til_summary, 
-    epochs_til_checkpoint=opt.epochs_til_ckpt,
-    model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt, 
-    summary_fn=summary_fn,clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True)
-
-# training.train_conv_triplet(model=model_parallel, train_dataloader=train_dataloader, 
+# training.train_conv(model=model_parallel, train_dataloader=train_dataloader, 
 #     val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr, 
 #     steps_til_summary=opt.steps_til_summary, 
 #     epochs_til_checkpoint=opt.epochs_til_ckpt,
 #     model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt, 
 #     summary_fn=summary_fn,clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True)
+
+training.train_conv_triplet(model=model_parallel, train_dataloader=train_dataloader, 
+    val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr, 
+    steps_til_summary=opt.steps_til_summary, 
+    epochs_til_checkpoint=opt.epochs_til_ckpt,
+    model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt, 
+    summary_fn=summary_fn,clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True)

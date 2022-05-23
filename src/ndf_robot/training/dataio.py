@@ -91,6 +91,7 @@ class JointOccTrainDataset(Dataset):
             return res, {'occ': torch.from_numpy(labels).float()}
         """
         try:
+            print(self.files[index])
             data = np.load(self.files[index], allow_pickle=True)
             posecam =  data['object_pose_cam_frame']  # legacy naming, used to use pose expressed in camera frame. global reference frame doesn't matter though
 
