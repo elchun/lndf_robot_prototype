@@ -805,6 +805,25 @@ def main(args, global_dict):
 
         robot.pb_client.remove_body(obj_id)
 
+def make_unique_path_to_dir(base_path: str) -> str:
+    """
+    Add index to base_path until the path is unique
+    Assumes that base path is leading to a directory
+
+    Args:
+        base_path (str): path leading to directory 
+
+    Returns:
+        str: path with appropriate index appended to it
+    """
+    ### Make unique root path name ###
+    path_index = 0
+    final_base_path = base_path + '_' + str(path_index)
+    while osp.isdir(final_base_path):
+        path_index += 1
+        final_base_path = base_path + '_' + str(path_index)
+    return final_base_path
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -860,6 +879,7 @@ if __name__ == "__main__":
     seedstr = 'seed--' + str(args.seed)
     full_experiment_name = '_'.join([expstr, modelstr, seedstr])
     eval_save_dir = osp.join(path_util.get_ndf_eval_data(), args.eval_data_dir, full_experiment_name)
+    eval_save_dir = make_unique_path_to_dir(eval_save_dir)
     util.safe_makedirs(eval_save_dir)
 
     vnn_model_path = osp.join(path_util.get_ndf_model_weights(), args.model_path + '.pth')

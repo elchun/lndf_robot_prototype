@@ -7,6 +7,8 @@ import collections
 import cv2
 import torch.nn.functional as F
 
+import os.path as osp
+
 # import matplotlib.pyplot as plt
 # from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -202,3 +204,23 @@ def lin2img(tensor, image_resolution=None):
         width = image_resolution[1]
 
     return tensor.permute(0, 2, 1).view(batch_size, channels, height, width)
+
+
+def make_unique_path_to_dir(base_path: str) -> str:
+    """
+    Add index to base_path until the path is unique
+    Assumes that base path is leading to a directory
+
+    Args:
+        base_path (str): path leading to directory 
+
+    Returns:
+        str: path with appropriate index appended to it
+    """
+    ### Make unique root path name ###
+    path_index = 0
+    final_base_path = base_path + '_' + str(path_index)
+    while osp.isdir(final_base_path):
+        path_index += 1
+        final_base_path = base_path + '_' + str(path_index)
+    return final_base_path
