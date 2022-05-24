@@ -1,4 +1,4 @@
-CUDA_VISIBLE_DEVICES=4 python evaluate_ndf.py \
+CUDA_VISIBLE_DEVICES=2 python evaluate_ndf.py \
         --demo_exp grasp_rim_hang_handle_gaussian_precise_w_shelf \
         --object_class mug \
         --opt_iterations 500 \
@@ -7,7 +7,7 @@ CUDA_VISIBLE_DEVICES=4 python evaluate_ndf.py \
         --model_path multi_category_weights \
         --save_vis_per_model \
         --config eval_mug_gen \
-	--exp conv_eval_latent_any_transfer_triplet \
+	--exp conv_eval_latent_any_transfer_triplet_rand_margin \
         --num_iterations 100 \
         --any_pose \
 #       --pybullet_viz \

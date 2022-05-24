@@ -598,15 +598,12 @@ def train_conv_triplet(model, train_dataloader, epochs, lr, steps_til_summary, e
                 #     'intrinsics': model_input['intrinsics']
                 # }
 
-                # Negative input using shuffled coordinates
+                # Negative input using random coordinates
                 rot_negative_input = {
                     'point_cloud': model_input['rot_point_cloud'],
-                    'coords': model_input['rot_coords_shuffled'],
+                    'coords': model_input['rand_coords'],
                     'intrinsics': model_input['intrinsics']
                 }
-
-        # reference_latent = self.model.extract_latent(reference_model_input).detach()
-        # reference_act_hat = self.model.forward_latent(reference_latent, reference_model_input['coords']).detach()
 
                 standard_output = model(standard_input)
                 standard_latent = model.extract_latent(model_input)
@@ -689,9 +686,15 @@ def train_conv_triplet(model, train_dataloader, epochs, lr, steps_til_summary, e
                                     'intrinsics': model_input['intrinsics']
                                 }
 
+                                # rot_negative_input = {
+                                #     'point_cloud': model_input['rot_point_cloud'],
+                                #     'coords': model_input['coords'],
+                                #     'intrinsics': model_input['intrinsics']
+                                # }
+
                                 rot_negative_input = {
                                     'point_cloud': model_input['rot_point_cloud'],
-                                    'coords': model_input['coords'],
+                                    'coords': model_input['rand_coords'],
                                     'intrinsics': model_input['intrinsics']
                                 }
 

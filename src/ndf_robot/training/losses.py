@@ -266,10 +266,10 @@ def custom_rotated_triplet(model_outputs, ground_truth, it=-1, val=False, **kwar
         torch.ones(standard_act_hat.shape[0]).to(device))
 
     latent_negative_loss = F.cosine_embedding_loss(standard_act_hat, rot_negative_act_hat, 
-        -torch.ones(standard_act_hat.shape[0]).to(device), margin=0.5)
+        -torch.ones(standard_act_hat.shape[0]).to(device), margin=0)
 
 
-    latent_loss_scale_default = 4
+    latent_loss_scale_default = 100 
     # if it == -1:
     #     latent_loss_scale = latent_loss_scale_default 
     # elif it < 10000:
@@ -277,21 +277,26 @@ def custom_rotated_triplet(model_outputs, ground_truth, it=-1, val=False, **kwar
     # else:
     #     latent_loss_scale = latent_loss_scale_default 
 
-    occ_loss_threshold = 0.20
-    if occ_loss < occ_loss_threshold:
-        latent_loss_scale = latent_loss_scale_default
-    else:
-        latent_loss_scale = 0
+    # occ_loss_threshold = 0.20
+    # if occ_loss < occ_loss_threshold:
+    #     latent_loss_scale = latent_loss_scale_default
+    # else:
+    #     latent_loss_scale = 0
 
     latent_positive_loss = latent_positive_loss.mean()
     latent_negative_loss = latent_negative_loss.mean()
 
 
-    loss_dict['occ'] = occ_loss \
-        + latent_loss_scale * (latent_positive_loss + latent_negative_loss)
+    # loss_dict['occ'] = occ_loss \
+    #     + latent_loss_scale * (latent_positive_loss + latent_negative_loss)
+
+    # Margin determines how accurate the occ reconstruction is
+    occ_margin = 0.15
+    loss_dict['occ'] = max(occ_loss - occ_margin, 0) \
+        + latent_positive_loss + latent_negative_loss
 
     print('occ loss: ', occ_loss)
-    print('latent_scale: ', latent_loss_scale)
+    # print('latent_scale: ', latent_loss_scale)
     print('latent pos loss: ', latent_positive_loss)
     print('latent neg loss: ', latent_negative_loss)
 

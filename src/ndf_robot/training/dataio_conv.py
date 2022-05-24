@@ -258,6 +258,15 @@ class JointOccTrainDataset(Dataset):
             # bounding box for negative triplet loss example
             shuffler = torch.randperm(coords_transformed.shape[0])
             coords_transformed_shuffled = coords_transformed[shuffler]
+
+            # Generate random samples within bounding box of rotated
+            min_coords = torch.min(coords_transformed, dim=0)[0].numpy()
+            max_coords = torch.max(coords_transformed, dim=0)[0].numpy()
+            coord_range = max_coords - min_coords
+
+            rand_coords = np.random.random(coords_transformed.shape)
+            rand_coords = rand_coords * coord_range.reshape((1, 3)) 
+            rand_coords = torch.from_numpy(rand_coords)
             
             # # at the end we have 3D point cloud observation from depth images, 
             # voxel occupancy values and corresponding voxel coordinates
@@ -267,10 +276,13 @@ class JointOccTrainDataset(Dataset):
                    'intrinsics': intrinsics.float(),
                    'rot_point_cloud': point_cloud_transformed.float(),
                    'rot_coords': coords_transformed.float(),
-                   'rot_coords_shuffled': coords_transformed_shuffled.float()}
+                   'rot_coords_shuffled': coords_transformed_shuffled.float(),
+                   'rand_coords': rand_coords.float()}
                 #    'rot_intrinsics': torch.tensor([])}
                 #    'cam_poses': np.zeros(1)}  # cam poses not used
             # print('dataio pcd: ', point_cloud.shape)
+
+            # print(point_cloud.shape) # (1000, 3)
             return res, {'occ': torch.from_numpy(labels).float()}
 
         except Exception as e:
