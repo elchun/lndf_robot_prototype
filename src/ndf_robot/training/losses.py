@@ -269,7 +269,7 @@ def custom_rotated_triplet(model_outputs, ground_truth, it=-1, val=False, **kwar
         -torch.ones(standard_act_hat.shape[0]).to(device), margin=0)
 
 
-    latent_loss_scale_default = 100 
+    # latent_loss_scale_default = 100 
     # if it == -1:
     #     latent_loss_scale = latent_loss_scale_default 
     # elif it < 10000:
@@ -290,10 +290,12 @@ def custom_rotated_triplet(model_outputs, ground_truth, it=-1, val=False, **kwar
     # loss_dict['occ'] = occ_loss \
     #     + latent_loss_scale * (latent_positive_loss + latent_negative_loss)
 
+    latent_loss_scale = 1
+
     # Margin determines how accurate the occ reconstruction is
-    occ_margin = 0.15
+    occ_margin = 0.13
     loss_dict['occ'] = max(occ_loss - occ_margin, 0) \
-        + latent_positive_loss + latent_negative_loss
+        + latent_loss_scale * (latent_positive_loss + latent_negative_loss)
 
     print('occ loss: ', occ_loss)
     # print('latent_scale: ', latent_loss_scale)

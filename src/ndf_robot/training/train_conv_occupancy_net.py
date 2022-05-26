@@ -68,7 +68,8 @@ if __name__ == '__main__':
                                 drop_last=True, num_workers=4)
 
     # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=64).cuda()
-    model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True).cuda()
+    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True).cuda()
+    model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True, acts='last').cuda()
 
     print(model)
 
