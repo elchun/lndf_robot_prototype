@@ -113,25 +113,40 @@ def get_ee_offset(ee_pose):
     return dz_vec.tolist() + [0, 0, 0, 1]
 
 
-def process_demo_data_rack(grasp_data, place_data, cfg, gaussian_scale=0.1):
+def process_demo_data_rack(grasp_data, place_data, cfg, gaussian_scale=0.1, 
+    aux_gripper_pts=None):
     data = grasp_data
     demo_obj_pts = data['object_pointcloud']  # observed shape point cloud at start
     demo_pts_mean = np.mean(demo_obj_pts, axis=0)
     inliers = np.where(np.linalg.norm(demo_obj_pts - demo_pts_mean, 2, 1) < 0.2)[0]
     demo_obj_pts = demo_obj_pts[inliers]
 
-    demo_gripper_pts_rs = data['gripper_pts']  # points we use to represent the gripper at their canonical pose position shown in the demonstration
-    demo_gripper_pcd_rs = trimesh.PointCloud(demo_gripper_pts_rs)
-    demo_ee_mat = util.matrix_from_pose(util.list2pose_stamped(data['ee_pose_world']))  # end-effector pose before grasping
-    demo_gripper_pcd_rs.apply_transform(demo_ee_mat)
-    demo_gripper_pts_rs = np.asarray(demo_gripper_pcd_rs.vertices) # points we use to represent the gripper at their canonical pose position shown in the demonstration
+    if aux_gripper_pts is not None:
+        demo_gripper_pts_rs = aux_gripper_pts  # points we use to represent the gripper at their canonical pose position shown in the demonstration
+        demo_gripper_pcd_rs = trimesh.PointCloud(demo_gripper_pts_rs)
+        demo_ee_mat = util.matrix_from_pose(util.list2pose_stamped(data['ee_pose_world']))  # end-effector pose before grasping
+        demo_gripper_pcd_rs.apply_transform(demo_ee_mat)
+        demo_gripper_pts_rs = np.asarray(demo_gripper_pcd_rs.vertices) # points we use to represent the gripper at their canonical pose position shown in the demonstration
 
-    # demo_gripper_pts = data['gripper_pts_gaussian'] * gaussian_scale # query points for the gripper (Gaussian distributed)
-    demo_gripper_pts = data['gripper_pts_uniform'] # query points for the gripper (Uniform distributed)
-    demo_gripper_pcd = trimesh.PointCloud(demo_gripper_pts)
-    demo_ee_mat = util.matrix_from_pose(util.list2pose_stamped(data['ee_pose_world']))  # end-effector pose before grasping
-    demo_gripper_pcd.apply_transform(demo_ee_mat)
-    demo_gripper_pts = np.asarray(demo_gripper_pcd.vertices) # points we use to represent the gripper at their canonical pose position shown in the demonstration
+        demo_gripper_pts = aux_gripper_pts # query points for the gripper (Uniform distributed)
+        demo_gripper_pcd = trimesh.PointCloud(demo_gripper_pts)
+        demo_ee_mat = util.matrix_from_pose(util.list2pose_stamped(data['ee_pose_world']))  # end-effector pose before grasping
+        demo_gripper_pcd.apply_transform(demo_ee_mat)
+        demo_gripper_pts = np.asarray(demo_gripper_pcd.vertices) # points we use to represent the gripper at their canonical pose position shown in the demonstration
+
+    else:
+        demo_gripper_pts_rs = data['gripper_pts']  # points we use to represent the gripper at their canonical pose position shown in the demonstration
+        demo_gripper_pcd_rs = trimesh.PointCloud(demo_gripper_pts_rs)
+        demo_ee_mat = util.matrix_from_pose(util.list2pose_stamped(data['ee_pose_world']))  # end-effector pose before grasping
+        demo_gripper_pcd_rs.apply_transform(demo_ee_mat)
+        demo_gripper_pts_rs = np.asarray(demo_gripper_pcd_rs.vertices) # points we use to represent the gripper at their canonical pose position shown in the demonstration
+
+        # demo_gripper_pts = data['gripper_pts_gaussian'] * gaussian_scale # query points for the gripper (Gaussian distributed)
+        demo_gripper_pts = data['gripper_pts_uniform'] # query points for the gripper (Uniform distributed)
+        demo_gripper_pcd = trimesh.PointCloud(demo_gripper_pts)
+        demo_ee_mat = util.matrix_from_pose(util.list2pose_stamped(data['ee_pose_world']))  # end-effector pose before grasping
+        demo_gripper_pcd.apply_transform(demo_ee_mat)
+        demo_gripper_pts = np.asarray(demo_gripper_pcd.vertices) # points we use to represent the gripper at their canonical pose position shown in the demonstration
 
     # place_data = np.load(place_demo_fn, allow_pickle=True)
     place_demo_obj_pts = place_data['object_pointcloud']  # observed shape points at start

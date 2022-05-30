@@ -3,6 +3,7 @@ import random
 import numpy as np
 import time
 import signal
+import scipy as sp
 import torch
 import argparse
 import shutil
@@ -33,8 +34,22 @@ from ndf_robot.utils.eval_gen_utils import (
     process_demo_data_rack, process_demo_data_shelf, process_xq_data, process_xq_rs_data, safeRemoveConstraint,
 )
 
+from ndf_robot.utils.plotly_save import plot3d
+
+def generate_random_sphere(num_points, radius=0.05):
+    # http://extremelearning.com.au/how-to-generate-uniformly-random-points-on-n-spheres-and-n-balls/
+    u = 2*np.random.rand(num_points, 1)-1
+    phi = 2* np.pi * np.random.rand(num_points, 1) 
+    r = radius * (np.random.rand(num_points, 1)**(1/3.))
+    x = r* np.cos(phi) * (1-u**2)**0.5
+    y = r* np.sin(phi)* (1-u**2)**0.5
+    z = r*u
+
+    sphere_points = np.hstack((x, y, z))
+    return sphere_points 
 
 def main(args, global_dict):
+
     if args.debug:
         set_log_level('debug')
     else:
@@ -210,6 +225,13 @@ def main(args, global_dict):
             optimizer_gripper_pts, rack_optimizer_gripper_pts, shelf_optimizer_gripper_pts = process_xq_data(grasp_data, place_data, shelf=load_shelf)
             optimizer_gripper_pts_rs, rack_optimizer_gripper_pts_rs, shelf_optimizer_gripper_pts_rs = process_xq_rs_data(grasp_data, place_data, shelf=load_shelf)
 
+            sigma = 0.02 # tried 1, 0.01, 0.05
+            normal_query_points = np.random.normal(0.0, sigma, size=optimizer_gripper_pts.shape)
+            sphere_query_points = generate_random_sphere(optimizer_gripper_pts.shape[0], radius=0.045)
+            # sphere_query_points += [[0, 0, 0.02]]
+            # sphere_query_points += [[0, 0, 0]] # Works pretty well
+            sphere_query_points += [[0, 0, 0.01]] 
+
             if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
                 print('Using shelf points')
                 place_optimizer_pts = shelf_optimizer_gripper_pts
@@ -219,10 +241,33 @@ def main(args, global_dict):
                 place_optimizer_pts = rack_optimizer_gripper_pts
                 place_optimizer_pts_rs = rack_optimizer_gripper_pts_rs
 
-        if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
-            target_info, rack_target_info, shapenet_id = process_demo_data_shelf(grasp_data, place_data, cfg=None)
+            # For DEGBUG
+            scene_dict = {}
+            scene_dict['scene'] = {
+                'xaxis': {'nticks': 10, 'range': [-1, 1]},
+                'yaxis': {'nticks': 10, 'range': [-1, 1]},
+                'zaxis': {'nticks': 10, 'range': [-1, 1]}
+            }
+            plot3d(
+                [optimizer_gripper_pts, sphere_query_points],
+                ['blue', 'black'], 
+                osp.join(eval_save_dir, 'query_points.html'),
+                scene_dict=scene_dict,
+                z_plane=False)
+        
+        if args.query_point_type == 'normal':
+            aux_gripper_pts = normal_query_points 
+        elif args.query_point_type == 'sphere':
+            aux_gripper_pts = sphere_query_points 
         else:
-            target_info, rack_target_info, shapenet_id = process_demo_data_rack(grasp_data, place_data, cfg=None)
+            aux_gripper_pts = None
+        
+        if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
+            target_info, rack_target_info, shapenet_id = process_demo_data_shelf(
+                grasp_data, place_data, cfg=None, aux_gripper_pts=aux_gripper_pts)
+        else:
+            target_info, rack_target_info, shapenet_id = process_demo_data_rack(
+                grasp_data, place_data, cfg=None, aux_gripper_pts=aux_gripper_pts)
 
         if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
             rack_target_info['demo_query_pts'] = place_optimizer_pts
@@ -235,12 +280,27 @@ def main(args, global_dict):
         query_pts=place_optimizer_pts,
         query_pts_real_shape=place_optimizer_pts_rs,
         opt_iterations=args.opt_iterations)
+    
 
-    grasp_optimizer = OccNetOptimizer(
-        model,
-        query_pts=optimizer_gripper_pts,
-        query_pts_real_shape=optimizer_gripper_pts_rs,
-        opt_iterations=args.opt_iterations)
+
+    if args.query_point_type == 'normal':
+        grasp_optimizer = OccNetOptimizer(
+            model,
+            query_pts=normal_query_points,
+            query_pts_real_shape=normal_query_points,
+            opt_iterations=args.opt_iterations)
+    elif args.query_point_type == 'sphere':
+        grasp_optimizer = OccNetOptimizer(
+            model,
+            query_pts=sphere_query_points,
+            query_pts_real_shape=np.vstack((sphere_query_points, optimizer_gripper_pts_rs)),
+            opt_iterations=args.opt_iterations)
+    else:
+        grasp_optimizer = OccNetOptimizer(
+            model,
+            query_pts=optimizer_gripper_pts,
+            query_pts_real_shape=optimizer_gripper_pts_rs,
+            opt_iterations=args.opt_iterations)
     grasp_optimizer.set_demo_info(demo_target_info_list)
     place_optimizer.set_demo_info(demo_rack_target_info_list)
 
@@ -525,7 +585,7 @@ def main(args, global_dict):
         
         # viz_data_list.append(viz_dict)
         # viz_sample_fname = osp.join(eval_iter_dir, 'overlay_visualization_data.npz')
-        # print('Saving viz to: ', viz_sample_fname)
+        # print('Saving viz to: ', viz_sample_fname)]
         # np.savez(viz_sample_fname, viz_dict=viz_dict, viz_data_list=viz_data_list)
 
         # reset object to placement pose to detect placement success
@@ -863,6 +923,8 @@ if __name__ == "__main__":
     parser.add_argument('--grasp_dist_thresh', type=float, default=0.0025)
     parser.add_argument('--start_iteration', type=int, default=0)
     parser.add_argument('--no_conv', action='store_true')
+
+    parser.add_argument('--query_point_type', type=str, default='sphere', help='normal, sphere, gripper') 
 
 
     args = parser.parse_args()

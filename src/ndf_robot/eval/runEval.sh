@@ -7,9 +7,9 @@ CUDA_VISIBLE_DEVICES=0 python evaluate_ndf.py \
         --model_path multi_category_weights \
         --save_vis_per_model \
         --config eval_mug_gen \
-	--exp conv_eval_latent_any_transfer_triplet_rand_margin_no_neg_margin_143000 \
+	--exp DEBUG_conv_eval_latent_upright_transfer_triplet_rand_margin_no_neg_margin_143000_normal_query\
         --num_iterations 100 \
-        --any_pose \
+#       --any_pose \
 #       --pybullet_viz \
 #       --use_full_hand \
 #		--grasp_viz \
