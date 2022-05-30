@@ -333,7 +333,14 @@ def train_feature(model, train_dataloader, corr_model, epochs, lr, steps_til_sum
 
 def train_conv(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_checkpoint, model_dir, loss_fn,
           summary_fn=None, iters_til_checkpoint=None, val_dataloader=None, clip_grad=False, val_loss_fn=None,
-          overwrite=True, optimizers=None, batches_per_validation=10, gpus=1, rank=0, max_steps=None):
+          overwrite=True, optimizers=None, batches_per_validation=10, gpus=1, rank=0, max_steps=None,
+          loss_type='latent'):
+    
+    # Trains by making loss_type as similar as possible between rotations
+
+        # Loss type is either 'latent' or 'activations'. 'latent' uses the output from 
+        # encoder + convolutional layers, 'activations' uses the activations of the
+        # decoder
     
     old_summary_fn = summary_fn
     def summary_fn_wrapper(model, model_input, ground_truth, model_output, writer, iter, prefix=""):
@@ -404,11 +411,20 @@ def train_conv(model, train_dataloader, epochs, lr, steps_til_summary, epochs_ti
                 rot_latent = model.extract_latent(rot_input)
                 rot_act_hat = model.forward_latent(rot_latent, rot_input['coords'])
 
-                model_output = {
-                    'standard': standard_output, 
-                    'rot': rot_output,
-                    'standard_act_hat': standard_act_hat,
-                    'rot_act_hat': rot_act_hat}
+                if loss_type == 'activations':
+                    model_output = {
+                        'standard': standard_output, 
+                        'rot': rot_output,
+                        'standard_act_hat': standard_act_hat,
+                        'rot_act_hat': rot_act_hat}
+                elif loss_type == 'latent':
+                    model_output = {
+                        'standard': standard_output, 
+                        'rot': rot_output,
+                        'standard_act_hat': standard_latent,
+                        'rot_act_hat': rot_latent}
+                else:
+                    raise ValueError(f"Expected 'activations' or 'latent', got {loss_type}")
                     
                 losses = loss_fn(model_output, gt, it=total_steps)
 
@@ -479,11 +495,20 @@ def train_conv(model, train_dataloader, epochs, lr, steps_til_summary, epochs_ti
                                 rot_latent = model.extract_latent(rot_input)
                                 rot_act_hat = model.forward_latent(rot_latent, rot_input['coords'])
 
-                                model_output = {
-                                    'standard': standard_output, 
-                                    'rot': rot_output,
-                                    'standard_act_hat': standard_act_hat,
-                                    'rot_act_hat': rot_act_hat}
+                                if loss_type == 'activations':
+                                    model_output = {
+                                        'standard': standard_output, 
+                                        'rot': rot_output,
+                                        'standard_act_hat': standard_act_hat,
+                                        'rot_act_hat': rot_act_hat}
+                                elif loss_type == 'latent':
+                                    model_output = {
+                                        'standard': standard_output, 
+                                        'rot': rot_output,
+                                        'standard_act_hat': standard_latent,
+                                        'rot_act_hat': rot_latent}
+                                else:
+                                    raise ValueError(f"Expected 'activations' or 'latent', got {loss_type}")
 
                                 val_loss = val_loss_fn(model_output, gt, it=total_steps)
 
@@ -524,6 +549,33 @@ def train_conv(model, train_dataloader, epochs, lr, steps_til_summary, epochs_ti
 def train_conv_triplet(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_checkpoint, model_dir, loss_fn,
           summary_fn=None, iters_til_checkpoint=None, val_dataloader=None, clip_grad=False, val_loss_fn=None,
           overwrite=True, optimizers=None, batches_per_validation=10, gpus=1, rank=0, max_steps=None):
+    """
+    Convolutional occupancy network with triplet loss function 
+
+    Args:
+        model (_type_): _description_
+        train_dataloader (_type_): _description_
+        epochs (_type_): _description_
+        lr (_type_): _description_
+        steps_til_summary (_type_): _description_
+        epochs_til_checkpoint (_type_): _description_
+        model_dir (_type_): _description_
+        loss_fn (_type_): _description_
+        summary_fn (_type_, optional): _description_. Defaults to None.
+        iters_til_checkpoint (_type_, optional): _description_. Defaults to None.
+        val_dataloader (_type_, optional): _description_. Defaults to None.
+        clip_grad (bool, optional): _description_. Defaults to False.
+        val_loss_fn (_type_, optional): _description_. Defaults to None.
+        overwrite (bool, optional): _description_. Defaults to True.
+        optimizers (_type_, optional): _description_. Defaults to None.
+        batches_per_validation (int, optional): _description_. Defaults to 10.
+        gpus (int, optional): _description_. Defaults to 1.
+        rank (int, optional): _description_. Defaults to 0.
+        max_steps (_type_, optional): _description_. Defaults to None.
+
+    Returns:
+        _type_: _description_
+    """
     
     old_summary_fn = summary_fn
     def summary_fn_wrapper(model, model_input, ground_truth, model_output, writer, iter, prefix=""):

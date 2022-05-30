@@ -32,6 +32,7 @@ if __name__ == '__main__':
     # General training options
     p.add_argument('--batch_size', type=int, default=16)
     p.add_argument('--lr', type=float, default=1e-4, help='learning rate. default=5e-5')
+    # p.add_argument('--lr', type=float, default=1e-3, help='learning rate. default=5e-5')
     p.add_argument('--num_epochs', type=int, default=100,
                 help='Number of epochs to train for.')
     # p.add_argument('--num_epochs', type=int, default=40001,
@@ -68,8 +69,9 @@ if __name__ == '__main__':
                                 drop_last=True, num_workers=4)
 
     # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=64).cuda()
-    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True).cuda()
-    model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True, acts='last').cuda()
+    model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True).cuda()
+    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True, acts='last').cuda()
+    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True, acts='first_net').cuda()
 
     print(model)
 
@@ -92,10 +94,10 @@ if __name__ == '__main__':
 
     # loss_fn = val_loss_fn = losses.rotated
     # loss_fn = val_loss_fn = losses.rotated_adaptive
-    loss_fn = val_loss_fn = losses.custom_rotated_triplet
 
     ### Run train function ###
     if opt.triplet_loss:
+        loss_fn = val_loss_fn = losses.custom_rotated_triplet
         training.train_conv_triplet(model=model_parallel, train_dataloader=train_dataloader, 
             val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr, 
             steps_til_summary=opt.steps_til_summary, 
@@ -103,6 +105,7 @@ if __name__ == '__main__':
             model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt, 
             summary_fn=summary_fn,clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True)
     else:
+        loss_fn = val_loss_fn = losses.rotated_margin
         training.train_conv(model=model_parallel, train_dataloader=train_dataloader, 
             val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr, 
             steps_til_summary=opt.steps_til_summary, 

@@ -180,7 +180,7 @@ class ConvolutionalOccupancyNetwork(nn.Module):
         Get decoder activations from decoder network
 
         Args:
-            z (???): Encoder activations
+            z (???): Latent from encoder input 
             coords (???): Query points
 
         Returns:

@@ -76,6 +76,7 @@ class LocalDecoder(nn.Module):
         acts = []
         acts_inp = []
         acts_first_rn = []
+        acts_first_net = []
         acts_inp_first_rn = []
 
         if self.c_dim != 0:
@@ -97,6 +98,8 @@ class LocalDecoder(nn.Module):
 
         net = self.fc_p(p)
         acts.append(net)
+        acts_first_net.append(net)
+
 
         for i in range(self.n_blocks):
             if self.c_dim != 0:
@@ -122,6 +125,8 @@ class LocalDecoder(nn.Module):
                 acts = last_act
             elif self.acts == 'inp_first_rn': # Appears to return an empty list?
                 acts = torch.cat(acts_inp_first_rn, dim=-1)
+            elif self.acts == 'first_net':
+                acts = torch.cat(acts_first_net, dim=-1)
             acts = F.normalize(acts, p=2, dim=-1)
             return out, acts
         else:

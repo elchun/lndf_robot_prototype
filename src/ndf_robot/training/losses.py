@@ -228,6 +228,63 @@ def rotated_adaptive(model_outputs, ground_truth, it=-1,val=False):
     # latent was 1.5 * 10^-5 with scale 100
     return loss_dict
 
+
+def rotated_margin(model_outputs, ground_truth, occ_margin=0.13, it=-1,val=False):
+    """
+    https://towardsdatascience.com/contrastive-loss-explaned-159f2d4a87ec
+    model_outputs = {'standard': <>, 'rot': <>, 
+        'standard_latent': <>, 'rot_latent': <>,
+        'it': <>}
+    """
+
+    loss_dict = dict()
+    label = ground_truth['occ'].squeeze()
+    label = (label + 1) / 2.
+
+    # Get outputs from dict
+    standard_outputs = model_outputs['standard']
+    rot_outputs = model_outputs['rot']
+    standard_act_hat = torch.flatten(model_outputs['standard_act_hat'], start_dim=1)
+    rot_act_hat = torch.flatten(model_outputs['rot_act_hat'], start_dim=1)
+
+
+    # Calculate loss of occupancy
+    standard_loss_occ = -1 * (label * torch.log(standard_outputs['occ'] + 1e-5) 
+        + (1 - label) * torch.log(1 - standard_outputs['occ'] + 1e-5)).mean()
+    rot_loss_occ = -1 * (label * torch.log(rot_outputs['occ'] + 1e-5) 
+        + (1 - label) * torch.log(1 - rot_outputs['occ'] + 1e-5)).mean()
+    
+    occ_loss = (standard_loss_occ + rot_loss_occ) / 2
+    
+    # Calculate loss from similarity between latent descriptors 
+    device = standard_act_hat.get_device()
+    latent_loss = F.cosine_embedding_loss(standard_act_hat, rot_act_hat, 
+        torch.ones(standard_act_hat.shape[0]).to(device))
+
+    # latent_loss = F.mse_loss(standard_latent, rot_latent)
+
+    # Can also do adaptive based on the occ loss value
+    latent_loss = latent_loss.mean()
+
+
+    latent_loss_scale = 1
+    loss_dict['occ'] = max(occ_loss - occ_margin, 0) \
+        + latent_loss_scale * latent_loss 
+
+    print('scale: ', latent_loss_scale)
+    print('occ loss: ', occ_loss)
+    print('latent loss: ', latent_loss)
+
+    # occ was 0.14 with scale at 1
+    # latent was at 0.006 with scale at 1
+
+    # occ was 0.3 with scale 10000
+    # latent was 1.5 * 10^-7 with scale 10000
+
+    # occ was 0.3 with scale 100
+    # latent was 1.5 * 10^-5 with scale 100
+    return loss_dict
+
 def custom_rotated_triplet(model_outputs, ground_truth, it=-1, val=False, **kwargs):
     """
     https://towardsdatascience.com/contrastive-loss-explaned-159f2d4a87ec
@@ -290,12 +347,23 @@ def custom_rotated_triplet(model_outputs, ground_truth, it=-1, val=False, **kwar
     # loss_dict['occ'] = occ_loss \
     #     + latent_loss_scale * (latent_positive_loss + latent_negative_loss)
 
-    latent_loss_scale = 1
+    # latent_loss_scale = 1
+    negative_loss_scale = 1
+    positive_loss_scale = 1
 
     # Margin determines how accurate the occ reconstruction is
-    occ_margin = 0.13
+    occ_margin = 0.15
+    # loss_dict['occ'] = max(occ_loss - occ_margin, 0) \
+    #     + latent_loss_scale * (latent_positive_loss + latent_negative_loss)
+
     loss_dict['occ'] = max(occ_loss - occ_margin, 0) \
-        + latent_loss_scale * (latent_positive_loss + latent_negative_loss)
+        + positive_loss_scale * latent_positive_loss \
+        + negative_loss_scale * latent_negative_loss
+    
+    # occ_margin = 0.13
+    # exp_scale = 4
+    # loss_dict['occ'] = max(torch.exp(exp_scale * (occ_loss - occ_margin)), 0) \
+    #     + latent_loss_scale * (latent_positive_loss + latent_negative_loss)
 
     print('occ loss: ', occ_loss)
     # print('latent_scale: ', latent_loss_scale)
