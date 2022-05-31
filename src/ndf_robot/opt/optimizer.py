@@ -105,7 +105,9 @@ class OccNetOptimizer:
         """
         dev = self.dev
         n_pts = 1500
-        opt_pts = 500 
+        # opt_pts = 500 
+        # opt_pts = 1000 # Seems to work well
+        opt_pts = 2000 
         perturb_scale = self.noise_scale
         perturb_decay = self.noise_decay
 

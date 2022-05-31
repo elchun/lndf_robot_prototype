@@ -229,8 +229,8 @@ def main(args, global_dict):
             normal_query_points = np.random.normal(0.0, sigma, size=optimizer_gripper_pts.shape)
             sphere_query_points = generate_random_sphere(optimizer_gripper_pts.shape[0], radius=0.045)
             # sphere_query_points += [[0, 0, 0.02]]
-            # sphere_query_points += [[0, 0, 0]] # Works pretty well
-            sphere_query_points += [[0, 0, 0.01]] 
+            sphere_query_points += [[0, 0, 0]] # Works pretty well
+            # sphere_query_points += [[0, 0, 0.01]] 
 
             if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
                 print('Using shelf points')
