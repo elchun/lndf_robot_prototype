@@ -69,10 +69,11 @@ if __name__ == '__main__':
                                 drop_last=True, num_workers=4)
 
     # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=64).cuda()
-    model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True).cuda()
+    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True).cuda()
     # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True, acts='last').cuda()
     # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True, acts='first_net').cuda()
     # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=16, return_features=True).cuda()
+    model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=8, return_features=True).cuda()
 
     print(model)
 
@@ -103,7 +104,8 @@ if __name__ == '__main__':
             model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt, 
             summary_fn=summary_fn,clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True)
     else:
-        loss_fn = val_loss_fn = losses.rotated_margin
+        # loss_fn = val_loss_fn = losses.rotated_margin
+        loss_fn = val_loss_fn = losses.conv_occupancy_net
         training.train_conv(model=model_parallel, train_dataloader=train_dataloader, 
             val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr, 
             steps_til_summary=opt.steps_til_summary, 

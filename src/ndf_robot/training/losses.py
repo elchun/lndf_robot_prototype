@@ -12,7 +12,7 @@ def occupancy(model_outputs, ground_truth, val=False):
     return loss_dict
 
 
-def occupancy_net(model_outputs, ground_truth, val=False):
+def occupancy_net(model_outputs, ground_truth, val=False, **kwargs):
     # Good if using sigmoid on output of decoder
     loss_dict = dict()
     label = ground_truth['occ'].squeeze()
@@ -23,14 +23,18 @@ def occupancy_net(model_outputs, ground_truth, val=False):
     return loss_dict
 
 
-def conv_occupancy_net(model_outputs, ground_truth, val=False):
+def conv_occupancy_net(model_outputs, ground_truth, val=False, **kwargs):
+    standard_output = model_outputs['standard']
+
     # Good if not using sigmoid on output of decoder
     loss_dict = dict()
     label = ground_truth['occ'].squeeze()
     label = (label + 1) / 2.
 
-    loss = F.binary_cross_entropy_with_logits(model_outputs['occ'], label)
-    loss_dict['occ'] = loss
+    # print('model outputs: ', model_outputs)
+    occ_loss = -1 * (label * torch.log(standard_output['occ'] + 1e-5) + (1 - label) * torch.log(1 - standard_output['occ'] + 1e-5)).mean()
+    loss_dict['occ'] = occ_loss 
+    print('occ_loss: ', occ_loss)
     return loss_dict
 
 

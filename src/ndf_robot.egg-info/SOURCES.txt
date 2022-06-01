@@ -5,3 +5,4 @@ src/ndf_robot.egg-info/SOURCES.txt
 src/ndf_robot.egg-info/dependency_links.txt
 src/ndf_robot.egg-info/requires.txt
 src/ndf_robot.egg-info/top_level.txt
+test/test_dataio.py
