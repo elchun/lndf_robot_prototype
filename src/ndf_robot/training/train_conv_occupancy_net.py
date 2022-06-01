@@ -73,7 +73,8 @@ if __name__ == '__main__':
     # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True, acts='last').cuda()
     # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True, acts='first_net').cuda()
     # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=16, return_features=True).cuda()
-    model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=8, return_features=True).cuda()
+    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=8, return_features=True).cuda()
+    model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=4, return_features=True).cuda()
 
     print(model)
 

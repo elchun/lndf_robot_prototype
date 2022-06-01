@@ -58,7 +58,10 @@ class OccNetOptimizer:
 
         self.rot_grid = util.generate_healpix_grid(size=1e6)
         # self.rot_grid = None
-        self.tsne_fn = osp.join(self.viz_path, 'tsne') 
+        
+        # ENABLE TSNE HERE
+        # self.tsne_fn = osp.join(self.viz_path, 'tsne') 
+        self.tsne_fn = None
 
     def _scene_dict(self):
         self.scene_dict = {}
