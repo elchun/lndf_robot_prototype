@@ -100,7 +100,6 @@ class LocalDecoder(nn.Module):
         acts.append(net)
         acts_first_net.append(net)
 
-
         for i in range(self.n_blocks):
             if self.c_dim != 0:
                 net = net + self.fc_c[i](c)

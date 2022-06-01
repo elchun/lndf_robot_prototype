@@ -72,6 +72,7 @@ if __name__ == '__main__':
     model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True).cuda()
     # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True, acts='last').cuda()
     # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True, acts='first_net').cuda()
+    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=16, return_features=True).cuda()
 
     print(model)
 
@@ -89,15 +90,12 @@ if __name__ == '__main__':
 
     root_path = make_unique_path_to_dir(root_path)
 
-    # loss_fn = val_loss_fn = losses.occupancy_net
-    # loss_fn = val_loss_fn = losses.conv_occupancy_net
-
-    # loss_fn = val_loss_fn = losses.rotated
-    # loss_fn = val_loss_fn = losses.rotated_adaptive
 
     ### Run train function ###
     if opt.triplet_loss:
-        loss_fn = val_loss_fn = losses.custom_rotated_triplet
+        # loss_fn = val_loss_fn = losses.custom_rotated_triplet
+        # loss_fn = val_loss_fn = losses.rotated_log
+        loss_fn = val_loss_fn = losses.rotated_triplet_log
         training.train_conv_triplet(model=model_parallel, train_dataloader=train_dataloader, 
             val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr, 
             steps_til_summary=opt.steps_til_summary, 

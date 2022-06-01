@@ -5,10 +5,13 @@ import torch.nn.functional as F
 
 import numpy as np
 import trimesh
+from sklearn.manifold import TSNE
+import plotly.express as px
 
 from airobot import log_info, log_warn, log_debug, log_critical
 
 from ndf_robot.utils import util, torch_util, trimesh_util, torch3d_util
+from ndf_robot.utils.eval_gen_utils import object_is_still_grasped
 from ndf_robot.utils.plotly_save import plot3d
 
 
@@ -23,7 +26,7 @@ class OccNetOptimizer:
         else:
             self.query_pts_origin_real_shape = query_pts_real_shape
 
-        self.loss_fn =  torch.nn.L1Loss()
+        self.loss_fn = torch.nn.L1Loss()
         if torch.cuda.is_available():
             self.dev = torch.device('cuda:0')
         else:
@@ -51,10 +54,11 @@ class OccNetOptimizer:
         self.viz_path = 'visualization'
         util.safe_makedirs(self.debug_viz_path)
         util.safe_makedirs(self.viz_path)
-        self.viz_files =  []
+        self.viz_files = []
 
         self.rot_grid = util.generate_healpix_grid(size=1e6)
         # self.rot_grid = None
+        self.tsne_fn = osp.join(self.viz_path, 'tsne') 
 
     def _scene_dict(self):
         self.scene_dict = {}
@@ -208,6 +212,9 @@ class OccNetOptimizer:
         mi['coords'] = X
         latent = self.model.extract_latent(mi).detach()
 
+        if self.tsne_fn is not None:
+            self._tsne_viz(shape_pts_world_np, self.tsne_fn)
+
         # run optimization
         pcd_traj_list = {}
         for jj in range(M):
@@ -295,3 +302,37 @@ class OccNetOptimizer:
             tf_list.append(T_mat)
 
         return tf_list, best_idx
+    
+    def _tsne_viz(self, pcd: np.ndarray, output_fn: str):
+        n_query_pts = 500
+        n_components = 1
+
+        model_input = {}
+        pcd_torch = torch.from_numpy(pcd).float().to(self.dev)
+
+        rix = np.random.randint(0, pcd.shape[0], (n_query_pts))
+        pcd_small = pcd[rix, :]
+
+        object_pcd_torch = torch.from_numpy(pcd_small).float().to(self.dev)
+        object_pcd_torch = object_pcd_torch[None, :, :]  # Query points 
+        
+        model_input['coords'] = object_pcd_torch[None, :, :]
+        model_input['point_cloud'] = pcd_torch[None, :, :]
+
+        latent = self.model.extract_latent(model_input).detach()
+        act_torch = self.model.forward_latent(latent, object_pcd_torch).detach()
+        act = act_torch.squeeze().cpu().numpy()
+
+        tsne = TSNE(n_components)
+        tsne_result = tsne.fit_transform(act)
+
+        fig = px.scatter_3d(x=pcd_small[:, 0], y=pcd_small[:, 1],
+                            z=pcd_small[:, 2], color=tsne_result[:, 0])
+
+        fig.write_html(output_fn)
+
+
+
+
+
+
