@@ -4,6 +4,9 @@ from torch.nn import functional as F
 
 
 def occupancy(model_outputs, ground_truth, val=False):
+    """
+    LEGACY DO NOT USE???
+    """
     loss_dict = dict()
     label = ground_truth['occ']
     label = (label + 1) / 2.
@@ -13,6 +16,20 @@ def occupancy(model_outputs, ground_truth, val=False):
 
 
 def occupancy_net(model_outputs, ground_truth, val=False, **kwargs):
+    """
+    NLL loss for predicting occupacny
+
+    Args:
+        model_outputs (dict): Dictionary with the key 'occ' corresponding to
+            tensor
+        ground_truth (dict): Dictionary with the key 'occ' corresponding to
+            tensor
+        val (bool, optional): Unused. Defaults to False.
+
+    Returns:
+        dict: Dictionary containing 'occ' which corresponds to tensor of loss 
+            for each element in batch
+    """
     # Good if using sigmoid on output of decoder
     loss_dict = dict()
     label = ground_truth['occ'].squeeze()
@@ -24,6 +41,22 @@ def occupancy_net(model_outputs, ground_truth, val=False, **kwargs):
 
 
 def conv_occupancy_net(model_outputs, ground_truth, val=False, **kwargs):
+    """
+    NLL loss for predicting occupancy with convolutional neural net
+    Good if not using a sigmoid output of occupancy network decoder
+
+    Args:
+        model_outputs (dict): Dict containing the key 'standard' which maps
+            to a dictionary which has the key 'occ' which maps to a
+            tensor :(
+        ground_truth (dict): Dict with the key 'occ' which maps to a tensor
+            of ground truth occupancies
+        val (bool, optional): If this is a validation set (Unused).
+            Defaults to False.
+
+    Returns:
+        dict: Dictionary with key 'occ' corresponding to loss of occupancy
+    """
     standard_output = model_outputs['standard']
 
     # Good if not using sigmoid on output of decoder
@@ -32,13 +65,18 @@ def conv_occupancy_net(model_outputs, ground_truth, val=False, **kwargs):
     label = (label + 1) / 2.
 
     # print('model outputs: ', model_outputs)
-    occ_loss = -1 * (label * torch.log(standard_output['occ'] + 1e-5) + (1 - label) * torch.log(1 - standard_output['occ'] + 1e-5)).mean()
-    loss_dict['occ'] = occ_loss 
+    occ_loss = -1 * (label * torch.log(standard_output['occ'] + 1e-5)
+        + (1 - label) * torch.log(1 - standard_output['occ'] + 1e-5)).mean()
+
+    loss_dict['occ'] = occ_loss
     print('occ_loss: ', occ_loss)
     return loss_dict
 
 
 def distance_net(model_outputs, ground_truth, val=False):
+    """
+    UNUSED
+    """
     loss_dict = dict()
     label = ground_truth['occ'].squeeze()
 
@@ -49,6 +87,9 @@ def distance_net(model_outputs, ground_truth, val=False):
 
 
 def semantic(model_outputs, ground_truth, val=False):
+    """
+    UNUSED
+    """
     loss_dict = {}
 
     label = ground_truth['occ']
@@ -61,8 +102,11 @@ def semantic(model_outputs, ground_truth, val=False):
 
     return loss_dict
 
+
 def rotated(model_outputs, ground_truth, val=False, **kwargs):
     """
+    LEGACY UNUSED
+
     https://towardsdatascience.com/contrastive-loss-explaned-159f2d4a87ec
     model_outputs = {'standard': <>, 'rot': <>, 
         'standard_latent': <>, 'rot_latent': <>}
@@ -114,61 +158,9 @@ def rotated(model_outputs, ground_truth, val=False, **kwargs):
     return loss_dict
 
 
-def rotated_triplet(model_outputs, ground_truth, val=False, **kwargs):
+def rotated_adaptive(model_outputs, ground_truth, it=-1, val=False):
     """
-    https://towardsdatascience.com/contrastive-loss-explaned-159f2d4a87ec
-    model_outputs = {'standard': <>, 'rot': <>, 
-        'standard_latent': <>, 'rot_latent': <>, 'rot_negative_latent': <>}
-    """
-
-    loss_dict = dict()
-    label = ground_truth['occ'].squeeze()
-    label = (label + 1) / 2.
-
-    # Get outputs from dict
-    standard_outputs = model_outputs['standard']
-    rot_outputs = model_outputs['rot']
-    standard_act_hat = torch.flatten(model_outputs['standard_act_hat'], start_dim=1)
-    rot_act_hat = torch.flatten(model_outputs['rot_act_hat'], start_dim=1)
-
-    rot_negative_latent = torch.flatten(model_outputs['rot_negative_latent'], 
-        start_dim=1)
-
-
-    # Calculate loss of occupancy
-    standard_loss_occ = -1 * (label * torch.log(standard_outputs['occ'] + 1e-5) 
-        + (1 - label) * torch.log(1 - standard_outputs['occ'] + 1e-5)).mean()
-    rot_loss_occ = -1 * (label * torch.log(rot_outputs['occ'] + 1e-5) 
-        + (1 - label) * torch.log(1 - rot_outputs['occ'] + 1e-5)).mean()
-    
-    occ_loss = (standard_loss_occ + rot_loss_occ) / 2
-    
-    # Calculate loss from similarity between latent descriptors 
-    # device = standard_latent.get_device()
-    # latent_loss = F.cosine_embedding_loss(standard_latent, rot_latent, 
-    #     torch.ones(standard_latent.shape[0]).to(device))
-    
-    latent_loss = F.triplet_margin_loss(standard_act_hat, rot_act_hat, 
-        rot_negative_latent, margin=0.0001)
-
-    # latent_loss = F.mse_loss(standard_latent, rot_latent)
-
-    latent_loss = latent_loss.mean()
-
-    latent_loss_scale = 1
-
-    loss_dict['occ'] = occ_loss + latent_loss_scale * latent_loss
-
-    print('occ loss: ', occ_loss)
-    print('latent loss: ', latent_loss)
-
-    return loss_dict
-# Add rotated with contrastive
-# contrast to point that was not moved
-
-
-def rotated_adaptive(model_outputs, ground_truth, it=-1,val=False):
-    """
+    LEGACY
     https://towardsdatascience.com/contrastive-loss-explaned-159f2d4a87ec
     model_outputs = {'standard': <>, 'rot': <>, 
         'standard_latent': <>, 'rot_latent': <>,
@@ -234,14 +226,25 @@ def rotated_adaptive(model_outputs, ground_truth, it=-1,val=False):
     return loss_dict
 
 
-def rotated_margin(model_outputs, ground_truth, occ_margin=0.13, it=-1,val=False):
+def rotated_margin(model_outputs, ground_truth, occ_margin=0.13, **kwargs):
     """
-    https://towardsdatascience.com/contrastive-loss-explaned-159f2d4a87ec
-    model_outputs = {'standard': <>, 'rot': <>, 
-        'standard_latent': <>, 'rot_latent': <>,
-        'it': <>}
-    """
+    Combined occupancy and rotational similarity loss.  Occupancy has a
+    margin such that when occupancy loss is less than margin, only rotational
+    similarity is considered
 
+    Args:
+        model_outputs (dict): Has keys 'standard', 'rot', 'standard_act_hat', 
+            'rot_act_hat'.  'standard' and 'rot' correspond to output dicts
+            similar to that used in occupancy_net.  'standard_act_hat' and 
+            'rot_act_hat' are the activations we try to make as similar as 
+            possible
+        ground_truth (dict): Ground truth occupancy
+        occ_margin (float, optional): Occupancy loss not considered when smaller 
+            than this. Defaults to 0.13.
+
+    Returns:
+        dict: Dictionary with key 'occ' corresponding to loss of occupancy
+    """
     loss_dict = dict()
     label = ground_truth['occ'].squeeze()
     label = (label + 1) / 2.
@@ -266,11 +269,8 @@ def rotated_margin(model_outputs, ground_truth, occ_margin=0.13, it=-1,val=False
     latent_loss = F.cosine_embedding_loss(standard_act_hat, rot_act_hat, 
         torch.ones(standard_act_hat.shape[0]).to(device))
 
-    # latent_loss = F.mse_loss(standard_latent, rot_latent)
-
     # Can also do adaptive based on the occ loss value
     latent_loss = latent_loss.mean()
-
 
     latent_loss_scale = 1
     loss_dict['occ'] = max(occ_loss - occ_margin, 0) \
@@ -295,11 +295,13 @@ def rotated_log(model_outputs, ground_truth, it=-1):
     """
     Joint loss of occupancy and log of similiarty between rotated and unrotated
     coordinates
+    
+    Appears to overfit and reduce magnitude of all activations
 
     Args:
-        model_outputs (dict): Dictionary containing 'standard', 'rot', 
+        model_outputs (dict): Dictionary containing 'standard', 'rot',
             'standard_act_hat', 'rot_act_hat'
-        ground_truth (dict): Dictionary containing 'occ' 
+        ground_truth (dict): Dictionary containing 'occ'
         it (int, optional): current number of iterations. Defaults to -1.
     """
     loss_dict = dict()
@@ -346,11 +348,21 @@ def rotated_log(model_outputs, ground_truth, it=-1):
     return loss_dict
 
 
-def custom_rotated_triplet(model_outputs, ground_truth, it=-1, val=False, **kwargs):
+def custom_rotated_triplet(model_outputs, ground_truth, occ_margin=0.15,
+    **kwargs):
     """
-    https://towardsdatascience.com/contrastive-loss-explaned-159f2d4a87ec
-    model_outputs = {'standard': <>, 'rot': <>, 
-        'standard_latent': <>, 'rot_latent': <>, 'rot_negative_latent': <>}
+    Triplet loss enforcing similarity between rotated activations and
+    difference between random coords
+
+    Args:
+        model_outputs (dict): Dictionary containing 'standard', 'rot',
+            'standard_act_hat', 'rot_act_hat'
+        ground_truth (dict): Dictionary containing 'occ'
+        occ_margin (float, optional): Lower value makes occupancy prediction 
+            better
+
+    Returns:
+        dict: dict containing 'occ'
     """
 
     loss_dict = dict()
@@ -366,9 +378,6 @@ def custom_rotated_triplet(model_outputs, ground_truth, it=-1, val=False, **kwar
     rot_negative_act_hat = torch.flatten(model_outputs['rot_negative_act_hat'], 
         start_dim=1)
 
-    # print(standard_act_hat[0, :5])
-    # print(rot_negative_act_hat[0, :5])
-
 
     # Calculate loss of occupancy
     standard_loss_occ = -1 * (label * torch.log(standard_outputs['occ'] + 1e-5) 
@@ -383,39 +392,16 @@ def custom_rotated_triplet(model_outputs, ground_truth, it=-1, val=False, **kwar
     latent_positive_loss = F.cosine_embedding_loss(standard_act_hat, rot_act_hat, 
         torch.ones(standard_act_hat.shape[0]).to(device))
 
+    # Calculate loss from difference between unrelated latent descriptors
     latent_negative_loss = F.cosine_embedding_loss(standard_act_hat, rot_negative_act_hat, 
         -torch.ones(standard_act_hat.shape[0]).to(device), margin=0)
-
-
-    # latent_loss_scale_default = 100 
-    # if it == -1:
-    #     latent_loss_scale = latent_loss_scale_default 
-    # elif it < 10000:
-    #     latent_loss_scale = 0
-    # else:
-    #     latent_loss_scale = latent_loss_scale_default 
-
-    # occ_loss_threshold = 0.20
-    # if occ_loss < occ_loss_threshold:
-    #     latent_loss_scale = latent_loss_scale_default
-    # else:
-    #     latent_loss_scale = 0
 
     latent_positive_loss = latent_positive_loss.mean()
     latent_negative_loss = latent_negative_loss.mean()
 
-
-    # loss_dict['occ'] = occ_loss \
-    #     + latent_loss_scale * (latent_positive_loss + latent_negative_loss)
-
-    # latent_loss_scale = 1
     negative_loss_scale = 1
     positive_loss_scale = 1
 
-    # Margin determines how accurate the occ reconstruction is
-    occ_margin = 0.15
-    # loss_dict['occ'] = max(occ_loss - occ_margin, 0) \
-    #     + latent_loss_scale * (latent_positive_loss + latent_negative_loss)
 
     loss_dict['occ'] = max(occ_loss - occ_margin, 0) \
         + positive_loss_scale * latent_positive_loss \
@@ -434,16 +420,18 @@ def custom_rotated_triplet(model_outputs, ground_truth, it=-1, val=False, **kwar
     return loss_dict
 
 
-def rotated_triplet_log(model_outputs, ground_truth, it=-1):
+def rotated_triplet_log(model_outputs, ground_truth, **kwargs):
     """
     Joint loss of occupancy and log of similiarty between rotated and unrotated
     coordinates
 
     Args:
-        model_outputs (dict): Dictionary containing 'standard', 'rot', 
+        model_outputs (dict): Dictionary containing 'standard', 'rot',
             'standard_act_hat', 'rot_act_hat'
-        ground_truth (dict): Dictionary containing 'occ' 
-        it (int, optional): current number of iterations. Defaults to -1.
+        ground_truth (dict): Dictionary containing 'occ'
+
+    Returns:
+        dict: dict containing 'occ'
     """
     loss_dict = dict()
     label = ground_truth['occ'].squeeze()
