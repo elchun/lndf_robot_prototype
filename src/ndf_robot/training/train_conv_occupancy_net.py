@@ -126,9 +126,6 @@ if __name__ == '__main__':
     config['loss_fn_args'] = loss_fn_args
 
     # -- RUN TRAIN FUNCTION -- #
-    loss_fn = val_loss_fn = losses.custom_rotated_triplet
-    # loss_fn = val_loss_fn = losses.rotated_log
-    # loss_fn = val_loss_fn = losses.rotated_triplet_log
     loss_fn = val_loss_fn = losses.triplet(**loss_fn_args)
     training.train_conv_triplet(model=model_parallel, train_dataloader=train_dataloader, 
         val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr, 
