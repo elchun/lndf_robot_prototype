@@ -390,17 +390,18 @@ def custom_rotated_triplet(model_outputs, ground_truth, occ_margin=0.15,
     # Calculate loss from similarity between latent descriptors 
     device = standard_act_hat.get_device()
     latent_positive_loss = F.cosine_embedding_loss(standard_act_hat, rot_act_hat, 
-        torch.ones(standard_act_hat.shape[0]).to(device))
+        torch.ones(standard_act_hat.shape[0]).to(device), margin=0.001)
 
     # Calculate loss from difference between unrelated latent descriptors
     latent_negative_loss = F.cosine_embedding_loss(standard_act_hat, rot_negative_act_hat, 
-        -torch.ones(standard_act_hat.shape[0]).to(device), margin=0)
+        -torch.ones(standard_act_hat.shape[0]).to(device), margin=0.1)
 
     latent_positive_loss = latent_positive_loss.mean()
     latent_negative_loss = latent_negative_loss.mean()
 
-    negative_loss_scale = .1
-    positive_loss_scale = .1
+    negative_loss_scale = .3
+    # positive_loss_scale = .5
+    positive_loss_scale = .3
 
 
     # loss_dict['occ'] = max(occ_loss - occ_margin, 0) \

@@ -116,13 +116,22 @@ def main(args, global_dict):
 
     if use_conv:
         print('Using conv occupancy network')
+        # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(
+        #     # latent_dim=32, 
+        #     # latent_dim=64, 
+        #     latent_dim=4,
+        #     model_type='pointnet', 
+        #     return_features=True, 
+        #     sigmoid=False).cuda()
+
         model = conv_occupancy_network.ConvolutionalOccupancyNetwork(
             # latent_dim=32, 
             # latent_dim=64, 
             latent_dim=4,
             model_type='pointnet', 
             return_features=True, 
-            sigmoid=False).cuda()
+            sigmoid=False,
+            acts='last').cuda()
     else:
         print('Using non-conv occupancy network')
         if args.dgcnn:
@@ -967,7 +976,8 @@ if __name__ == "__main__":
 
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_log_2/checkpoints/model_epoch_0000_iter_002000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_4_0/checkpoints/model_epoch_0010_iter_130000.pth')
-    conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_0/checkpoints/model_epoch_0000_iter_002000.pth')
+    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_0/checkpoints/model_epoch_0000_iter_003000.pth')
+    conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_n_margin_10e3_last_acts_1/checkpoints/model_epoch_0004_iter_056000.pth')
 
     global_dict = dict(
         shapenet_obj_dir=shapenet_obj_dir,

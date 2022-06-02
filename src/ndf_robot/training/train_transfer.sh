@@ -2,4 +2,6 @@
 
 # CUDA_VISIBLE_DEVICES=5 python train_conv_occupancy_net.py --obj_class all --experiment_name  conv_occ_latent_triplet_log_cos_margin --num_epochs 12 --iters_til_ckpt 1000 --steps_til_summary 100 --batch_size 10 --checkpoint_path archive/conv_occ_latent_margin_143000.pth --triplet_loss
 
-CUDA_VISIBLE_DEVICES=7 python train_conv_occupancy_net.py --obj_class all --experiment_name  conv_occ_latent_dim4_rotated_triplet --num_epochs 12 --iters_til_ckpt 1000 --steps_til_summary 100 --batch_size 10 --checkpoint_path ndf_vnn/conv_occ_latent_4_0/checkpoints/model_epoch_0010_iter_130000.pth --triplet_loss
+# CUDA_VISIBLE_DEVICES=3 python train_conv_occupancy_net.py --obj_class all --experiment_name  conv_occ_latent_dim4_rotated_triplet_n_margin_10e3_last_acts_margin_0p001_0p1 --num_epochs 12 --iters_til_ckpt 1000 --steps_til_summary 100 --batch_size 10 --checkpoint_path ndf_vnn/conv_occ_latent_4_0/checkpoints/model_epoch_0010_iter_130000.pth --triplet_loss
+
+CUDA_VISIBLE_DEVICES=6 python train_conv_occupancy_net.py --obj_class all --experiment_name  conv_occ_latent_dim4_rotated_triplet_n_margin_10e3_last_acts_margin_0p001_0p1 --num_epochs 12 --iters_til_ckpt 1000 --steps_til_summary 100 --batch_size 10 --checkpoint_path ndf_vnn/conv_occ_latent_8_1/checkpoints/model_epoch_0011_iter_140000.pth --triplet_loss

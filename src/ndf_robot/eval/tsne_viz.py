@@ -140,8 +140,16 @@ if __name__ == '__main__':
     #     'mug_centered_obj_normalized/edaf960fb6afdadc4cebc4b5998de5d0/models/model_normalized.obj')
     # object_fn = osp.join(path_util.get_ndf_demo_obj_descriptions(),
     #     'mug_centered_obj_normalized/e984fd7e97c2be347eaeab1f0c9120b7/models/model_normalized.obj')
+    # object_fn = osp.join(path_util.get_ndf_demo_obj_descriptions(),
+    #     'mug_centered_obj_normalized/ec846432f3ebedf0a6f32a8797e3b9e9//models/model_normalized.obj')
+    # object_fn = osp.join(path_util.get_ndf_demo_obj_descriptions(),
+    #     'mug_centered_obj_normalized/ff1a44e1c1785d618bca309f2c51966a//models/model_normalized.obj')
+    # object_fn = osp.join(path_util.get_ndf_demo_obj_descriptions(),
+    #     'mug_centered_obj_normalized/f1e439307b834015770a0ff1161fa15a//models/model_normalized.obj')
+    # object_fn = osp.join(path_util.get_ndf_demo_obj_descriptions(),
+    #     'mug_centered_obj_normalized/f7d776fd68b126f23b67070c4a034f08/models/model_normalized.obj')
     object_fn = osp.join(path_util.get_ndf_demo_obj_descriptions(),
-        'mug_centered_obj_normalized/ec846432f3ebedf0a6f32a8797e3b9e9//models/model_normalized.obj')
+        'mug_centered_obj_normalized/eecb13f61a93b4048f58d8b19de93f99/models/model_normalized.obj')
     output_fn = 'tsne_viz.html'
     # output_fn = 'tsne_viz_latent_32.html'
 
@@ -149,8 +157,16 @@ if __name__ == '__main__':
     # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32,
     #     model_type='pointnet', return_features=True, sigmoid=True).cuda()
 
+    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=4,
+    #     model_type='pointnet', return_features=True, sigmoid=True).cuda()
+
+    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=4,
+    #     model_type='pointnet', return_features=True, sigmoid=True, 
+    #     acts='last').cuda()
+
     model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=4,
-        model_type='pointnet', return_features=True, sigmoid=True).cuda()
+        model_type='pointnet', return_features=True, sigmoid=True, 
+        acts='last').cuda()
 
     # model_path = osp.join(path_util.get_ndf_model_weights(), 
     #     'ndf_vnn/conv_occ_latent_transfer_rand_coords_margin_no_neg_margin_1/checkpoints/model_epoch_0011_iter_143000.pth')
@@ -159,7 +175,10 @@ if __name__ == '__main__':
 
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_adaptive_2/checkpoints/model_epoch_0009_iter_099000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_4_0/checkpoints/model_epoch_0010_iter_130000.pth')
-    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_0/checkpoints/model_epoch_0000_iter_002000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_0/checkpoints/model_epoch_0000_iter_006000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_n_margin_10e3_last_acts_1/checkpoints/model_epoch_0000_iter_006000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_n_margin_10e3_last_acts_1/checkpoints/model_epoch_0004_iter_056000.pth')
+    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_n_margin_10e3_last_acts_margin_0p001_0p1_0/checkpoints/model_epoch_0004_iter_050000.pth')
     model.load_state_dict(torch.load(model_path))
 
     # SET QUERY POINTS #
@@ -170,5 +189,5 @@ if __name__ == '__main__':
 
     # RUN PLOTTER #
     tsne_plotter = TSNEViz(model)
-    tsne_plotter.viz_object(pcd, query_pts, output_fn, rand_rotate=True)
-    # tsne_plotter.viz_object(pcd, query_pts, output_fn, rand_rotate=False)
+    # tsne_plotter.viz_object(pcd, query_pts, output_fn, rand_rotate=True)
+    tsne_plotter.viz_object(pcd, query_pts, output_fn, rand_rotate=False)
