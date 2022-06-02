@@ -7,7 +7,7 @@ CUDA_VISIBLE_DEVICES=0 python evaluate_ndf.py \
         --model_path multi_category_weights \
         --save_vis_per_model \
         --config eval_mug_gen \
-	--exp conv_eval_latent_any_latent_similar_adaptive_2_sphere\
+	--exp conv_eval_latent_dim4_triplet\
         --num_iterations 100 \
         --any_pose \
 #       --pybullet_viz \

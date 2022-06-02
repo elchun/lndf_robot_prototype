@@ -95,9 +95,9 @@ if __name__ == '__main__':
 
     ### Run train function ###
     if opt.triplet_loss:
-        # loss_fn = val_loss_fn = losses.custom_rotated_triplet
+        loss_fn = val_loss_fn = losses.custom_rotated_triplet
         # loss_fn = val_loss_fn = losses.rotated_log
-        loss_fn = val_loss_fn = losses.rotated_triplet_log
+        # loss_fn = val_loss_fn = losses.rotated_triplet_log
         training.train_conv_triplet(model=model_parallel, train_dataloader=train_dataloader, 
             val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr, 
             steps_til_summary=opt.steps_til_summary, 

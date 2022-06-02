@@ -399,14 +399,18 @@ def custom_rotated_triplet(model_outputs, ground_truth, occ_margin=0.15,
     latent_positive_loss = latent_positive_loss.mean()
     latent_negative_loss = latent_negative_loss.mean()
 
-    negative_loss_scale = 1
-    positive_loss_scale = 1
+    negative_loss_scale = .1
+    positive_loss_scale = .1
 
 
-    loss_dict['occ'] = max(occ_loss - occ_margin, 0) \
+    # loss_dict['occ'] = max(occ_loss - occ_margin, 0) \
+    #     + positive_loss_scale * latent_positive_loss \
+    #     + negative_loss_scale * latent_negative_loss
+    
+    loss_dict['occ'] = occ_loss \
         + positive_loss_scale * latent_positive_loss \
         + negative_loss_scale * latent_negative_loss
-    
+
     # occ_margin = 0.13
     # exp_scale = 4
     # loss_dict['occ'] = max(torch.exp(exp_scale * (occ_loss - occ_margin)), 0) \

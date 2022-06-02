@@ -60,8 +60,8 @@ class OccNetOptimizer:
         # self.rot_grid = None
         
         # ENABLE TSNE HERE
-        # self.tsne_fn = osp.join(self.viz_path, 'tsne') 
-        self.tsne_fn = None
+        self.tsne_fn = osp.join(self.viz_path, 'tsne') 
+        # self.tsne_fn = None
 
     def _scene_dict(self):
         self.scene_dict = {}

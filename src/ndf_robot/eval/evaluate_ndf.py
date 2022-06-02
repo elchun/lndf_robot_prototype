@@ -117,8 +117,9 @@ def main(args, global_dict):
     if use_conv:
         print('Using conv occupancy network')
         model = conv_occupancy_network.ConvolutionalOccupancyNetwork(
-            latent_dim=32, 
+            # latent_dim=32, 
             # latent_dim=64, 
+            latent_dim=4,
             model_type='pointnet', 
             return_features=True, 
             sigmoid=False).cuda()
@@ -958,13 +959,15 @@ if __name__ == "__main__":
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_v2_1x100/checkpoints/model_epoch_0009_iter_099000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_adaptive_2/checkpoints/model_epoch_0009_iter_099000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_custom_triplet_1/checkpoints/model_epoch_0011_iter_111000.pth')
-    conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_v3_adaptive_1/checkpoints/model_epoch_0011_iter_111000.pth')
+    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_v3_adaptive_1/checkpoints/model_epoch_0011_iter_111000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_transfer_2/checkpoints/model_epoch_0001_iter_015000.pth')
 
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_transfer_rand_coords_margin_8/checkpoints/model_epoch_0000_iter_005000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_transfer_rand_coords_margin_no_neg_margin_1/checkpoints/model_epoch_0011_iter_143000.pth')
 
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_log_2/checkpoints/model_epoch_0000_iter_002000.pth')
+    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_4_0/checkpoints/model_epoch_0010_iter_130000.pth')
+    conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_0/checkpoints/model_epoch_0000_iter_002000.pth')
 
     global_dict = dict(
         shapenet_obj_dir=shapenet_obj_dir,

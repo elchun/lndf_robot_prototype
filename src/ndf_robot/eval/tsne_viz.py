@@ -7,10 +7,11 @@ import torch
 import numpy as np
 import trimesh
 from sklearn.manifold import TSNE
+from scipy.spatial.transform import Rotation
 import plotly.express as px
 
 import ndf_robot.model.conv_occupancy_net.conv_occupancy_net as conv_occupancy_network
-from ndf_robot.utils import path_util
+from ndf_robot.utils import path_util, torch3d_util, torch_util
 from ndf_robot.utils.plotly_save import plot3d
 
 
@@ -26,7 +27,8 @@ class TSNEViz:
             else torch.device('cpu')
 
     def viz_object(self, pcd: np.ndarray, query_pts: np.ndarray,
-                   output_fn: str = 'tnse_viz.html', n_components=1):
+                   output_fn: str='tnse_viz.html', n_components=1,
+                   rand_rotate: bool=False):
         """
         Generate TSNE plot of object given model and query points
         Saves plot as html to output_fn 
@@ -42,6 +44,13 @@ class TSNEViz:
         query_pts_torch = torch.from_numpy(query_pts).float().to(self.dev)
         pcd_torch = torch.from_numpy(pcd).float().to(self.dev)
 
+        if rand_rotate:
+            random_transform = torch.tensor(TSNEViz.__random_rot_transform()).float().to(self.dev)
+            query_pts_torch = torch_util.transform_pcd_torch(query_pts_torch, 
+                random_transform).float()
+            pcd_torch = torch_util.transform_pcd_torch(pcd_torch,
+                random_transform).float()
+            
         model_input['coords'] = query_pts_torch[None, :, :]
         model_input['point_cloud'] = pcd_torch[None, :, :]
 
@@ -66,11 +75,60 @@ class TSNEViz:
         
         # fig = px.scatter(x=tsne_result[:, 0], y=tsne_result[:, 1], 
         #     labels={'x': 'tsne1', 'y': 'tsne2'})
+
+        query_pts_np = query_pts_torch.cpu().numpy()
         
-        fig = px.scatter_3d(x=query_pts[:, 0], y=query_pts[:, 1], z=query_pts[:, 2], 
+        fig = px.scatter_3d(x=query_pts_np[:, 0], y=query_pts_np[:, 1], z=query_pts_np[:, 2], 
             color=tsne_result[:, 0])
         
         fig.write_html(output_fn)
+    
+    @staticmethod
+    def __random_quaternions(n: int):
+        """
+        Generate random quaternions representing rotations,
+        i.e. versors with nonnegative real part.
+
+        Modified from random_quaternions in util.torch3d_util.py
+
+        Args:
+            n: Number of quaternions in a batch to return.
+            dtype: Type to return.
+            device: Desired device of returned tensor. Default:
+                uses the current device for the default tensor type.
+
+        Returns:
+            Quaternions as tensor of shape (N, 4).
+        """
+        o = torch.randn((n, 4))
+        s = (o * o).sum(1)
+        o = o / torch3d_util._copysign(torch.sqrt(s), o[:, 0])[:, None]
+        return o
+
+    @staticmethod
+    def __random_rot_transform():
+        """
+        Generate a random rotation transform
+
+        Args:
+            translate (bool, optional): True to include translation in 
+                transform. Defaults to False.
+
+        Raises:
+            NotImplementedError: translation not done yet
+
+        Returns: 
+            Transform with random rotation
+        """
+        rand_quat = TSNEViz.__random_quaternions(1)
+
+        rand_rot = Rotation.from_quat(rand_quat)
+        rand_rot = rand_rot.as_matrix()
+
+        transform = np.eye(4)
+        transform[:3, :3] = rand_rot
+
+        return transform
     
 
 if __name__ == '__main__':
@@ -78,14 +136,20 @@ if __name__ == '__main__':
     # CONSTANTS #
     # object_fn = osp.join(path_util.get_ndf_demo_obj_descriptions(),
     #     'mug_centered_obj_normalized/586e67c53f181dc22adf8abaa25e0215/models/model_normalized.obj')
-    object_fn = osp.join(path_util.get_ndf_demo_obj_descriptions(),
-        'mug_centered_obj_normalized/edaf960fb6afdadc4cebc4b5998de5d0/models/model_normalized.obj')
+    # object_fn= osp.join(path_util.get_ndf_demo_obj_descriptions(),
+    #     'mug_centered_obj_normalized/edaf960fb6afdadc4cebc4b5998de5d0/models/model_normalized.obj')
     # object_fn = osp.join(path_util.get_ndf_demo_obj_descriptions(),
     #     'mug_centered_obj_normalized/e984fd7e97c2be347eaeab1f0c9120b7/models/model_normalized.obj')
+    object_fn = osp.join(path_util.get_ndf_demo_obj_descriptions(),
+        'mug_centered_obj_normalized/ec846432f3ebedf0a6f32a8797e3b9e9//models/model_normalized.obj')
     output_fn = 'tsne_viz.html'
+    # output_fn = 'tsne_viz_latent_32.html'
 
     # LOAD MODEL #
-    model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32,
+    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32,
+    #     model_type='pointnet', return_features=True, sigmoid=True).cuda()
+
+    model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=4,
         model_type='pointnet', return_features=True, sigmoid=True).cuda()
 
     # model_path = osp.join(path_util.get_ndf_model_weights(), 
@@ -93,7 +157,9 @@ if __name__ == '__main__':
     # model_path = osp.join(path_util.get_ndf_model_weights(), 
     #     'ndf_vnn/conv_occ_latent_log_2/checkpoints/model_epoch_0000_iter_001000.pth')
 
-    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_adaptive_2/checkpoints/model_epoch_0009_iter_099000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_adaptive_2/checkpoints/model_epoch_0009_iter_099000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_4_0/checkpoints/model_epoch_0010_iter_130000.pth')
+    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_0/checkpoints/model_epoch_0000_iter_002000.pth')
     model.load_state_dict(torch.load(model_path))
 
     # SET QUERY POINTS #
@@ -104,4 +170,5 @@ if __name__ == '__main__':
 
     # RUN PLOTTER #
     tsne_plotter = TSNEViz(model)
-    tsne_plotter.viz_object(pcd, query_pts, output_fn)
+    tsne_plotter.viz_object(pcd, query_pts, output_fn, rand_rotate=True)
+    # tsne_plotter.viz_object(pcd, query_pts, output_fn, rand_rotate=False)
