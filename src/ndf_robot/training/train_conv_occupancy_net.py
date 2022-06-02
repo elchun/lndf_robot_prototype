@@ -59,8 +59,9 @@ if __name__ == '__main__':
 
     opt = p.parse_args()
 
-    train_dataset = dataio.JointOccTrainDataset(128, depth_aug=opt.depth_aug, multiview_aug=opt.multiview_aug, obj_class=opt.obj_class)
-    val_dataset = dataio.JointOccTrainDataset(128, phase='val', depth_aug=opt.depth_aug, multiview_aug=opt.multiview_aug, obj_class=opt.obj_class)
+    sidelength = 128
+    train_dataset = dataio.JointOccTrainDataset(sidelength, depth_aug=opt.depth_aug, multiview_aug=opt.multiview_aug, obj_class=opt.obj_class)
+    val_dataset = dataio.JointOccTrainDataset(sidelength, phase='val', depth_aug=opt.depth_aug, multiview_aug=opt.multiview_aug, obj_class=opt.obj_class)
 
 
     train_dataloader = DataLoader(train_dataset, batch_size=opt.batch_size, shuffle=True,
@@ -68,18 +69,32 @@ if __name__ == '__main__':
     val_dataloader = DataLoader(val_dataset, batch_size=opt.batch_size, shuffle=True,
                                 drop_last=True, num_workers=4)
 
-    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=64).cuda()
-    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True).cuda()
-    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True, acts='last').cuda()
-    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32, return_features=True, acts='first_net').cuda()
-    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=16, return_features=True).cuda()
-    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=8, return_features=True).cuda()
-    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=4, return_features=True).cuda()
-    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=4, return_features=True, acts='last').cuda()
-    model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=8, return_features=True, acts='last').cuda()
+    #-- Place to store model configurations --#
+    default_args = {
+        'latent_dim': 32,
+        'return_features': True
+    }
+
+    latent_dim_8 = {
+        'latent_dim': 8,
+        'return_features': True,
+        'acts': 'last',
+    }
+
+    latent_dim_4 = {
+        'latent_dim': 4,
+        'return_features': True,
+        'acts': 'last',
+    }
+
+    conv_occ_args = latent_dim_8
+
+    model = conv_occupancy_network.ConvolutionalOccupancyNetwork(
+        **conv_occ_args).cuda()
 
     print(model)
 
+    #-- Load Checkpoint --#
     if opt.checkpoint_path is not None:
         checkpoint_path = osp.join(path_util.get_ndf_model_weights(), opt.checkpoint_path)
         model.load_state_dict(torch.load(checkpoint_path))
@@ -94,6 +109,15 @@ if __name__ == '__main__':
 
     root_path = make_unique_path_to_dir(root_path)
 
+    # -- Create and save config -- #
+    config = {}
+    config['model_args'] = conv_occ_args
+    config['argparse_args'] = vars(opt)
+
+    # os.makedirs(root_path)
+    # config_fn = osp.join(root_path, 'config.yml')
+    # with open(config_fn, 'w') as f:
+    #     yaml.dump(config, f, default_flow_style=False)
 
     ### Run train function ###
     if opt.triplet_loss:
@@ -105,7 +129,8 @@ if __name__ == '__main__':
             steps_til_summary=opt.steps_til_summary, 
             epochs_til_checkpoint=opt.epochs_til_ckpt,
             model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt, 
-            summary_fn=summary_fn,clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True)
+            summary_fn=summary_fn,clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True,
+            config_dict=config)
     else:
         # loss_fn = val_loss_fn = losses.rotated_margin
         loss_fn = val_loss_fn = losses.conv_occupancy_net

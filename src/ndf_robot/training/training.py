@@ -10,6 +10,8 @@ import os
 import shutil
 from collections import defaultdict
 import torch.distributed as dist
+import yaml
+import os.path as osp
 
 import ndf_robot.training.util as util
 
@@ -548,7 +550,8 @@ def train_conv(model, train_dataloader, epochs, lr, steps_til_summary, epochs_ti
 
 def train_conv_triplet(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_checkpoint, model_dir, loss_fn,
           summary_fn=None, iters_til_checkpoint=None, val_dataloader=None, clip_grad=False, val_loss_fn=None,
-          overwrite=True, optimizers=None, batches_per_validation=10, gpus=1, rank=0, max_steps=None):
+          overwrite=True, optimizers=None, batches_per_validation=10, gpus=1, rank=0, max_steps=None,
+          config_dict={}):
     """
     Convolutional occupancy network with triplet loss function 
 
@@ -611,6 +614,10 @@ def train_conv_triplet(model, train_dataloader, epochs, lr, steps_til_summary, e
         util.cond_mkdir(checkpoints_dir)
 
         writer = SummaryWriter(summaries_dir)
+
+        config_fn = osp.join(model_dir, 'config.yml')
+        with open(config_fn, 'w') as f:
+            yaml.dump(config_dict, f, default_flow_style=False)
 
     total_steps = 0
     with tqdm(total=len(train_dataloader) * epochs) as pbar:
