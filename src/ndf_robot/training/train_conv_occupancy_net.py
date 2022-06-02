@@ -88,10 +88,29 @@ if __name__ == '__main__':
 
     loss_fn_args = default_args
 
-    # -- CREATE DATALOADERS -- #
+    # -- DATALOADER ARGS -- #
     sidelength = 128
-    train_dataset = dataio.JointOccTrainDataset(sidelength, depth_aug=opt.depth_aug, multiview_aug=opt.multiview_aug, obj_class=opt.obj_class)
-    val_dataset = dataio.JointOccTrainDataset(sidelength, phase='val', depth_aug=opt.depth_aug, multiview_aug=opt.multiview_aug, obj_class=opt.obj_class)
+
+    train_dataloader_args = {
+        'sidelength': sidelength,
+        'depth_aug': opt.depth_aug,
+        'multiview_aug': opt.multiview_aug,
+        'obj_class': opt.obj_class,
+        'any_rot': True
+    }
+
+    val_dataloader_args = {
+        'sidelength': sidelength,
+        'phase': 'val',
+        'depth_aug': opt.depth_aug,
+        'multiview_aug': opt.multiview_aug,
+        'obj_class': opt.obj_class,
+        'any_rot': True
+    }
+
+    # -- CREATE DATALOADERS -- #
+    train_dataset = dataio.JointOccTrainDataset(**train_dataloader_args)
+    val_dataset = dataio.JointOccTrainDataset(**val_dataloader_args)
 
     train_dataloader = DataLoader(train_dataset, batch_size=opt.batch_size, shuffle=True,
                                 drop_last=True, num_workers=6)
@@ -124,24 +143,26 @@ if __name__ == '__main__':
     config['model_args'] = conv_occ_args
     config['argparse_args'] = vars(opt)
     config['loss_fn_args'] = loss_fn_args
+    config['train_dataloader_args'] = train_dataloader_args
+    config['val_dataloader_args'] = val_dataloader_args
 
     # -- RUN TRAIN FUNCTION -- #
     loss_fn = val_loss_fn = losses.triplet(**loss_fn_args)
-    training.train_conv_triplet(model=model_parallel, train_dataloader=train_dataloader, 
-        val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr, 
-        steps_til_summary=opt.steps_til_summary, 
+    training.train_conv_triplet(model=model_parallel, train_dataloader=train_dataloader,
+        val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr,
+        steps_til_summary=opt.steps_til_summary,
         epochs_til_checkpoint=opt.epochs_til_ckpt,
-        model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt, 
+        model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt,
         summary_fn=summary_fn,clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True,
         config_dict=config)
     # else:
     #     # loss_fn = val_loss_fn = losses.rotated_margin
     #     loss_fn = val_loss_fn = losses.conv_occupancy_net
-    #     training.train_conv(model=model_parallel, train_dataloader=train_dataloader, 
-    #         val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr, 
-    #         steps_til_summary=opt.steps_til_summary, 
+    #     training.train_conv(model=model_parallel, train_dataloader=train_dataloader,
+    #         val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr,
+    #         steps_til_summary=opt.steps_til_summary,
     #         epochs_til_checkpoint=opt.epochs_til_ckpt,
-    #         model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt, 
+    #         model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt,
     #         summary_fn=summary_fn,clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True)
 
     # Default training for reference

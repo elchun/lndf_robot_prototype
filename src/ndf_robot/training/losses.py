@@ -11,7 +11,8 @@ def occupancy(model_outputs, ground_truth, val=False):
     label = ground_truth['occ']
     label = (label + 1) / 2.
 
-    loss_dict['occ'] = -1 * (label * torch.log(model_outputs['occ'] + 1e-5) + (1 - label) * torch.log(1 - model_outputs['occ'] + 1e-5)).mean()
+    loss_dict['occ'] = -1 * (label * torch.log(model_outputs['occ'] + 1e-5)
+        + (1 - label) * torch.log(1 - model_outputs['occ'] + 1e-5)).mean()
     return loss_dict
 
 
@@ -27,7 +28,7 @@ def occupancy_net(model_outputs, ground_truth, val=False, **kwargs):
         val (bool, optional): Unused. Defaults to False.
 
     Returns:
-        dict: Dictionary containing 'occ' which corresponds to tensor of loss 
+        dict: Dictionary containing 'occ' which corresponds to tensor of loss
             for each element in batch
     """
     # Good if using sigmoid on output of decoder
@@ -36,7 +37,8 @@ def occupancy_net(model_outputs, ground_truth, val=False, **kwargs):
     label = (label + 1) / 2.
 
     # print('model outputs: ', model_outputs)
-    loss_dict['occ'] = -1 * (label * torch.log(model_outputs['occ'] + 1e-5) + (1 - label) * torch.log(1 - model_outputs['occ'] + 1e-5)).mean()
+    loss_dict['occ'] = -1 * (label * torch.log(model_outputs['occ'] + 1e-5)
+        + (1 - label) * torch.log(1 - model_outputs['occ'] + 1e-5)).mean()
     return loss_dict
 
 
@@ -98,7 +100,8 @@ def semantic(model_outputs, ground_truth, val=False):
     if val:
         loss_dict['occ'] = torch.zeros(1)
     else:
-        loss_dict['occ'] = -1 * (label * torch.log(model_outputs['occ'].squeeze() + 1e-5) + (1 - label) * torch.log(1 - model_outputs['occ'].squeeze() + 1e-5)).mean()
+        loss_dict['occ'] = -1 * (label * torch.log(model_outputs['occ'].squeeze() + 1e-5)
+            + (1 - label) * torch.log(1 - model_outputs['occ'].squeeze() + 1e-5)).mean()
 
     return loss_dict
 
@@ -111,10 +114,10 @@ def triplet(occ_margin=0, positive_loss_scale=0.3, negative_loss_scale=0.3):
     loss = max(occ_loss - occ_margin, 0) \
         + positive_loss_scale * latent_positive_loss \
         + negative_loss_scale * latent_negative_loss
-    
+
     where latent_positive_loss is cosine similarity between activations and
     activations of rotated shape while latent_negative_loss is cosine
-    difference between rotated latent and a activations of a randomly sampled 
+    difference between rotated latent and a activations of a randomly sampled
     point
 
     Args:
@@ -139,8 +142,8 @@ def triplet(occ_margin=0, positive_loss_scale=0.3, negative_loss_scale=0.3):
             model_outputs (dict): Dictionary containing 'standard', 'rot',
                 'standard_act_hat', 'rot_act_hat'
             ground_truth (dict): Dictionary containing 'occ'
-            occ_margin (float, optional): Lower value makes occupancy prediction 
-                better
+            occ_margin (float, optional): Lower value makes occupancy
+                prediction better
 
         Returns:
             dict: dict containing 'occ'
@@ -156,25 +159,24 @@ def triplet(occ_margin=0, positive_loss_scale=0.3, negative_loss_scale=0.3):
         standard_act_hat = torch.flatten(model_outputs['standard_act_hat'], start_dim=1)
         rot_act_hat = torch.flatten(model_outputs['rot_act_hat'], start_dim=1)
 
-        rot_negative_act_hat = torch.flatten(model_outputs['rot_negative_act_hat'], 
+        rot_negative_act_hat = torch.flatten(model_outputs['rot_negative_act_hat'],
             start_dim=1)
 
-
         # Calculate loss of occupancy
-        standard_loss_occ = -1 * (label * torch.log(standard_outputs['occ'] + 1e-5) 
+        standard_loss_occ = -1 * (label * torch.log(standard_outputs['occ'] + 1e-5)
             + (1 - label) * torch.log(1 - standard_outputs['occ'] + 1e-5)).mean()
-        rot_loss_occ = -1 * (label * torch.log(rot_outputs['occ'] + 1e-5) 
+        rot_loss_occ = -1 * (label * torch.log(rot_outputs['occ'] + 1e-5)
             + (1 - label) * torch.log(1 - rot_outputs['occ'] + 1e-5)).mean()
-    
+
         occ_loss = (standard_loss_occ + rot_loss_occ) / 2
-    
-        # Calculate loss from similarity between latent descriptors 
+
+        # Calculate loss from similarity between latent descriptors
         device = standard_act_hat.get_device()
-        latent_positive_loss = F.cosine_embedding_loss(standard_act_hat, rot_act_hat, 
+        latent_positive_loss = F.cosine_embedding_loss(standard_act_hat, rot_act_hat,
             torch.ones(standard_act_hat.shape[0]).to(device), margin=0.001)
 
         # Calculate loss from difference between unrelated latent descriptors
-        latent_negative_loss = F.cosine_embedding_loss(standard_act_hat, rot_negative_act_hat, 
+        latent_negative_loss = F.cosine_embedding_loss(standard_act_hat, rot_negative_act_hat,
             -torch.ones(standard_act_hat.shape[0]).to(device), margin=0.1)
 
         latent_positive_loss = latent_positive_loss.mean()
@@ -183,7 +185,7 @@ def triplet(occ_margin=0, positive_loss_scale=0.3, negative_loss_scale=0.3):
         loss_dict['occ'] = max(occ_loss - occ_margin, 0) \
             + positive_loss_scale * latent_positive_loss \
             + negative_loss_scale * latent_negative_loss
-    
+
         print('occ loss: ', occ_loss)
         print('latent pos loss: ', latent_positive_loss)
         print('latent neg loss: ', latent_negative_loss)
@@ -197,7 +199,7 @@ def rotated_log(model_outputs, ground_truth, it=-1):
     """
     Joint loss of occupancy and log of similiarty between rotated and unrotated
     coordinates
-    
+
     Appears to overfit and reduce magnitude of all activations
 
     Args:
@@ -216,23 +218,23 @@ def rotated_log(model_outputs, ground_truth, it=-1):
     standard_act_hat = torch.flatten(model_outputs['standard_act_hat'], start_dim=1)
     rot_act_hat = torch.flatten(model_outputs['rot_act_hat'], start_dim=1)
 
-    # rot_negative_act_hat = torch.flatten(model_outputs['rot_negative_act_hat'], 
+    # rot_negative_act_hat = torch.flatten(model_outputs['rot_negative_act_hat'],
     #     start_dim=1)
 
     # print(standard_act_hat[0, :5])
     # print(rot_negative_act_hat[0, :5])
 
     # Calculate loss of occupancy
-    standard_loss_occ = -1 * (label * torch.log(standard_outputs['occ'] + 1e-5) 
+    standard_loss_occ = -1 * (label * torch.log(standard_outputs['occ'] + 1e-5)
         + (1 - label) * torch.log(1 - standard_outputs['occ'] + 1e-5)).mean()
-    rot_loss_occ = -1 * (label * torch.log(rot_outputs['occ'] + 1e-5) 
+    rot_loss_occ = -1 * (label * torch.log(rot_outputs['occ'] + 1e-5)
         + (1 - label) * torch.log(1 - rot_outputs['occ'] + 1e-5)).mean()
-    
+
     occ_loss = (standard_loss_occ + rot_loss_occ) / 2
-    
-    # Calculate loss from similarity between latent descriptors 
+
+    # Calculate loss from similarity between latent descriptors
     device = standard_act_hat.get_device()
-    latent_positive_loss = F.cosine_embedding_loss(standard_act_hat, rot_act_hat, 
+    latent_positive_loss = F.cosine_embedding_loss(standard_act_hat, rot_act_hat,
         torch.ones(standard_act_hat.shape[0]).to(device))
 
     latent_positive_loss = latent_positive_loss.mean()

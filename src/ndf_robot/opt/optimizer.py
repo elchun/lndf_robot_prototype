@@ -16,11 +16,11 @@ from ndf_robot.utils.plotly_save import plot3d
 
 
 class OccNetOptimizer:
-    def __init__(self, model, query_pts, query_pts_real_shape=None, opt_iterations=250, 
+    def __init__(self, model, query_pts, query_pts_real_shape=None, opt_iterations=250,
                  noise_scale=0.0, noise_decay=0.5, single_object=False):
         self.model = model
         self.model_type = self.model.model_type
-        self.query_pts_origin = query_pts 
+        self.query_pts_origin = query_pts
         if query_pts_real_shape is None:
             self.query_pts_origin_real_shape = query_pts
         else:
@@ -44,7 +44,7 @@ class OccNetOptimizer:
         # if this is true, we will use the activations from the demo with the same shape as in test time
         # defaut is false, because we want to test optimizing with the set of demos that don't include
         # the test shape
-        self.single_object = single_object 
+        self.single_object = single_object
         self.target_info = None
         self.demo_info = None
         if self.single_object:
@@ -58,9 +58,9 @@ class OccNetOptimizer:
 
         self.rot_grid = util.generate_healpix_grid(size=1e6)
         # self.rot_grid = None
-        
+
         # ENABLE TSNE HERE
-        self.tsne_fn = osp.join(self.viz_path, 'tsne') 
+        self.tsne_fn = osp.join(self.viz_path, 'tsne')
         # self.tsne_fn = None
 
     def _scene_dict(self):
@@ -112,9 +112,9 @@ class OccNetOptimizer:
         """
         dev = self.dev
         n_pts = 1500
-        # opt_pts = 500 
+        # opt_pts = 500
         # opt_pts = 1000 # Seems to work well
-        opt_pts = 2000 
+        opt_pts = 2000
         perturb_scale = self.noise_scale
         perturb_decay = self.noise_decay
 
@@ -138,7 +138,7 @@ class OccNetOptimizer:
 
             rndperm = torch.randperm(demo_shape_pts_cent.size(0))
             demo_model_input = dict(
-                point_cloud=demo_shape_pts_cent[None, rndperm[:n_pts], :], 
+                point_cloud=demo_shape_pts_cent[None, rndperm[:n_pts], :],
                 coords=demo_query_pts_cent_perturbed[None, :opt_pts, :])
             out = self.model(demo_model_input)
             # target_act_hat = out['features'].detach()
@@ -241,7 +241,7 @@ class OccNetOptimizer:
                 shape_np = shape_np[inliers]
                 shape_pcd = trimesh.PointCloud(shape_np)
                 bb = shape_pcd.bounding_box
-                bb_scene = trimesh.Scene(); bb_scene.add_geometry([shape_pcd, bb]) 
+                bb_scene = trimesh.Scene(); bb_scene.add_geometry([shape_pcd, bb])
 
                 eval_pts = bb.sample_volume(10000)
                 shape_mi['coords'] = torch.from_numpy(eval_pts)[None, :, :].float().to(self.dev).detach()
@@ -253,7 +253,7 @@ class OccNetOptimizer:
                 self._scene_dict()
                 plot3d(
                     [in_pts, shape_np],
-                    ['blue', 'black'], 
+                    ['blue', 'black'],
                     osp.join(self.debug_viz_path, 'recon_overlay.html'),
                     scene_dict=self.scene_dict,
                     z_plane=False)
@@ -292,9 +292,9 @@ class OccNetOptimizer:
             all_pts = [ee_pts_world, shape_pts_world_np]
             opt_fname = 'ee_pose_optimized_%d.html' % j if ee else 'rack_pose_optimized_%d.html' % j
             plot3d(
-                all_pts, 
-                ['black', 'purple'], 
-                osp.join('visualization', opt_fname), 
+                all_pts,
+                ['black', 'purple'],
+                osp.join('visualization', opt_fname),
                 z_plane=False)
             self.viz_files.append(osp.join('visualization', opt_fname))
 
@@ -305,7 +305,7 @@ class OccNetOptimizer:
             tf_list.append(T_mat)
 
         return tf_list, best_idx
-    
+
     def _tsne_viz(self, pcd: np.ndarray, output_fn: str):
         n_query_pts = 500
         n_components = 1
@@ -317,8 +317,8 @@ class OccNetOptimizer:
         pcd_small = pcd[rix, :]
 
         object_pcd_torch = torch.from_numpy(pcd_small).float().to(self.dev)
-        object_pcd_torch = object_pcd_torch[None, :, :]  # Query points 
-        
+        object_pcd_torch = object_pcd_torch[None, :, :]  # Query points
+
         model_input['coords'] = object_pcd_torch[None, :, :]
         model_input['point_cloud'] = pcd_torch[None, :, :]
 

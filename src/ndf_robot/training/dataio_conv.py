@@ -11,20 +11,20 @@ from ndf_robot.utils import path_util, geometry, torch3d_util, torch_util
 
 
 class JointOccTrainDataset(Dataset):
-    def __init__(self, sidelength, depth_aug=False, multiview_aug=False, 
-        phase='train', obj_class='all'):
+    def __init__(self, sidelength, depth_aug=False, multiview_aug=False,
+        phase='train', obj_class='all', any_rot=False):
 
         # Path setup (change to folder where your training data is kept)
-        ## these are the names of the full dataset folders
-        mug_path = osp.join(path_util.get_ndf_data(), 
+        #   these are the names of the full dataset folders
+        mug_path = osp.join(path_util.get_ndf_data(),
             'training_data/mug_table_all_pose_4_cam_half_occ_full_rand_scale')
-        bottle_path = osp.join(path_util.get_ndf_data(), 
+        bottle_path = osp.join(path_util.get_ndf_data(),
             'training/bottle_table_all_pose_4_cam_half_occ_full_rand_scale')
-        bowl_path = osp.join(path_util.get_ndf_data(), 
+        bowl_path = osp.join(path_util.get_ndf_data(),
             'training/bowl_table_all_pose_4_cam_half_occ_full_rand_scale')
 
-        ## these are the names of the mini-dataset folders, to ensure everything 
-            # is up and running
+        # these are the names of the mini-dataset folders, to ensure everything
+        #   is up and running
         # mug_path = osp.join(path_util.get_ndf_data(), 'training_data/test_mug')
         # bottle_path = osp.join(path_util.get_ndf_data(), 'training_data/test_bottle')
         # bowl_path = osp.join(path_util.get_ndf_data(), 'training_data/test_bowl')
@@ -44,7 +44,7 @@ class JointOccTrainDataset(Dataset):
 
         files_total = []
         for path in paths:
-            files = list(sorted(glob.glob(path+"/*.npz")))
+            files = list(sorted(glob.glob(path + "/*.npz")))
             n = len(files)
             idx = int(0.9 * n)
 
@@ -60,22 +60,23 @@ class JointOccTrainDataset(Dataset):
         self.sidelength = sidelength
         self.depth_aug = depth_aug
         self.multiview_aug = multiview_aug
+        self.any_rot = any_rot
 
-        block = 128 
+        block = 128
         bs = 1 / block
         hbs = bs * 0.5
         self.bs = bs
         self.hbs = hbs
 
-        self.shapenet_mug_dict = pickle.load(open(osp.join(path_util.get_ndf_data(), 
+        self.shapenet_mug_dict = pickle.load(open(osp.join(path_util.get_ndf_data(),
             'training_data/occ_shapenet_mug.p'), 'rb'))
-        self.shapenet_bowl_dict = pickle.load(open(osp.join(path_util.get_ndf_data(), 
+        self.shapenet_bowl_dict = pickle.load(open(osp.join(path_util.get_ndf_data(),
             'training_data/occ_shapenet_bowl.p'), "rb"))
-        self.shapenet_bottle_dict = pickle.load(open(osp.join(path_util.get_ndf_data(), 
+        self.shapenet_bottle_dict = pickle.load(open(osp.join(path_util.get_ndf_data(),
             'training_data/occ_shapenet_bottle.p'), "rb"))
 
-        self.shapenet_dict = {'03797390': self.shapenet_mug_dict, 
-            '02880940': self.shapenet_bowl_dict, 
+        self.shapenet_dict = {'03797390': self.shapenet_mug_dict,
+            '02880940': self.shapenet_bowl_dict,
             '02876657': self.shapenet_bottle_dict}
 
         self.projection_mode = "perspective"
@@ -106,9 +107,9 @@ class JointOccTrainDataset(Dataset):
         try:
             data = np.load(self.files[index], allow_pickle=True)
 
-            # legacy naming, used to use pose expressed in camera frame. 
+            # legacy naming, used to use pose expressed in camera frame.
             # global reference frame doesn't matter though
-            posecam =  data['object_pose_cam_frame']  
+            posecam =  data['object_pose_cam_frame']
 
             # What is the numbers of transforms
 
@@ -209,9 +210,8 @@ class JointOccTrainDataset(Dataset):
                 transform[:3, -1] = pos
                 transform = torch.from_numpy(transform)
                 transforms.append(transform)
-            
-            # print('transforms: ', transforms)
 
+            # print('transforms: ', transforms)
 
             # Why take the first transform?
             transform = transforms[0]
@@ -237,6 +237,16 @@ class JointOccTrainDataset(Dataset):
 
             label = (label - 0.5) * 2.0
 
+            # Rotate pcd randomly
+            if self.any_rot:
+                random_transform = torch.tensor(JointOccTrainDataset.__random_rot_transform())
+
+                point_cloud = torch_util.transform_pcd_torch(point_cloud,
+                    random_transform)
+
+                coord = torch_util.transform_pcd_torch(coord,
+                    random_transform)
+
             # translate everything to the origin based on the point cloud mean
             center = point_cloud.mean(dim=0)
             coord = coord - center[None, :]
@@ -244,17 +254,16 @@ class JointOccTrainDataset(Dataset):
 
             labels = label
 
-
-            # Generate a new random rotation and create object 
+            # Generate a new random rotation and create object
             random_transform = torch.tensor(JointOccTrainDataset.__random_rot_transform())
 
-            point_cloud_transformed = torch_util.transform_pcd_torch(point_cloud, 
-                random_transform) 
-            
-            coords_transformed = torch_util.transform_pcd_torch(coord, 
+            point_cloud_transformed = torch_util.transform_pcd_torch(point_cloud,
                 random_transform)
-            
-            # Generate shuffled coordinates.  Simulates random sampling in 
+
+            coords_transformed = torch_util.transform_pcd_torch(coord,
+                random_transform)
+
+            # Generate shuffled coordinates.  Simulates random sampling in
             # bounding box for negative triplet loss example
             shuffler = torch.randperm(coords_transformed.shape[0])
             coords_transformed_shuffled = coords_transformed[shuffler]
@@ -265,10 +274,10 @@ class JointOccTrainDataset(Dataset):
             coord_range = max_coords - min_coords
 
             rand_coords = np.random.random(coords_transformed.shape)
-            rand_coords = rand_coords * coord_range.reshape((1, 3)) 
+            rand_coords = rand_coords * coord_range.reshape((1, 3))
             rand_coords = torch.from_numpy(rand_coords)
-            
-            # # at the end we have 3D point cloud observation from depth images, 
+
+            # # at the end we have 3D point cloud observation from depth images,
             # voxel occupancy values and corresponding voxel coordinates
 
             res = {'point_cloud': point_cloud.float(),
@@ -293,7 +302,7 @@ class JointOccTrainDataset(Dataset):
     def __getitem__(self, index):
         """
         Args:
-            index (int): int index of data to get 
+            index (int): int index of data to get
 
         Returns:
             res = {'point_cloud': point_cloud.float(),
@@ -325,7 +334,7 @@ class JointOccTrainDataset(Dataset):
         s = (o * o).sum(1)
         o = o / torch3d_util._copysign(torch.sqrt(s), o[:, 0])[:, None]
         return o
-    
+
     @staticmethod
     def __random_rot_transform():
         """
@@ -338,7 +347,7 @@ class JointOccTrainDataset(Dataset):
         Raises:
             NotImplementedError: translation not done yet
 
-        Returns: 
+        Returns:
             Transform with random rotation
         """
         rand_quat = JointOccTrainDataset.__random_quaternions(1)
