@@ -59,17 +59,7 @@ if __name__ == '__main__':
 
     opt = p.parse_args()
 
-    sidelength = 128
-    train_dataset = dataio.JointOccTrainDataset(sidelength, depth_aug=opt.depth_aug, multiview_aug=opt.multiview_aug, obj_class=opt.obj_class)
-    val_dataset = dataio.JointOccTrainDataset(sidelength, phase='val', depth_aug=opt.depth_aug, multiview_aug=opt.multiview_aug, obj_class=opt.obj_class)
-
-
-    train_dataloader = DataLoader(train_dataset, batch_size=opt.batch_size, shuffle=True,
-                                drop_last=True, num_workers=6)
-    val_dataloader = DataLoader(val_dataset, batch_size=opt.batch_size, shuffle=True,
-                                drop_last=True, num_workers=4)
-
-    #-- Place to store model configurations --#
+    # -- MODEL ARGUMENTS -- #
     default_args = {
         'latent_dim': 32,
         'return_features': True
@@ -89,12 +79,32 @@ if __name__ == '__main__':
 
     conv_occ_args = latent_dim_8
 
+    # -- LOSS FUNCTION ARGS -- #
+    default_args = {
+        'occ_margin': 0,
+        'positive_loss_scale': 0.3,
+        'negative_loss_scale': 0.3
+    }
+
+    loss_fn_args = default_args
+
+    # -- CREATE DATALOADERS -- #
+    sidelength = 128
+    train_dataset = dataio.JointOccTrainDataset(sidelength, depth_aug=opt.depth_aug, multiview_aug=opt.multiview_aug, obj_class=opt.obj_class)
+    val_dataset = dataio.JointOccTrainDataset(sidelength, phase='val', depth_aug=opt.depth_aug, multiview_aug=opt.multiview_aug, obj_class=opt.obj_class)
+
+    train_dataloader = DataLoader(train_dataset, batch_size=opt.batch_size, shuffle=True,
+                                drop_last=True, num_workers=6)
+    val_dataloader = DataLoader(val_dataset, batch_size=opt.batch_size, shuffle=True,
+                                drop_last=True, num_workers=4)
+
+    # -- CREATE MODEL -- #
     model = conv_occupancy_network.ConvolutionalOccupancyNetwork(
         **conv_occ_args).cuda()
 
     print(model)
 
-    #-- Load Checkpoint --#
+    # -- LOAD CHECKPOINT --#
     if opt.checkpoint_path is not None:
         checkpoint_path = osp.join(path_util.get_ndf_model_weights(), opt.checkpoint_path)
         model.load_state_dict(torch.load(checkpoint_path))
@@ -103,43 +113,39 @@ if __name__ == '__main__':
     # model_parallel = nn.DataParallel(model, device_ids=[0, 1, 2, 3, 4, 5])
     model_parallel = model
 
-    # Define the loss
+    # -- CREATE SAVE UTILS -- #
     summary_fn = summaries.occupancy_net
     root_path = os.path.join(opt.logging_root, opt.experiment_name)
 
     root_path = make_unique_path_to_dir(root_path)
 
-    # -- Create and save config -- #
+    # -- CREATE CONFIG -- #
     config = {}
     config['model_args'] = conv_occ_args
     config['argparse_args'] = vars(opt)
+    config['loss_fn_args'] = loss_fn_args
 
-    # os.makedirs(root_path)
-    # config_fn = osp.join(root_path, 'config.yml')
-    # with open(config_fn, 'w') as f:
-    #     yaml.dump(config, f, default_flow_style=False)
-
-    ### Run train function ###
-    if opt.triplet_loss:
-        loss_fn = val_loss_fn = losses.custom_rotated_triplet
-        # loss_fn = val_loss_fn = losses.rotated_log
-        # loss_fn = val_loss_fn = losses.rotated_triplet_log
-        training.train_conv_triplet(model=model_parallel, train_dataloader=train_dataloader, 
-            val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr, 
-            steps_til_summary=opt.steps_til_summary, 
-            epochs_til_checkpoint=opt.epochs_til_ckpt,
-            model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt, 
-            summary_fn=summary_fn,clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True,
-            config_dict=config)
-    else:
-        # loss_fn = val_loss_fn = losses.rotated_margin
-        loss_fn = val_loss_fn = losses.conv_occupancy_net
-        training.train_conv(model=model_parallel, train_dataloader=train_dataloader, 
-            val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr, 
-            steps_til_summary=opt.steps_til_summary, 
-            epochs_til_checkpoint=opt.epochs_til_ckpt,
-            model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt, 
-            summary_fn=summary_fn,clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True)
+    # -- RUN TRAIN FUNCTION -- #
+    loss_fn = val_loss_fn = losses.custom_rotated_triplet
+    # loss_fn = val_loss_fn = losses.rotated_log
+    # loss_fn = val_loss_fn = losses.rotated_triplet_log
+    loss_fn = val_loss_fn = losses.triplet(**loss_fn_args)
+    training.train_conv_triplet(model=model_parallel, train_dataloader=train_dataloader, 
+        val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr, 
+        steps_til_summary=opt.steps_til_summary, 
+        epochs_til_checkpoint=opt.epochs_til_ckpt,
+        model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt, 
+        summary_fn=summary_fn,clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True,
+        config_dict=config)
+    # else:
+    #     # loss_fn = val_loss_fn = losses.rotated_margin
+    #     loss_fn = val_loss_fn = losses.conv_occupancy_net
+    #     training.train_conv(model=model_parallel, train_dataloader=train_dataloader, 
+    #         val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr, 
+    #         steps_til_summary=opt.steps_til_summary, 
+    #         epochs_til_checkpoint=opt.epochs_til_ckpt,
+    #         model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt, 
+    #         summary_fn=summary_fn,clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True)
 
     # Default training for reference
     # training.train(model=model_parallel, train_dataloader=train_dataloader, val_dataloader=val_dataloader, epochs=opt.num_epochs,
