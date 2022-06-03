@@ -92,7 +92,7 @@ if __name__ == '__main__':
         'negative_loss_scale': 0
     }
 
-    loss_fn_args = no_similarity
+    loss_fn_args = default_args
 
     # -- DATALOADER ARGS -- #
     sidelength = 128

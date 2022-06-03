@@ -12,16 +12,29 @@ import plotly.express as px
 
 import ndf_robot.model.conv_occupancy_net.conv_occupancy_net as conv_occupancy_network
 from ndf_robot.utils import path_util, torch3d_util, torch_util
-from ndf_robot.utils.plotly_save import plot3d
 
 
 class TSNEViz:
     """
     Visualize the latent activations of a model on any given
     object
+
+    Attributes:
+        self.model (torch.nn.Module): Model to use
+        self.dev (torch.Device): Device to run network on
+        self.pcd_list (list<np.ndArray>): List of pcds to run visualize on
+        self.query_pts_list (list<np.ndarray>): List of query points to run
+            visualize on.  pcd of smae index is used as the input pcd to model
+            for given query point.
     """
 
     def __init__(self, model: torch.nn.Module):
+        """
+        Create TSNEViz Object
+
+        Args:
+            model (torch.nn.Module): Model to use
+        """
         self.model = model
         self.dev = torch.device('cuda:0') if torch.cuda.is_available() \
             else torch.device('cpu')
@@ -37,7 +50,6 @@ class TSNEViz:
             object_fn (str): Path to object to load
         """
         mesh = trimesh.load(object_fn, process=False)
-        # pcd = trimesh.sample.volume_mesh(mesh, 5000) # pcd of object
         pcd = mesh.sample(5000)
         query_pts = mesh.sample(500)  # Set to also sample within body
         self.pcd_list.append(pcd)
@@ -70,19 +82,95 @@ class TSNEViz:
             random_transform=random_transform)
             i += 1
 
+    def viz_all_objects_together(self, output_fn: str='tsne_viz.html',
+        rand_rotate: bool=False):
+        """
+        Run the single tsne for activations of all objects, plots all in the
+        same plot.
+
+        Args:
+            output_fn (str, optional): Filename to save visualization to.
+                Defaults to 'tsne_viz'.
+            rand_rotate (bool, optional): True to randomly rotate all objects by
+                a transform. Defaults to False.
+        """
+
+        if rand_rotate:
+            random_transform = torch.tensor(TSNEViz.__random_rot_transform()).float().to(self.dev)
+        else:
+            random_transform = None
+
+        activations_list = []
+        transformed_query_pts_list = []
+        for pcd, query_pts in zip(self.pcd_list, self.query_pts_list):
+            model_input = {}
+            query_pts_torch = torch.from_numpy(query_pts).float().to(self.dev)
+            pcd_torch = torch.from_numpy(pcd).float().to(self.dev)
+
+            # Transform using random_transform if it exists
+            if random_transform is not None:
+                query_pts_torch = torch_util.transform_pcd_torch(query_pts_torch,
+                    random_transform).float()
+                pcd_torch = torch_util.transform_pcd_torch(pcd_torch,
+                    random_transform).float()
+
+            elif rand_rotate:
+                random_transform = torch.tensor(TSNEViz.__random_rot_transform()).float().to(self.dev)
+                query_pts_torch = torch_util.transform_pcd_torch(query_pts_torch,
+                    random_transform).float()
+                pcd_torch = torch_util.transform_pcd_torch(pcd_torch,
+                    random_transform).float()
+
+            model_input['coords'] = query_pts_torch[None, :, :]
+            model_input['point_cloud'] = pcd_torch[None, :, :]
+
+            latent_torch = self.model.extract_latent(model_input).detach()
+            act_torch = self.model.forward_latent(latent_torch, model_input['coords']).detach()
+            act = act_torch.squeeze().cpu().numpy()
+
+            activations_list.append(act)
+            query_pts_np = query_pts_torch.cpu().numpy()
+            transformed_query_pts_list.append(query_pts_np)
+
+        combined_acts = np.vstack(activations_list)
+        print('acts shape: ', combined_acts.shape)
+
+        n_components = 1
+        tsne = TSNE(n_components)
+        tsne_result = tsne.fit_transform(combined_acts)
+
+        # Apply offset to plot so its easier to see all objects
+        plot_x_offset = 1
+        n = len(transformed_query_pts_list)
+        for i in range(n):
+            transformed_query_pts_list[i][:, 0] += (i - n / 2) * plot_x_offset
+
+        combined_query_pts = np.vstack(transformed_query_pts_list)
+        print('query pts shape: ', combined_query_pts.shape)
+
+        fig = px.scatter_3d(x=combined_query_pts[:, 0], y=combined_query_pts[:, 1], z=combined_query_pts[:, 2],
+            color=tsne_result[:, 0], range_x=(-5, 5), range_y=(-5, 5), range_z=(-5, 5))
+
+        fig.write_html(output_fn)
+
     def viz_object(self, pcd: np.ndarray, query_pts: np.ndarray,
                    output_fn: str='tnse_viz.html', rand_rotate: bool=False,
                    random_transform: torch.Tensor=None):
         """
-        Generate TSNE plot of object given model and query points
-        Saves plot as html to output_fn
+        Visualize single object with tsne plot and save to output_fn as html
+        file.
 
         Args:
-            object_fn (str): filename of object mesh to load
-            query_pts (np.ndarray): n x 3 array of points to sample from
-            output_fn (str): filename of output html to save to (must include html)
-
-        UPDATE
+            pcd (np.ndarray): Input point cloud to condition network with
+            query_pts (np.ndarray): Input query points to get activations of
+            output_fn (str, optional): output filename.
+                Defaults to 'tnse_viz.html'.
+            rand_rotate (bool, optional): True to randomly rotate the input pcd.
+                prior to running through the network. Will not be used if
+                random_transform is given.  Defaults to False.
+            random_transform (torch.Tensor, optional): Transform to apply to
+                input pcd.  Is used instead of rand_rotate when given.
+                Defaults to None.
         """
         n_components = 1
 
@@ -212,21 +300,13 @@ if __name__ == '__main__':
     # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32,
     #     model_type='pointnet', return_features=True, sigmoid=True).cuda()
 
-    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=4,
-    #     model_type='pointnet', return_features=True, sigmoid=True).cuda()
-
-    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=4,
-    #     model_type='pointnet', return_features=True, sigmoid=True,
-    #     acts='last').cuda()
-
     model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=4,
         model_type='pointnet', return_features=True, sigmoid=True,
         acts='last').cuda()
 
-    # model_path = osp.join(path_util.get_ndf_model_weights(),
-    #     'ndf_vnn/conv_occ_latent_transfer_rand_coords_margin_no_neg_margin_1/checkpoints/model_epoch_0011_iter_143000.pth')
-    # model_path = osp.join(path_util.get_ndf_model_weights(),
-    #     'ndf_vnn/conv_occ_latent_log_2/checkpoints/model_epoch_0000_iter_001000.pth')
+    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=8,
+    #     model_type='pointnet', return_features=True, sigmoid=True,
+    #     acts='last').cuda()
 
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_adaptive_2/checkpoints/model_epoch_0009_iter_099000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_4_0/checkpoints/model_epoch_0010_iter_130000.pth')
@@ -234,7 +314,11 @@ if __name__ == '__main__':
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_n_margin_10e3_last_acts_1/checkpoints/model_epoch_0000_iter_006000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_n_margin_10e3_last_acts_1/checkpoints/model_epoch_0004_iter_056000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_n_margin_10e3_last_acts_margin_0p001_0p1_0/checkpoints/model_epoch_0004_iter_050000.pth')
-    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden4_anyrot_2/checkpoints/model_epoch_0002_iter_029000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden4_anyrot_2/checkpoints/model_epoch_0002_iter_029000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_0/checkpoints/model_epoch_0009_iter_113000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden4_anyrot_6/checkpoints/model_epoch_0011_iter_143000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden8_anyrot_0/checkpoints/model_epoch_0011_iter_132000.pth')
+    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_rot_similar_0/checkpoints/model_epoch_0000_iter_010000.pth')
     model.load_state_dict(torch.load(model_path))
 
     # RUN PLOTTER #
@@ -243,5 +327,8 @@ if __name__ == '__main__':
     for object_fn in object_fns:
         tsne_plotter.load_object(object_fn)
 
-    tsne_plotter.viz_all_objects(base_output_fn=base_output_fn, rand_rotate=False)
+    # tsne_plotter.viz_all_objects(base_output_fn=base_output_fn, rand_rotate=False)
+    # tsne_plotter.viz_all_objects(base_output_fn=base_output_fn, rand_rotate=True)
+
+    tsne_plotter.viz_all_objects_together(base_output_fn + '.html', rand_rotate=True)
 
