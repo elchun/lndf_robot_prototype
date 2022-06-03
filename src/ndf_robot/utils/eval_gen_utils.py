@@ -359,7 +359,8 @@ def post_process_grasp_point(pre_grasp_ee_pose, target_obj_pcd, thin_feature=Tru
         else:
             grasp_pt = np.mean(pts_within_larger_ball, axis=0)
             grasp_close_idxs = target_obj_tree.query(grasp_pt, k=100)[1]
-            grasp_close_pts = target_obj_pcd[grasp_close_idxs].squeeze()
+            # Throws error occasionally without -1
+            grasp_close_pts = target_obj_pcd[grasp_close_idxs - 1].squeeze()
 
         k += 1
         if k > 5:

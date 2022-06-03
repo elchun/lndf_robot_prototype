@@ -60,6 +60,8 @@ class TSNEViz:
 
         if rand_rotate:
             random_transform = torch.tensor(TSNEViz.__random_rot_transform()).float().to(self.dev)
+        else:
+            random_transform = None
 
         i = 0
         for pcd, query_pts in zip(self.pcd_list, self.query_pts_list):
@@ -241,5 +243,5 @@ if __name__ == '__main__':
     for object_fn in object_fns:
         tsne_plotter.load_object(object_fn)
 
-    tsne_plotter.viz_all_objects(base_output_fn=base_output_fn, rand_rotate=True)
+    tsne_plotter.viz_all_objects(base_output_fn=base_output_fn, rand_rotate=False)
 
