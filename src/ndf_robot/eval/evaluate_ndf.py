@@ -29,7 +29,7 @@ from ndf_robot.utils import path_util
 from ndf_robot.share.globals import bad_shapenet_mug_ids_list, bad_shapenet_bowls_ids_list, bad_shapenet_bottles_ids_list
 from ndf_robot.utils.franka_ik import FrankaIK
 from ndf_robot.utils.eval_gen_utils import (
-    soft_grasp_close, constraint_grasp_close, constraint_obj_world, constraint_grasp_open, 
+    soft_grasp_close, constraint_grasp_close, constraint_obj_world, constraint_grasp_open,
     safeCollisionFilterPair, object_is_still_grasped, get_ee_offset, post_process_grasp_point,
     process_demo_data_rack, process_demo_data_shelf, process_xq_data, process_xq_rs_data, safeRemoveConstraint,
 )
@@ -39,14 +39,14 @@ from ndf_robot.utils.plotly_save import plot3d
 def generate_random_sphere(num_points, radius=0.05):
     # http://extremelearning.com.au/how-to-generate-uniformly-random-points-on-n-spheres-and-n-balls/
     u = 2*np.random.rand(num_points, 1)-1
-    phi = 2* np.pi * np.random.rand(num_points, 1) 
+    phi = 2* np.pi * np.random.rand(num_points, 1)
     r = radius * (np.random.rand(num_points, 1)**(1/3.))
     x = r* np.cos(phi) * (1-u**2)**0.5
     y = r* np.sin(phi)* (1-u**2)**0.5
     z = r*u
 
     sphere_points = np.hstack((x, y, z))
-    return sphere_points 
+    return sphere_points
 
 def main(args, global_dict):
 
@@ -54,7 +54,7 @@ def main(args, global_dict):
         set_log_level('debug')
     else:
         set_log_level('info')
-    
+
     use_conv = not args.no_conv
 
 
@@ -96,7 +96,7 @@ def main(args, global_dict):
     elif obj_class == 'bowl':
         avoid_shapenet_ids = bad_shapenet_bowls_ids_list + cfg.BOWL.AVOID_SHAPENET_IDS
     elif obj_class == 'bottle':
-        avoid_shapenet_ids = bad_shapenet_bottles_ids_list + cfg.BOTTLE.AVOID_SHAPENET_IDS 
+        avoid_shapenet_ids = bad_shapenet_bottles_ids_list + cfg.BOTTLE.AVOID_SHAPENET_IDS
     else:
         test_shapenet_ids = []
 
@@ -117,35 +117,35 @@ def main(args, global_dict):
     if use_conv:
         print('Using conv occupancy network')
         # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(
-        #     # latent_dim=32, 
-        #     # latent_dim=64, 
+        #     # latent_dim=32,
+        #     # latent_dim=64,
         #     latent_dim=4,
-        #     model_type='pointnet', 
-        #     return_features=True, 
+        #     model_type='pointnet',
+        #     return_features=True,
         #     sigmoid=False).cuda()
 
         model = conv_occupancy_network.ConvolutionalOccupancyNetwork(
-            # latent_dim=32, 
-            # latent_dim=64, 
+            # latent_dim=32,
+            # latent_dim=64,
             latent_dim=4,
-            model_type='pointnet', 
-            return_features=True, 
+            model_type='pointnet',
+            return_features=True,
             sigmoid=False,
             acts='last').cuda()
     else:
         print('Using non-conv occupancy network')
         if args.dgcnn:
             model = vnn_occupancy_network.VNNOccNet(
-                latent_dim=256, 
+                latent_dim=256,
                 model_type='dgcnn',
-                return_features=True, 
+                return_features=True,
                 sigmoid=True,
                 acts=args.acts).cuda()
         else:
             model = vnn_occupancy_network.VNNOccNet(
-                latent_dim=256, 
+                latent_dim=256,
                 model_type='pointnet',
-                return_features=True, 
+                return_features=True,
                 sigmoid=True).cuda()
 
     if not args.random:
@@ -240,7 +240,7 @@ def main(args, global_dict):
             sphere_query_points = generate_random_sphere(optimizer_gripper_pts.shape[0], radius=0.045)
             # sphere_query_points += [[0, 0, 0.02]]
             sphere_query_points += [[0, 0, 0]] # Works pretty well
-            # sphere_query_points += [[0, 0, 0.01]] 
+            # sphere_query_points += [[0, 0, 0.01]]
 
             if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
                 print('Using shelf points')
@@ -260,18 +260,18 @@ def main(args, global_dict):
             }
             plot3d(
                 [optimizer_gripper_pts, sphere_query_points],
-                ['blue', 'black'], 
+                ['blue', 'black'],
                 osp.join(eval_save_dir, 'query_points.html'),
                 scene_dict=scene_dict,
                 z_plane=False)
-        
+
         if args.query_point_type == 'normal':
-            aux_gripper_pts = normal_query_points 
+            aux_gripper_pts = normal_query_points
         elif args.query_point_type == 'sphere':
-            aux_gripper_pts = sphere_query_points 
+            aux_gripper_pts = sphere_query_points
         else:
             aux_gripper_pts = None
-        
+
         if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
             target_info, rack_target_info, shapenet_id = process_demo_data_shelf(
                 grasp_data, place_data, cfg=None, aux_gripper_pts=aux_gripper_pts)
@@ -290,7 +290,7 @@ def main(args, global_dict):
         query_pts=place_optimizer_pts,
         query_pts_real_shape=place_optimizer_pts_rs,
         opt_iterations=args.opt_iterations)
-    
+
 
 
     if args.query_point_type == 'normal':
@@ -321,7 +321,7 @@ def main(args, global_dict):
         valid = s_id not in demo_shapenet_ids and s_id not in avoid_shapenet_ids
         if args.only_test_ids:
             valid = valid and (s_id in test_shapenet_ids)
-        
+
         if valid:
             test_object_ids.append(s_id)
 
@@ -364,12 +364,12 @@ def main(args, global_dict):
     if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
         placement_link_id = shelf_link_id
     else:
-        placement_link_id = rack_link_id 
+        placement_link_id = rack_link_id
 
-    def hide_link(obj_id, link_id): 
+    def hide_link(obj_id, link_id):
         if link_id is not None:
             p.changeVisualShape(obj_id, link_id, rgbaColor=[0, 0, 0, 0])
-    
+
     def show_link(obj_id, link_id, color):
         if link_id is not None:
             p.changeVisualShape(obj_id, link_id, rgbaColor=color)
@@ -393,7 +393,7 @@ def main(args, global_dict):
         # for testing, use the "normalized" object
         obj_obj_file = osp.join(shapenet_obj_dir, obj_shapenet_id, 'models/model_normalized.obj')
         obj_obj_file_dec = obj_obj_file.split('.obj')[0] + '_dec.obj'
-    
+
         scale_high, scale_low = cfg.MESH_SCALE_HIGH, cfg.MESH_SCALE_LOW
         scale_default = cfg.MESH_SCALE_DEFAULT
         if args.rand_mesh_scale:
@@ -496,7 +496,7 @@ def main(args, global_dict):
         obj_pose_world = p.getBasePositionAndOrientation(obj_id)
         obj_pose_world = util.list2pose_stamped(list(obj_pose_world[0]) + list(obj_pose_world[1]))
         viz_dict['start_obj_pose'] = util.pose_stamped2list(obj_pose_world)
-        for i, cam in enumerate(cams.cams): 
+        for i, cam in enumerate(cams.cams):
             # get image and raw point cloud
             rgb, depth, seg = cam.get_images(get_rgb=True, get_depth=True, get_seg=True)
             pts_raw, _ = cam.get_pcd(in_world=True, rgb_image=rgb, depth_image=depth, depth_min=0.0, depth_max=np.inf)
@@ -506,8 +506,8 @@ def main(args, global_dict):
             flat_depth = depth.flatten()
             obj_inds = np.where(flat_seg == obj_id)
             table_inds = np.where(flat_seg == table_id)
-            seg_depth = flat_depth[obj_inds[0]]  
-            
+            seg_depth = flat_depth[obj_inds[0]]
+
             obj_pts = pts_raw[obj_inds[0], :]
             obj_pcd_pts.append(util.crop_pcd(obj_pts))
             table_pts = pts_raw[table_inds[0], :][::int(table_inds[0].shape[0]/500)]
@@ -519,15 +519,15 @@ def main(args, global_dict):
                 if rack_inds[0].shape[0] > 0:
                     rack_pts = pts_raw[rack_inds[0], :]
                     rack_pcd_pts.append(rack_pts)
-        
+
             depth_imgs.append(seg_depth)
             seg_idxs.append(obj_inds)
-        
+
         target_obj_pcd_obs = np.concatenate(obj_pcd_pts, axis=0)  # object shape point cloud
         target_pts_mean = np.mean(target_obj_pcd_obs, axis=0)
         inliers = np.where(np.linalg.norm(target_obj_pcd_obs - target_pts_mean, 2, 1) < 0.2)[0]
         target_obj_pcd_obs = target_obj_pcd_obs[inliers]
-        
+
         if obj_class == 'mug':
             rack_color = p.getVisualShapeData(table_id)[rack_link_id][7]
             show_link(table_id, rack_link_id, rack_color)
@@ -557,7 +557,7 @@ def main(args, global_dict):
 
         ee_end_pose = util.transform_pose(pose_source=util.list2pose_stamped(pre_grasp_ee_pose), pose_transform=util.list2pose_stamped(rack_relative_pose))
         pre_ee_end_pose2 = util.transform_pose(pose_source=ee_end_pose, pose_transform=preplace_offset_tf)
-        pre_ee_end_pose1 = util.transform_pose(pose_source=pre_ee_end_pose2, pose_transform=preplace_horizontal_tf)        
+        pre_ee_end_pose1 = util.transform_pose(pose_source=pre_ee_end_pose2, pose_transform=preplace_horizontal_tf)
 
         ee_end_pose_list = util.pose_stamped2list(ee_end_pose)
         pre_ee_end_pose1_list = util.pose_stamped2list(pre_ee_end_pose1)
@@ -592,7 +592,7 @@ def main(args, global_dict):
         #         else:
         #             if viz_index == best_rack_idx:
         #                 shutil.copy(fname, new_fname)
-        
+
         # viz_data_list.append(viz_dict)
         # viz_sample_fname = osp.join(eval_iter_dir, 'overlay_visualization_data.npz')
         # print('Saving viz to: ', viz_sample_fname)]
@@ -648,7 +648,7 @@ def main(args, global_dict):
                 safeCollisionFilterPair(bodyUniqueIdA=robot.arm.robot_id, bodyUniqueIdB=obj_id, linkIndexA=i, linkIndexB=-1, enableCollision=False, physicsClientId=robot.pb_client.get_client_id())
             robot.arm.eetool.open()
 
-            if jnt_pos is None or grasp_jnt_pos is None: 
+            if jnt_pos is None or grasp_jnt_pos is None:
                 jnt_pos = ik_helper.get_feasible_ik(pre_pre_grasp_ee_pose)
                 grasp_jnt_pos = ik_helper.get_feasible_ik(pre_grasp_ee_pose)
 
@@ -670,7 +670,7 @@ def main(args, global_dict):
                     grasp_img_fname = osp.join(eval_grasp_imgs_dir, '%d.png' % iteration)
                     np2img(grasp_rgb.astype(np.uint8), grasp_img_fname)
                     continue
-                
+
                 ########################### planning to pre_pre_grasp and pre_grasp ##########################
                 if grasp_plan is None:
                     plan1 = ik_helper.plan_joint_motion(robot.arm.get_jpos(), jnt_pos)
@@ -711,7 +711,7 @@ def main(args, global_dict):
                         time.sleep(0.8)
 
                         if g_idx == 1:
-                            grasp_success = object_is_still_grasped(robot, obj_id, right_pad_id, left_pad_id) 
+                            grasp_success = object_is_still_grasped(robot, obj_id, right_pad_id, left_pad_id)
 
                             if grasp_success:
                             # turn OFF collisions between object / table and object / rack, and move to pre-place pose
@@ -721,7 +721,7 @@ def main(args, global_dict):
                                 soft_grasp_close(robot, finger_joint_id, force=40)
                                 robot.arm.set_jpos(jnt_pos_before_grasp, ignore_physics=True)
                                 cid = constraint_grasp_close(robot, obj_id)
-                                
+
                         #########################################################################################################
 
                         if offset_jnts is not None:
@@ -755,7 +755,7 @@ def main(args, global_dict):
 
                     for jnt in place_plan:
                         robot.arm.set_jpos(jnt, wait=False)
-                        time.sleep(0.035) 
+                        time.sleep(0.035)
                     robot.arm.set_jpos(place_plan[-1], wait=True)
 
                 ################################################################################################################
@@ -766,7 +766,7 @@ def main(args, global_dict):
 
                     for jnt in plan3:
                         robot.arm.set_jpos(jnt, wait=False)
-                        time.sleep(0.075) 
+                        time.sleep(0.075)
                     robot.arm.set_jpos(plan3[-1], wait=True)
 
                     p.changeDynamics(obj_id, -1, linearDamping=5, angularDamping=5)
@@ -853,23 +853,23 @@ def main(args, global_dict):
                 else:
                     if viz_index == best_rack_idx:
                         shutil.copy(fname, new_fname)
-        
-            # Copy tsne into viz dir 
+
+            # Copy tsne into viz dir
             if grasp_optimizer.tsne_fn is not None:
                 shutil.copy(grasp_optimizer.tsne_fn, osp.join(eval_iter_viz_dir, 'tsne.html'))
-        
+
         viz_data_list.append(viz_dict)
         viz_sample_fname = osp.join(eval_iter_viz_dir, 'overlay_visualization_data.npz')
         print('Saving viz to: ', viz_sample_fname)
         np.savez(viz_sample_fname, viz_dict=viz_dict, viz_data_list=viz_data_list)
 
-        summary_fname = 'trial_%d_summary.txt' % iteration 
+        summary_fname = 'trial_%d_summary.txt' % iteration
         summary_fname = osp.join(eval_iter_dir, summary_fname)
         with open(summary_fname, 'w') as f:
             f.write('Grasp success: %s\n' % grasp_success)
             f.write('Place success: %s\n' % place_success)
             f.write('Shapenet id: %s\n' % obj_shapenet_id)
-        
+
         with open(global_summary_fname, 'a') as f:
             f.write('Trial number %d\n' % iteration)
             f.write('Grasp success: %s\n' % grasp_success)
@@ -885,7 +885,7 @@ def make_unique_path_to_dir(base_path: str) -> str:
     Assumes that base path is leading to a directory
 
     Args:
-        base_path (str): path leading to directory 
+        base_path (str): path leading to directory
 
     Returns:
         str: path with appropriate index appended to it
@@ -938,7 +938,7 @@ if __name__ == "__main__":
     parser.add_argument('--start_iteration', type=int, default=0)
     parser.add_argument('--no_conv', action='store_true')
 
-    parser.add_argument('--query_point_type', type=str, default='sphere', help='normal, sphere, gripper') 
+    parser.add_argument('--query_point_type', type=str, default='sphere', help='normal, sphere, gripper')
 
 
     args = parser.parse_args()
@@ -959,7 +959,7 @@ if __name__ == "__main__":
     util.safe_makedirs(eval_save_dir)
 
     vnn_model_path = osp.join(path_util.get_ndf_model_weights(), args.model_path + '.pth')
-    
+
     # Mod to use model path
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_exp_archive/checkpoints/model_epoch_0020_iter_149500.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_exp/checkpoints/model_epoch_0009_iter_096000.pth')
@@ -977,7 +977,8 @@ if __name__ == "__main__":
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_log_2/checkpoints/model_epoch_0000_iter_002000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_4_0/checkpoints/model_epoch_0010_iter_130000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_0/checkpoints/model_epoch_0000_iter_003000.pth')
-    conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_n_margin_10e3_last_acts_1/checkpoints/model_epoch_0004_iter_056000.pth')
+    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_n_margin_10e3_last_acts_1/checkpoints/model_epoch_0004_iter_056000.pth')
+    conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden4_anyrot_2/checkpoints/model_epoch_0001_iter_015000.pth')
 
     global_dict = dict(
         shapenet_obj_dir=shapenet_obj_dir,

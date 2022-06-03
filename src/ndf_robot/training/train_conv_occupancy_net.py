@@ -77,7 +77,7 @@ if __name__ == '__main__':
         'acts': 'last',
     }
 
-    conv_occ_args = latent_dim_8
+    conv_occ_args = latent_dim_4
 
     # -- LOSS FUNCTION ARGS -- #
     default_args = {
@@ -86,7 +86,13 @@ if __name__ == '__main__':
         'negative_loss_scale': 0.3
     }
 
-    loss_fn_args = default_args
+    no_similarity = {
+        'occ_margin': 0,
+        'positive_loss_scale': 0,
+        'negative_loss_scale': 0
+    }
+
+    loss_fn_args = no_similarity
 
     # -- DATALOADER ARGS -- #
     sidelength = 128

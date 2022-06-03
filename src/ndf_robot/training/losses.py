@@ -170,17 +170,23 @@ def triplet(occ_margin=0, positive_loss_scale=0.3, negative_loss_scale=0.3):
 
         occ_loss = (standard_loss_occ + rot_loss_occ) / 2
 
-        # Calculate loss from similarity between latent descriptors
         device = standard_act_hat.get_device()
-        latent_positive_loss = F.cosine_embedding_loss(standard_act_hat, rot_act_hat,
-            torch.ones(standard_act_hat.shape[0]).to(device), margin=0.001)
+        if positive_loss_scale > 0:
+            # Calculate loss from similarity between latent descriptors
+            latent_positive_loss = F.cosine_embedding_loss(standard_act_hat, rot_act_hat,
+                torch.ones(standard_act_hat.shape[0]).to(device), margin=0.001)
+            latent_positive_loss = latent_positive_loss.mean()
+        else:
+            latent_positive_loss = 0
 
-        # Calculate loss from difference between unrelated latent descriptors
-        latent_negative_loss = F.cosine_embedding_loss(standard_act_hat, rot_negative_act_hat,
-            -torch.ones(standard_act_hat.shape[0]).to(device), margin=0.1)
+        if negative_loss_scale > 0:
+            # Calculate loss from difference between unrelated latent descriptors
+            latent_negative_loss = F.cosine_embedding_loss(standard_act_hat, rot_negative_act_hat,
+                -torch.ones(standard_act_hat.shape[0]).to(device), margin=0.1)
+            latent_negative_loss = latent_negative_loss.mean()
+        else:
+            latent_negative_loss = 0
 
-        latent_positive_loss = latent_positive_loss.mean()
-        latent_negative_loss = latent_negative_loss.mean()
 
         loss_dict['occ'] = max(occ_loss - occ_margin, 0) \
             + positive_loss_scale * latent_positive_loss \

@@ -12,7 +12,7 @@ from ndf_robot.utils import util, trimesh_util
 def soft_grasp_close(robot, joint_id2, force=100):
     p.setJointMotorControl2(robot.arm.robot_id, joint_id2, p.VELOCITY_CONTROL, targetVelocity=-1, force=force)
     # p.setJointMotorControl2(robot.arm.robot_id, joint_id2, p.VELOCITY_CONTROL, targetVelocity=-1, force=100)
-    time.sleep(0.2)        
+    time.sleep(0.2)
 
 
 def constraint_grasp_close(robot, obj_id):
@@ -113,7 +113,7 @@ def get_ee_offset(ee_pose):
     return dz_vec.tolist() + [0, 0, 0, 1]
 
 
-def process_demo_data_rack(grasp_data, place_data, cfg, gaussian_scale=0.1, 
+def process_demo_data_rack(grasp_data, place_data, cfg, gaussian_scale=0.1,
     aux_gripper_pts=None):
     data = grasp_data
     demo_obj_pts = data['object_pointcloud']  # observed shape point cloud at start
@@ -153,13 +153,13 @@ def process_demo_data_rack(grasp_data, place_data, cfg, gaussian_scale=0.1,
     place_demo_pts_mean = np.mean(place_demo_obj_pts, axis=0)
     inliers = np.where(np.linalg.norm(place_demo_obj_pts - place_demo_pts_mean, 2, 1) < 0.2)[0]
     place_demo_obj_pts = place_demo_obj_pts[inliers]
-    
+
     place_demo_obj_pcd = trimesh.PointCloud(place_demo_obj_pts)
     pick_demo_obj_pose = data['obj_pose_world']
     place_demo_obj_pose = place_data['obj_pose_world']
     place_demo_obj_pose_rel_mat = util.matrix_from_pose(
         util.get_transform(
-            util.list2pose_stamped(place_demo_obj_pose), 
+            util.list2pose_stamped(place_demo_obj_pose),
             util.list2pose_stamped(pick_demo_obj_pose)))  # ground truth relative transformation in demo
     place_demo_obj_pcd.apply_transform(place_demo_obj_pose_rel_mat)  # start shape points transformed into goal configuration
     place_demo_obj_pts = np.asarray(place_demo_obj_pcd.vertices)  # shape points at goal
@@ -185,26 +185,26 @@ def process_demo_data_rack(grasp_data, place_data, cfg, gaussian_scale=0.1,
     uniform_place_demo_rack_pose_mat = util.matrix_from_pose(util.list2pose_stamped(place_data['rack_pose_world']))
     uniform_place_demo_rack_pcd.apply_transform(uniform_place_demo_rack_pose_mat)  # points used to represent the rack in demo pose
     uniform_place_demo_rack_pts = np.asarray(uniform_place_demo_rack_pcd.vertices)
-    
+
     # place_demo_rack_pts = place_demo_rack_bb_pts
     place_demo_rack_pts = uniform_place_demo_rack_pts
 
     target_info = dict(
-        demo_query_pts=demo_gripper_pts, 
+        demo_query_pts=demo_gripper_pts,
         demo_query_pts_real_shape=demo_gripper_pts_rs,
-        demo_obj_pts=demo_obj_pts, 
+        demo_obj_pts=demo_obj_pts,
         demo_ee_pose_world=data['ee_pose_world'],
         demo_query_pt_pose=data['gripper_contact_pose'],
         demo_obj_rel_transform=np.eye(4))
 
     rack_target_info = dict(
-        demo_query_pts=place_demo_rack_pts, 
+        demo_query_pts=place_demo_rack_pts,
         demo_query_pts_real_shape=place_demo_rack_pts_rs,
-        demo_obj_pts=place_demo_obj_pts, 
+        demo_obj_pts=place_demo_obj_pts,
         demo_ee_pose_world=place_data['ee_pose_world'],
         demo_query_pt_pose=place_data['rack_contact_pose'],
         demo_obj_rel_transform=place_demo_obj_pose_rel_mat)
-        
+
     shapenet_id = data['shapenet_id'].item()
 
     return target_info, rack_target_info, shapenet_id
@@ -235,13 +235,13 @@ def process_demo_data_shelf(grasp_data, place_data, cfg):
     place_demo_pts_mean = np.mean(place_demo_obj_pts, axis=0)
     inliers = np.where(np.linalg.norm(place_demo_obj_pts - place_demo_pts_mean, 2, 1) < 0.2)[0]
     place_demo_obj_pts = place_demo_obj_pts[inliers]
-    
+
     place_demo_obj_pcd = trimesh.PointCloud(place_demo_obj_pts)
     pick_demo_obj_pose = data['obj_pose_world']
     place_demo_obj_pose = place_data['obj_pose_world']
     place_demo_obj_pose_rel_mat = util.matrix_from_pose(
         util.get_transform(
-            util.list2pose_stamped(place_demo_obj_pose), 
+            util.list2pose_stamped(place_demo_obj_pose),
             util.list2pose_stamped(pick_demo_obj_pose)))  # ground truth relative transformation in demo
     place_demo_obj_pcd.apply_transform(place_demo_obj_pose_rel_mat)  # start shape points transformed into goal configuration
     place_demo_obj_pts = np.asarray(place_demo_obj_pcd.vertices)  # shape points at goal
@@ -261,13 +261,13 @@ def process_demo_data_shelf(grasp_data, place_data, cfg):
     uniform_place_demo_shelf_pose_mat = util.matrix_from_pose(util.list2pose_stamped(place_data['shelf_pose_world']))
     uniform_place_demo_shelf_pcd.apply_transform(uniform_place_demo_shelf_pose_mat)  # points used to represent the rack in demo pose
     uniform_place_demo_shelf_pts = np.asarray(uniform_place_demo_shelf_pcd.vertices)
-    
-    place_demo_shelf_pts = uniform_place_demo_shelf_pts 
+
+    place_demo_shelf_pts = uniform_place_demo_shelf_pts
 
     target_info = dict(
-        demo_query_pts=demo_gripper_pts, 
+        demo_query_pts=demo_gripper_pts,
         demo_query_pts_real_shape=demo_gripper_pts_rs,
-        demo_obj_pts=demo_obj_pts, 
+        demo_obj_pts=demo_obj_pts,
         demo_ee_pose_world=data['ee_pose_world'],
         demo_query_pt_pose=data['gripper_contact_pose'],
         demo_obj_rel_transform=np.eye(4))
@@ -275,11 +275,11 @@ def process_demo_data_shelf(grasp_data, place_data, cfg):
     rack_target_info = dict(
         demo_query_pts=place_demo_shelf_pts,
         demo_query_pts_real_shape=place_demo_shelf_pts_rs,
-        demo_obj_pts=place_demo_obj_pts, 
+        demo_obj_pts=place_demo_obj_pts,
         demo_ee_pose_world=place_data['ee_pose_world'],
         demo_query_pt_pose=place_data['rack_contact_pose'],
         demo_obj_rel_transform=place_demo_obj_pose_rel_mat)
-        
+
     shapenet_id = data['shapenet_id'].item()
 
     return target_info, rack_target_info, shapenet_id
@@ -303,7 +303,7 @@ def process_xq_data(grasp_data, place_data, shelf=True):
 
         return optimizer_gripper_pts, uniform_place_demo_rack_pts, uniform_place_demo_shelf_pts
     else:
-        return optimizer_gripper_pts, uniform_place_demo_rack_pts, None 
+        return optimizer_gripper_pts, uniform_place_demo_rack_pts, None
 
 
 def process_xq_rs_data(grasp_data, place_data, shelf=True):
@@ -340,7 +340,8 @@ def post_process_grasp_point(pre_grasp_ee_pose, target_obj_pcd, thin_feature=Tru
     target_obj_tree = KDTree(target_obj_pcd)
     target_obj_down_tree = KDTree(target_obj_voxel_down)
     grasp_close_idxs = target_obj_tree.query(grasp_pt, k=100)[1]
-    grasp_close_pts = target_obj_pcd[grasp_close_idxs].squeeze()
+    # Throws error occasionally without -1
+    grasp_close_pts = target_obj_pcd[grasp_close_idxs - 1].squeeze()
 
     n_pts_within_ball = 0
     k = 0
@@ -356,10 +357,10 @@ def post_process_grasp_point(pre_grasp_ee_pose, target_obj_pcd, thin_feature=Tru
         if n_pts_within_ball > 75:
             break
         else:
-            grasp_pt = np.mean(pts_within_larger_ball, axis=0) 
+            grasp_pt = np.mean(pts_within_larger_ball, axis=0)
             grasp_close_idxs = target_obj_tree.query(grasp_pt, k=100)[1]
             grasp_close_pts = target_obj_pcd[grasp_close_idxs].squeeze()
-        
+
         k += 1
         if k > 5:
             break
@@ -385,7 +386,7 @@ def post_process_grasp_point(pre_grasp_ee_pose, target_obj_pcd, thin_feature=Tru
         # antipodal_close_idx = target_obj_tree.query(search_final_pt, k=1)[1]
         # antipodal_close_pt = target_obj_pcd_obs[antipodal_close_idx].squeeze()
         detected_pt = copy.deepcopy(grasp_pt)
-        grasp_pt = (antipodal_close_pt + grasp_pt) / 2.0              
+        grasp_pt = (antipodal_close_pt + grasp_pt) / 2.0
 
     if grasp_viz:
     # if True:
@@ -410,7 +411,7 @@ def post_process_grasp_point(pre_grasp_ee_pose, target_obj_pcd, thin_feature=Tru
         # antipodal_sph = trimesh.creation.uv_sphere(0.005)
         # antipodal_sph.visual.face_colors = np.tile([40, 40, 40, 255], (antipodal_sph.faces.shape[0], 1))
         # antipodal_sph.apply_translation(antipodal_close_pt.squeeze())
-        
+
         # grasp_x_pt = (grasp_pt + x_vec * scale).squeeze()
         # grasp_y_pt = (grasp_pt + y_vec * scale).squeeze()
         # grasp_z_pt = (grasp_pt + z_vec * scale).squeeze()
