@@ -201,6 +201,72 @@ def triplet(occ_margin=0, positive_loss_scale=0.3, negative_loss_scale=0.3):
     return loss_fn
 
 
+def rotated_triplet_log(model_outputs, ground_truth, **kwargs):
+    """
+    Joint loss of occupancy and log of similiarty between rotated and unrotated
+    coordinates
+    Args:
+        model_outputs (dict): Dictionary containing 'standard', 'rot',
+            'standard_act_hat', 'rot_act_hat'
+        ground_truth (dict): Dictionary containing 'occ'
+    Returns:
+        dict: dict containing 'occ'
+    """
+    loss_dict = dict()
+    label = ground_truth['occ'].squeeze()
+    label = (label + 1) / 2.
+
+    # Get outputs from dict
+    standard_outputs = model_outputs['standard']
+    rot_outputs = model_outputs['rot']
+    standard_act_hat = torch.flatten(model_outputs['standard_act_hat'], start_dim=1)
+    rot_act_hat = torch.flatten(model_outputs['rot_act_hat'], start_dim=1)
+    rot_negative_act_hat = torch.flatten(model_outputs['rot_negative_act_hat'],
+        start_dim=1)
+
+    # Calculate loss of occupancy
+    standard_loss_occ = -1 * (label * torch.log(standard_outputs['occ'] + 1e-5)
+        + (1 - label) * torch.log(1 - standard_outputs['occ'] + 1e-5)).mean()
+    rot_loss_occ = -1 * (label * torch.log(rot_outputs['occ'] + 1e-5)
+        + (1 - label) * torch.log(1 - rot_outputs['occ'] + 1e-5)).mean()
+
+    occ_loss = (standard_loss_occ + rot_loss_occ) / 2
+
+    # Calculate loss from similarity between latent descriptors
+    negative_margin = 10**-3
+    positive_margin = 10**-8
+    device = standard_act_hat.get_device()
+    latent_positive_loss = F.cosine_embedding_loss(standard_act_hat, rot_act_hat,
+        torch.ones(standard_act_hat.shape[0]).to(device), margin=positive_margin)
+
+    latent_negative_loss = F.cosine_embedding_loss(standard_act_hat, rot_negative_act_hat,
+        -torch.ones(standard_act_hat.shape[0]).to(device), margin=negative_margin)
+
+    latent_positive_loss = latent_positive_loss.mean()
+    latent_negative_loss = latent_negative_loss.mean()
+
+    negative_loss_scale = 0.5
+    positive_loss_scale = 0.05
+
+
+    # loss_dict['occ'] = occ_loss \
+    #     + positive_loss_scale * torch.log(positive_pad + latent_positive_loss) \
+    #     + negative_loss_scale * torch.log(torch.tensor(negative_pad)
+    #         + max(latent_negative_loss - negative_margin, 0))
+
+    # The negative loss should prevent all the activations from becoming similar
+    # to each other while the positive loss encourages rotation invariance
+    loss_dict['occ'] = occ_loss \
+        + positive_loss_scale * torch.log(10**-5 + latent_positive_loss) \
+        + negative_loss_scale * latent_negative_loss \
+
+    print('occ loss: ', occ_loss)
+    # print('latent_scale: ', latent_loss_scale)
+    print('latent pos loss: ', latent_positive_loss)
+    print('latent neg loss: ', latent_negative_loss)
+
+    return loss_dict
+
 def rotated_log(model_outputs, ground_truth, it=-1):
     """
     Joint loss of occupancy and log of similiarty between rotated and unrotated

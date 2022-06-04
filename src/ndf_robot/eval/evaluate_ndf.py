@@ -979,7 +979,8 @@ if __name__ == "__main__":
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_0/checkpoints/model_epoch_0000_iter_003000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_n_margin_10e3_last_acts_1/checkpoints/model_epoch_0004_iter_056000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden4_anyrot_2/checkpoints/model_epoch_0001_iter_015000.pth')
-    conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden4_anyrot_6/checkpoints/model_epoch_0011_iter_143000.pth')
+    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden4_anyrot_6/checkpoints/model_epoch_0011_iter_143000.pth')
+    conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_rot_similar_log_1/checkpoints/model_epoch_0005_iter_066000.pth')
 
     global_dict = dict(
         shapenet_obj_dir=shapenet_obj_dir,

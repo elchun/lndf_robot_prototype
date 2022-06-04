@@ -92,7 +92,31 @@ if __name__ == '__main__':
         'negative_loss_scale': 0
     }
 
-    loss_fn_args = default_args
+    aggressive_similar = {
+        'occ_margin': 0,
+        'positive_loss_scale': 1,
+        'negative_loss_scale': 1
+    }
+
+    super_aggressive_similar = {
+        'occ_margin': 0.13,
+        'positive_loss_scale': 5,
+        'negative_loss_scale': 0.3,
+    }
+
+    super_super_aggressive_similar = {
+        'occ_margin': 0.30,
+        'positive_loss_scale': 100,
+        'negative_loss_scale': 100,
+    }
+
+    # super_aggressive_similar = {
+    #     'occ_margin': 0.13,
+    #     'positive_loss_scale': 5,
+    #     'negative_loss_scale': 0.3,
+    # }
+
+    loss_fn_args = super_super_aggressive_similar
 
     # -- DATALOADER ARGS -- #
     sidelength = 128
@@ -154,6 +178,7 @@ if __name__ == '__main__':
 
     # -- RUN TRAIN FUNCTION -- #
     loss_fn = val_loss_fn = losses.triplet(**loss_fn_args)
+    # loss_fn = val_loss_fn = losses.rotated_triplet_log
     training.train_conv_triplet(model=model_parallel, train_dataloader=train_dataloader,
         val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr,
         steps_til_summary=opt.steps_til_summary,

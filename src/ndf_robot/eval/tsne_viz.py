@@ -41,7 +41,7 @@ class TSNEViz:
         self.pcd_list = []
         self.query_pts_list = []
 
-    def load_object(self, object_fn: str):
+    def load_object(self, object_fn: str, sample_bb: bool=False):
         """
         Load object model from file, sample mesh to create object point cloud
         and query points.  Save both to TSNEViz Object.
@@ -51,7 +51,13 @@ class TSNEViz:
         """
         mesh = trimesh.load(object_fn, process=False)
         pcd = mesh.sample(5000)
-        query_pts = mesh.sample(500)  # Set to also sample within body
+
+        if sample_bb:
+            to_origin, extents = trimesh.bounds.oriented_bounds(pcd)
+            query_pts = trimesh.sample.volume_rectangular(extents, 500, transform=to_origin)
+        else:
+            query_pts = mesh.sample(500)  # Set to also sample within body
+
         self.pcd_list.append(pcd)
         self.query_pts_list.append(query_pts)
 
@@ -83,7 +89,7 @@ class TSNEViz:
             i += 1
 
     def viz_all_objects_together(self, output_fn: str='tsne_viz.html',
-        rand_rotate: bool=False):
+        rand_rotate: bool=False, num_repeats=1):
         """
         Run the single tsne for activations of all objects, plots all in the
         same plot.
@@ -95,42 +101,44 @@ class TSNEViz:
                 a transform. Defaults to False.
         """
 
-        if rand_rotate:
-            random_transform = torch.tensor(TSNEViz.__random_rot_transform()).float().to(self.dev)
-        else:
-            random_transform = None
-
         activations_list = []
         transformed_query_pts_list = []
-        for pcd, query_pts in zip(self.pcd_list, self.query_pts_list):
-            model_input = {}
-            query_pts_torch = torch.from_numpy(query_pts).float().to(self.dev)
-            pcd_torch = torch.from_numpy(pcd).float().to(self.dev)
 
-            # Transform using random_transform if it exists
-            if random_transform is not None:
-                query_pts_torch = torch_util.transform_pcd_torch(query_pts_torch,
-                    random_transform).float()
-                pcd_torch = torch_util.transform_pcd_torch(pcd_torch,
-                    random_transform).float()
-
-            elif rand_rotate:
+        for i in range(num_repeats):
+            if rand_rotate:
                 random_transform = torch.tensor(TSNEViz.__random_rot_transform()).float().to(self.dev)
-                query_pts_torch = torch_util.transform_pcd_torch(query_pts_torch,
-                    random_transform).float()
-                pcd_torch = torch_util.transform_pcd_torch(pcd_torch,
-                    random_transform).float()
+            else:
+                random_transform = None
 
-            model_input['coords'] = query_pts_torch[None, :, :]
-            model_input['point_cloud'] = pcd_torch[None, :, :]
+            for pcd, query_pts in zip(self.pcd_list, self.query_pts_list):
+                model_input = {}
+                query_pts_torch = torch.from_numpy(query_pts).float().to(self.dev)
+                pcd_torch = torch.from_numpy(pcd).float().to(self.dev)
 
-            latent_torch = self.model.extract_latent(model_input).detach()
-            act_torch = self.model.forward_latent(latent_torch, model_input['coords']).detach()
-            act = act_torch.squeeze().cpu().numpy()
+                # Transform using random_transform if it exists
+                if random_transform is not None:
+                    query_pts_torch = torch_util.transform_pcd_torch(query_pts_torch,
+                        random_transform).float()
+                    pcd_torch = torch_util.transform_pcd_torch(pcd_torch,
+                        random_transform).float()
 
-            activations_list.append(act)
-            query_pts_np = query_pts_torch.cpu().numpy()
-            transformed_query_pts_list.append(query_pts_np)
+                elif rand_rotate:
+                    random_transform = torch.tensor(TSNEViz.__random_rot_transform()).float().to(self.dev)
+                    query_pts_torch = torch_util.transform_pcd_torch(query_pts_torch,
+                        random_transform).float()
+                    pcd_torch = torch_util.transform_pcd_torch(pcd_torch,
+                        random_transform).float()
+
+                model_input['coords'] = query_pts_torch[None, :, :]
+                model_input['point_cloud'] = pcd_torch[None, :, :]
+
+                latent_torch = self.model.extract_latent(model_input).detach()
+                act_torch = self.model.forward_latent(latent_torch, model_input['coords']).detach()
+                act = act_torch.squeeze().cpu().numpy()
+
+                activations_list.append(act)
+                query_pts_np = query_pts_torch.cpu().numpy()
+                transformed_query_pts_list.append(query_pts_np)
 
         combined_acts = np.vstack(activations_list)
         print('acts shape: ', combined_acts.shape)
@@ -148,8 +156,11 @@ class TSNEViz:
         combined_query_pts = np.vstack(transformed_query_pts_list)
         print('query pts shape: ', combined_query_pts.shape)
 
+        low_range = -(n + 1) * plot_x_offset
+        high_range = (n + 1) * plot_x_offset
         fig = px.scatter_3d(x=combined_query_pts[:, 0], y=combined_query_pts[:, 1], z=combined_query_pts[:, 2],
-            color=tsne_result[:, 0], range_x=(-5, 5), range_y=(-5, 5), range_z=(-5, 5))
+            color=tsne_result[:, 0], range_x=(low_range, high_range),
+            range_y=(low_range, high_range), range_z=(low_range, high_range))
 
         fig.write_html(output_fn)
 
@@ -276,20 +287,20 @@ if __name__ == '__main__':
 
     # CONSTANTS #
     object_fns = [
-        osp.join(path_util.get_ndf_demo_obj_descriptions(),
-            'mug_centered_obj_normalized/edaf960fb6afdadc4cebc4b5998de5d0/models/model_normalized.obj'),
-        osp.join(path_util.get_ndf_demo_obj_descriptions(),
-            'mug_centered_obj_normalized/e984fd7e97c2be347eaeab1f0c9120b7/models/model_normalized.obj'),
-        osp.join(path_util.get_ndf_demo_obj_descriptions(),
-            'mug_centered_obj_normalized/ec846432f3ebedf0a6f32a8797e3b9e9//models/model_normalized.obj'),
-        osp.join(path_util.get_ndf_demo_obj_descriptions(),
-            'mug_centered_obj_normalized/ff1a44e1c1785d618bca309f2c51966a//models/model_normalized.obj'),
-        osp.join(path_util.get_ndf_demo_obj_descriptions(),
-            'mug_centered_obj_normalized/f1e439307b834015770a0ff1161fa15a//models/model_normalized.obj'),
-        osp.join(path_util.get_ndf_demo_obj_descriptions(),
-            'mug_centered_obj_normalized/f7d776fd68b126f23b67070c4a034f08/models/model_normalized.obj'),
-        osp.join(path_util.get_ndf_demo_obj_descriptions(),
-            'mug_centered_obj_normalized/eecb13f61a93b4048f58d8b19de93f99/models/model_normalized.obj'),
+        # osp.join(path_util.get_ndf_demo_obj_descriptions(),
+        #     'mug_centered_obj_normalized/edaf960fb6afdadc4cebc4b5998de5d0/models/model_normalized.obj'),
+        # osp.join(path_util.get_ndf_demo_obj_descriptions(),
+        #     'mug_centered_obj_normalized/e984fd7e97c2be347eaeab1f0c9120b7/models/model_normalized.obj'),
+        # osp.join(path_util.get_ndf_demo_obj_descriptions(),
+        #     'mug_centered_obj_normalized/ec846432f3ebedf0a6f32a8797e3b9e9//models/model_normalized.obj'),
+        # osp.join(path_util.get_ndf_demo_obj_descriptions(),
+        #     'mug_centered_obj_normalized/ff1a44e1c1785d618bca309f2c51966a//models/model_normalized.obj'),
+        # osp.join(path_util.get_ndf_demo_obj_descriptions(),
+        #     'mug_centered_obj_normalized/f1e439307b834015770a0ff1161fa15a//models/model_normalized.obj'),
+        # osp.join(path_util.get_ndf_demo_obj_descriptions(),
+        #     'mug_centered_obj_normalized/f7d776fd68b126f23b67070c4a034f08/models/model_normalized.obj'),
+        # osp.join(path_util.get_ndf_demo_obj_descriptions(),
+        #     'mug_centered_obj_normalized/eecb13f61a93b4048f58d8b19de93f99/models/model_normalized.obj'),
         osp.join(path_util.get_ndf_demo_obj_descriptions(),
             'mug_centered_obj_normalized/e9bd4ee553eb35c1d5ccc40b510e4bd/models/model_normalized.obj'),
     ]
@@ -298,7 +309,8 @@ if __name__ == '__main__':
 
     # LOAD MODEL #
     # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32,
-    #     model_type='pointnet', return_features=True, sigmoid=True).cuda()
+    #     model_type='pointnet', return_features=True, sigmoid=True,
+    #     acts='last').cuda()
 
     model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=4,
         model_type='pointnet', return_features=True, sigmoid=True,
@@ -318,17 +330,24 @@ if __name__ == '__main__':
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_0/checkpoints/model_epoch_0009_iter_113000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden4_anyrot_6/checkpoints/model_epoch_0011_iter_143000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden8_anyrot_0/checkpoints/model_epoch_0011_iter_132000.pth')
-    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_rot_similar_0/checkpoints/model_epoch_0000_iter_010000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_rot_similar_0/checkpoints/model_epoch_0001_iter_016000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_log_4_10_8_0/checkpoints/model_epoch_0011_iter_143000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_rot_similar_super_aggressive_1/checkpoints/model_epoch_0003_iter_042000.pth')
+    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_rot_similar_log_1/checkpoints/model_epoch_0005_iter_066000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_triplet_log_cos_margin_0/checkpoints/model_epoch_0011_iter_143000.pth')
+
     model.load_state_dict(torch.load(model_path))
 
     # RUN PLOTTER #
     tsne_plotter = TSNEViz(model)
 
     for object_fn in object_fns:
-        tsne_plotter.load_object(object_fn)
+        tsne_plotter.load_object(object_fn, sample_bb=True)
+        tsne_plotter.load_object(object_fn, sample_bb=False)
 
     # tsne_plotter.viz_all_objects(base_output_fn=base_output_fn, rand_rotate=False)
     # tsne_plotter.viz_all_objects(base_output_fn=base_output_fn, rand_rotate=True)
 
-    tsne_plotter.viz_all_objects_together(base_output_fn + '.html', rand_rotate=True)
+    tsne_plotter.viz_all_objects_together(base_output_fn + '.html',
+        rand_rotate=True, num_repeats=4)
 
