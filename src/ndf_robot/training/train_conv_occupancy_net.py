@@ -83,7 +83,8 @@ if __name__ == '__main__':
     default_args = {
         'occ_margin': 0,
         'positive_loss_scale': 0.3,
-        'negative_loss_scale': 0.3
+        'negative_loss_scale': 0.3,
+        'similar_occ_only': True,
     }
 
     no_similarity = {
@@ -116,7 +117,8 @@ if __name__ == '__main__':
     #     'negative_loss_scale': 0.3,
     # }
 
-    loss_fn_args = super_super_aggressive_similar
+    # loss_fn_args = super_super_aggressive_similar
+    loss_fn_args = default_args
 
     # -- DATALOADER ARGS -- #
     sidelength = 128

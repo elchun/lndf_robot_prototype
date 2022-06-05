@@ -285,7 +285,7 @@ class JointOccTrainDataset(Dataset):
                    'intrinsics': intrinsics.float(),
                    'rot_point_cloud': point_cloud_transformed.float(),
                    'rot_coords': coords_transformed.float(),
-                   'rot_coords_shuffled': coords_transformed_shuffled.float(),
+                #    'rot_coords_shuffled': coords_transformed_shuffled.float(),
                    'rand_coords': rand_coords.float()}
                 #    'rot_intrinsics': torch.tensor([])}
                 #    'cam_poses': np.zeros(1)}  # cam poses not used

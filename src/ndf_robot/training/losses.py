@@ -106,7 +106,8 @@ def semantic(model_outputs, ground_truth, val=False):
     return loss_dict
 
 
-def triplet(occ_margin=0, positive_loss_scale=0.3, negative_loss_scale=0.3):
+def triplet(occ_margin=0, positive_loss_scale=0.3, negative_loss_scale=0.3,
+    similar_occ_only=False, positive_margin=0.001, negative_margin=0.1):
     """
     Create triplet loss function enforcing similarity between rotated
     activations and difference between random coordinates defined as:
@@ -127,6 +128,13 @@ def triplet(occ_margin=0, positive_loss_scale=0.3, negative_loss_scale=0.3):
             combined loss. Defaults to 0.3.
         negative_loss_scale (float, optional): Influence of negative loss on
             combined loss. Defaults to 0.3.
+        similar_occ_only (bool, optional): True to only compare activations
+            from points where the ground truth occupancy is true. Defaults to
+            False.
+        positive_margin (float, optional): margin to use in cosine similarity
+            for latent_positive_loss. Defaults to 0.001.
+        negative_margin (float, optional): margin to use in cosine similarity
+            for latent_negative_loss. Defaults to 0.1
 
     Returns:
         function(model_ouputs, ground_truth): Loss function that takes model
@@ -156,11 +164,21 @@ def triplet(occ_margin=0, positive_loss_scale=0.3, negative_loss_scale=0.3):
         # Get outputs from dict
         standard_outputs = model_outputs['standard']
         rot_outputs = model_outputs['rot']
-        standard_act_hat = torch.flatten(model_outputs['standard_act_hat'], start_dim=1)
-        rot_act_hat = torch.flatten(model_outputs['rot_act_hat'], start_dim=1)
 
-        rot_negative_act_hat = torch.flatten(model_outputs['rot_negative_act_hat'],
-            start_dim=1)
+        standard_act_hat = model_outputs['standard_act_hat']
+        rot_act_hat = model_outputs['rot_act_hat']
+        rot_negative_act_hat = model_outputs['rot_negative_act_hat']
+
+        # Mask all occ that are not in the shape
+        if similar_occ_only:
+            non_zero_label = label.unsqueeze(-1)
+            standard_act_hat *= non_zero_label
+            rot_act_hat *= non_zero_label
+            rot_negative_act_hat *= non_zero_label
+
+        standard_act_hat = torch.flatten(standard_act_hat, start_dim=1)
+        rot_act_hat = torch.flatten(rot_act_hat, start_dim=1)
+        rot_negative_act_hat = torch.flatten(rot_negative_act_hat, start_dim=1)
 
         # Calculate loss of occupancy
         standard_loss_occ = -1 * (label * torch.log(standard_outputs['occ'] + 1e-5)
@@ -174,7 +192,7 @@ def triplet(occ_margin=0, positive_loss_scale=0.3, negative_loss_scale=0.3):
         if positive_loss_scale > 0:
             # Calculate loss from similarity between latent descriptors
             latent_positive_loss = F.cosine_embedding_loss(standard_act_hat, rot_act_hat,
-                torch.ones(standard_act_hat.shape[0]).to(device), margin=0.001)
+                torch.ones(standard_act_hat.shape[0]).to(device), margin=positive_margin)
             latent_positive_loss = latent_positive_loss.mean()
         else:
             latent_positive_loss = 0
@@ -182,11 +200,10 @@ def triplet(occ_margin=0, positive_loss_scale=0.3, negative_loss_scale=0.3):
         if negative_loss_scale > 0:
             # Calculate loss from difference between unrelated latent descriptors
             latent_negative_loss = F.cosine_embedding_loss(standard_act_hat, rot_negative_act_hat,
-                -torch.ones(standard_act_hat.shape[0]).to(device), margin=0.1)
+                -torch.ones(standard_act_hat.shape[0]).to(device), margin=negative_margin)
             latent_negative_loss = latent_negative_loss.mean()
         else:
             latent_negative_loss = 0
-
 
         loss_dict['occ'] = max(occ_loss - occ_margin, 0) \
             + positive_loss_scale * latent_positive_loss \
