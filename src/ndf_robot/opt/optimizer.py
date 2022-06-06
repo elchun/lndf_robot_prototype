@@ -215,8 +215,8 @@ class OccNetOptimizer:
         mi['coords'] = X
         latent = self.model.extract_latent(mi).detach()
 
-        if self.tsne_fn is not None:
-            self._tsne_viz(shape_pts_world_np, self.tsne_fn)
+        # if self.tsne_fn is not None:
+        #     self._tsne_viz(shape_pts_world_np, self.tsne_fn)
 
         # run optimization
         pcd_traj_list = {}
@@ -257,6 +257,9 @@ class OccNetOptimizer:
                     osp.join(self.debug_viz_path, 'recon_overlay.html'),
                     scene_dict=self.scene_dict,
                     z_plane=False)
+
+                if self.tsne_fn is not None:
+                    self._tsne_viz(in_pts, self.tsne_fn)
 
             ###############################################################################
 

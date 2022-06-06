@@ -62,7 +62,8 @@ if __name__ == '__main__':
     # -- MODEL ARGUMENTS -- #
     default_args = {
         'latent_dim': 32,
-        'return_features': True
+        'return_features': True,
+        'acts': 'last'
     }
 
     latent_dim_8 = {
@@ -77,7 +78,15 @@ if __name__ == '__main__':
         'acts': 'last',
     }
 
-    conv_occ_args = latent_dim_4
+    latent_dim_64 = {
+        'latent_dim': 64,
+        'return_features': True,
+        'acts': 'last'
+    }
+
+    # conv_occ_args = latent_dim_4
+    # conv_occ_args = default_args
+    conv_occ_args = latent_dim_64
 
     # -- LOSS FUNCTION ARGS -- #
     default_args = {
@@ -111,14 +120,23 @@ if __name__ == '__main__':
         'negative_loss_scale': 100,
     }
 
-    # super_aggressive_similar = {
-    #     'occ_margin': 0.13,
-    #     'positive_loss_scale': 5,
-    #     'negative_loss_scale': 0.3,
-    # }
+    similar_occ_only = {
+        'occ_margin': 0,
+        'positive_loss_scale': 10000,
+        'negative_loss_scale': 10000,
+        'similar_occ_only': True,
+    }
+
+    similar_occ_only_no_neg = {
+        'occ_margin': 0,
+        'positive_loss_scale': 10,
+        'negative_loss_scale': 0,
+        'similar_occ_only': True,
+    }
 
     # loss_fn_args = super_super_aggressive_similar
-    loss_fn_args = default_args
+    # loss_fn_args = similar_occ_only_no_neg
+    loss_fn_args = no_similarity
 
     # -- DATALOADER ARGS -- #
     sidelength = 128
@@ -188,6 +206,7 @@ if __name__ == '__main__':
         model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt,
         summary_fn=summary_fn,clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True,
         config_dict=config)
+
     # else:
     #     # loss_fn = val_loss_fn = losses.rotated_margin
     #     loss_fn = val_loss_fn = losses.conv_occupancy_net

@@ -125,9 +125,9 @@ def main(args, global_dict):
         #     sigmoid=False).cuda()
 
         model = conv_occupancy_network.ConvolutionalOccupancyNetwork(
-            # latent_dim=32,
+            latent_dim=32,
             # latent_dim=64,
-            latent_dim=4,
+            # latent_dim=4,
             model_type='pointnet',
             return_features=True,
             sigmoid=False,
@@ -151,6 +151,7 @@ def main(args, global_dict):
     if not args.random:
         if use_conv:
             checkpoint_path = global_dict['conv_checkpoint_path']
+            print('conv_model: ', checkpoint_path)
         else:
             checkpoint_path = global_dict['vnn_checkpoint_path']
         model.load_state_dict(torch.load(checkpoint_path))
@@ -290,8 +291,6 @@ def main(args, global_dict):
         query_pts=place_optimizer_pts,
         query_pts_real_shape=place_optimizer_pts_rs,
         opt_iterations=args.opt_iterations)
-
-
 
     if args.query_point_type == 'normal':
         grasp_optimizer = OccNetOptimizer(
@@ -980,7 +979,13 @@ if __name__ == "__main__":
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_dim4_rotated_triplet_n_margin_10e3_last_acts_1/checkpoints/model_epoch_0004_iter_056000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden4_anyrot_2/checkpoints/model_epoch_0001_iter_015000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden4_anyrot_6/checkpoints/model_epoch_0011_iter_143000.pth')
-    conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_rot_similar_log_1/checkpoints/model_epoch_0005_iter_066000.pth')
+    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_rot_similar_log_1/checkpoints/model_epoch_0005_iter_066000.pth')
+    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_occ_similar_only_0/checkpoints/model_epoch_0000_iter_007000.pth')
+    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'archive/conv_occ_latent_margin_143000.pth')
+    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_occ_similar_only_0/checkpoints/model_epoch_0010_iter_124000.pth')
+    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent32_triplet_similar_occ_only_0/checkpoints/model_epoch_0009_iter_113000.pth')
+    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_1/checkpoints/model_epoch_0010_iter_153000.pth')
+    conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_0/checkpoints/model_epoch_0001_iter_012000.pth')
 
     global_dict = dict(
         shapenet_obj_dir=shapenet_obj_dir,

@@ -13,6 +13,8 @@ import plotly.express as px
 import ndf_robot.model.conv_occupancy_net.conv_occupancy_net as conv_occupancy_network
 from ndf_robot.utils import path_util, torch3d_util, torch_util
 
+from ndf_robot.share import globals
+
 
 class TSNEViz:
     """
@@ -303,18 +305,28 @@ if __name__ == '__main__':
         #     'mug_centered_obj_normalized/eecb13f61a93b4048f58d8b19de93f99/models/model_normalized.obj'),
         osp.join(path_util.get_ndf_demo_obj_descriptions(),
             'mug_centered_obj_normalized/e9bd4ee553eb35c1d5ccc40b510e4bd/models/model_normalized.obj'),
+
+        # Weird mugs
+        # osp.join(path_util.get_ndf_demo_obj_descriptions(),
+        #     'mug_centered_obj_normalized/6d2657c640e97c4dd4c0c1a5a5d9a6b8/models/model_normalized.obj'),
+        # osp.join(path_util.get_ndf_demo_obj_descriptions(),
+        #     'mug_centered_obj_normalized/5ef0c4f8c0884a24762241154bf230ce/models/model_normalized.obj'),
+
+        # Bowls
+        # osp.join(path_util.get_ndf_obj_descriptions(),
+            # 'bowl_centered_obj_normalized/1f910faf81555f8e664b3b9b23ddfcbc/models/model_normalized.obj'),
     ]
     base_output_fn = 'tsne_viz/tsne_viz'
     # output_fn = 'tsne_viz_latent_32.html'
 
     # LOAD MODEL #
-    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32,
-    #     model_type='pointnet', return_features=True, sigmoid=True,
-    #     acts='last').cuda()
-
-    model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=4,
+    model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=32,
         model_type='pointnet', return_features=True, sigmoid=True,
         acts='last').cuda()
+
+    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=4,
+    #     model_type='pointnet', return_features=True, sigmoid=True,
+    #     acts='last').cuda()
 
     # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=8,
     #     model_type='pointnet', return_features=True, sigmoid=True,
@@ -333,8 +345,16 @@ if __name__ == '__main__':
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_rot_similar_0/checkpoints/model_epoch_0001_iter_016000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_log_4_10_8_0/checkpoints/model_epoch_0011_iter_143000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_rot_similar_super_aggressive_1/checkpoints/model_epoch_0003_iter_042000.pth')
-    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_rot_similar_log_1/checkpoints/model_epoch_0005_iter_066000.pth')
-    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_triplet_log_cos_margin_0/checkpoints/model_epoch_0011_iter_143000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_rot_similar_log_1/checkpoints/model_epoch_0005_iter_066000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_rot_similar_log_1/checkpoints/model_epoch_0005_iter_066000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_occ_similar_only_0/checkpoints/model_epoch_0006_iter_081000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_occ_similar_only_margin_noneg_10_1/checkpoints/model_epoch_0003_iter_039000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent32_triplet_similar_occ_only_all_1/checkpoints/model_epoch_0003_iter_037000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_occ_similar_only_0/checkpoints/model_epoch_0010_iter_124000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_1/checkpoints/model_epoch_0011_iter_170000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent32_triplet_similar_occ_only_0/checkpoints/model_epoch_0009_iter_113000.pth')
+    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_0/checkpoints/model_epoch_0001_iter_012000.pth')
+
 
     model.load_state_dict(torch.load(model_path))
 
@@ -342,12 +362,17 @@ if __name__ == '__main__':
     tsne_plotter = TSNEViz(model)
 
     for object_fn in object_fns:
-        tsne_plotter.load_object(object_fn, sample_bb=True)
+        # tsne_plotter.load_object(object_fn, sample_bb=True)
         tsne_plotter.load_object(object_fn, sample_bb=False)
 
     # tsne_plotter.viz_all_objects(base_output_fn=base_output_fn, rand_rotate=False)
     # tsne_plotter.viz_all_objects(base_output_fn=base_output_fn, rand_rotate=True)
 
     tsne_plotter.viz_all_objects_together(base_output_fn + '.html',
-        rand_rotate=True, num_repeats=4)
+        rand_rotate=True, num_repeats=8)
+
+# # Look at globals
+# id_to_check = 'fad118b32085f3f2c2c72e575af174cd'
+# print('ID in bad mugs: ', id_to_check in globals.bad_shapenet_mug_ids_list)
+# # print(globals.bad_shapenet_mug_ids_list)
 
