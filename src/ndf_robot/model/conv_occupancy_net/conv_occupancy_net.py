@@ -29,7 +29,7 @@ class ConvolutionalOccupancyNetwork(nn.Module):
     Convolutional Occupancy Network Class
 
     Args:
-        latent_dim (int): Dimension of latent encoding of shape 
+        latent_dim (int): Dimension of latent encoding of shape
         encoder_type (str): type of encoder network to use
         sigmoid (boolean): use sigmoid in decoder
         return_features (boolean): True to return features in decoder
@@ -41,14 +41,14 @@ class ConvolutionalOccupancyNetwork(nn.Module):
                  encoder_type='pointnet_local_pool',
                  decoder_type='simple_local',
                  sigmoid=True,
-                 return_features=False, 
+                 return_features=False,
                  acts='all',
                  scaling=10.0,
                  **kwargs):
         super().__init__()
 
         # self.latent_dim = latent_dim
-        # self.latent_dim = 128 
+        # self.latent_dim = 128
         # latent_dim = 32 # only works if its 32 cuz of a group norm burried in Unet SingleConv
 
         self.scaling = scaling  # scaling up the point cloud/query points to be larger helps
@@ -56,11 +56,11 @@ class ConvolutionalOccupancyNetwork(nn.Module):
         self.model_type = 'conv'
 
         # c_dim = 32
-        # c_dim = 64 
+        # c_dim = 64
 
         unet3d_kwargs = {
             # 'in_channels': 32,
-            'in_channels': latent_dim, # Should be the same as latent_dim 
+            'in_channels': latent_dim, # Should be the same as latent_dim
             'out_channels': latent_dim, # Should be the same as 'in_channels'
             'num_levels': 3,
             'f_maps': 32, # UNet feature maps, doesn't affect anything else
@@ -83,9 +83,9 @@ class ConvolutionalOccupancyNetwork(nn.Module):
         fea_type = encoder_kwargs['plane_type']
         total_reso = 32 # Try different values?
         if 'grid' in fea_type:
-            encoder_kwargs['grid_resolution'] = total_reso 
+            encoder_kwargs['grid_resolution'] = total_reso
         if bool(set(fea_type) & set(['xz', 'xy', 'yz'])):
-            encoder_kwargs['plane_resolution'] = total_reso 
+            encoder_kwargs['plane_resolution'] = total_reso
 
         # Options are:
         #   'pointnet_local_pool'
@@ -96,11 +96,11 @@ class ConvolutionalOccupancyNetwork(nn.Module):
             self.encoder = pointnet.LocalPoolPointnet(dim=3, c_dim=latent_dim, **encoder_kwargs)
             # self.encoder = pointnet.PatchLocalPoolPointnet(dim=3, c_dim=latent_dim, **encoder_kwargs)
         else: raise ValueError("Invalid Decoder")
-        
+
         if decoder_type in decoder_dict:
             # TODO: Add arguments to decoder
-            # self.decoder = decoder_dict[decoder_type](dim=3, z_dim=latent_dim, c_dim=0) 
-            self.decoder = decoder.LocalDecoder(dim=3, c_dim=latent_dim, sigmoid=sigmoid, 
+            # self.decoder = decoder_dict[decoder_type](dim=3, z_dim=latent_dim, c_dim=0)
+            self.decoder = decoder.LocalDecoder(dim=3, c_dim=latent_dim, sigmoid=sigmoid,
                 return_features=return_features, acts=acts, **decoder_kwargs)
         else: raise ValueError("Invalid Decoder")
 
@@ -120,8 +120,8 @@ class ConvolutionalOccupancyNetwork(nn.Module):
         """
         out_dict = {}
 
-        enc_in = input['point_cloud'] * self.scaling 
-        query_points = input['coords'] * self.scaling 
+        enc_in = input['point_cloud'] * self.scaling
+        query_points = input['coords'] * self.scaling
 
         # print('enc_in: ', enc_in.size())
 
@@ -139,7 +139,7 @@ class ConvolutionalOccupancyNetwork(nn.Module):
             # out_dict['features'] = None
             # print('act size: ', out_dict['features'].size())
         else:
-            out_dict['occ'] = self.decoder(query_points, z) 
+            out_dict['occ'] = self.decoder(query_points, z)
 
         return out_dict
 
@@ -165,13 +165,13 @@ class ConvolutionalOccupancyNetwork(nn.Module):
         Get latent features from encoder based on input pointcloud
 
         Args:
-            input (dict): Contains key 'point_cloud' describing 
+            input (dict): Contains key 'point_cloud' describing
                 pointcloud to get activations for
 
         Returns:
             Returns latent code for object and pointcloud
         """
-        enc_in = input['point_cloud'] * self.scaling 
+        enc_in = input['point_cloud'] * self.scaling
         z = self.encoder(enc_in)
         return z['grid']
 
@@ -180,7 +180,7 @@ class ConvolutionalOccupancyNetwork(nn.Module):
         Get decoder activations from decoder network
 
         Args:
-            z (???): Latent from encoder input 
+            z (???): Latent from encoder input
             coords (???): Query points
 
         Returns:
@@ -188,7 +188,7 @@ class ConvolutionalOccupancyNetwork(nn.Module):
         """
         z = {'grid': z}
         out_dict = {}
-        coords = coords * self.scaling 
+        coords = coords * self.scaling
         out_dict['occ'], out_dict['features'] = self.decoder(coords, z)
 
         return out_dict['features']

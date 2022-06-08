@@ -46,13 +46,13 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
           summary_fn=None, iters_til_checkpoint=None, val_dataloader=None, clip_grad=False, val_loss_fn=None,
           overwrite=True, optimizers=None, batches_per_validation=10, gpus=1, rank=0, max_steps=None,
           conv=False):
-    
+
     # if conv:
     #     old_summary_fn = summary_fn
     #     def summary_fn_wrapper(model, model_input, ground_truth, model_output, writer, iter, prefix=""):
-    #         standard_input = {key: model_input[key] for key in 
+    #         standard_input = {key: model_input[key] for key in
     #             ['point_cloud', 'coords', 'intrinsics']}
-            
+
     #         standard_output = model_output['standard']
 
     #         return old_summary_fn(model, standard_input, ground_truth, standard_output, writer, iter, prefix)
@@ -127,7 +127,7 @@ def train(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_che
                 for optim in optimizers:
                     optim.zero_grad()
                 train_loss.backward()
-                
+
                 # print('train losses: ', train_losses)
 
                 if gpus > 1:
@@ -337,18 +337,18 @@ def train_conv(model, train_dataloader, epochs, lr, steps_til_summary, epochs_ti
           summary_fn=None, iters_til_checkpoint=None, val_dataloader=None, clip_grad=False, val_loss_fn=None,
           overwrite=True, optimizers=None, batches_per_validation=10, gpus=1, rank=0, max_steps=None,
           loss_type='latent'):
-    
+
     # Trains by making loss_type as similar as possible between rotations
 
-        # Loss type is either 'latent' or 'activations'. 'latent' uses the output from 
+        # Loss type is either 'latent' or 'activations'. 'latent' uses the output from
         # encoder + convolutional layers, 'activations' uses the activations of the
         # decoder
-    
+
     old_summary_fn = summary_fn
     def summary_fn_wrapper(model, model_input, ground_truth, model_output, writer, iter, prefix=""):
-        standard_input = {key: model_input[key] for key in 
+        standard_input = {key: model_input[key] for key in
             ['point_cloud', 'coords', 'intrinsics']}
-            
+
         standard_output = model_output['standard']
 
         return old_summary_fn(model, standard_input, ground_truth, standard_output, writer, iter, prefix)
@@ -395,7 +395,7 @@ def train_conv(model, train_dataloader, epochs, lr, steps_til_summary, epochs_ti
 
                 start_time = time.time()
 
-                standard_input = {key: model_input[key] for key in 
+                standard_input = {key: model_input[key] for key in
                     ['point_cloud', 'coords', 'intrinsics']}
 
 
@@ -415,19 +415,19 @@ def train_conv(model, train_dataloader, epochs, lr, steps_til_summary, epochs_ti
 
                 if loss_type == 'activations':
                     model_output = {
-                        'standard': standard_output, 
+                        'standard': standard_output,
                         'rot': rot_output,
                         'standard_act_hat': standard_act_hat,
                         'rot_act_hat': rot_act_hat}
                 elif loss_type == 'latent':
                     model_output = {
-                        'standard': standard_output, 
+                        'standard': standard_output,
                         'rot': rot_output,
                         'standard_act_hat': standard_latent,
                         'rot_act_hat': rot_latent}
                 else:
                     raise ValueError(f"Expected 'activations' or 'latent', got {loss_type}")
-                    
+
                 losses = loss_fn(model_output, gt, it=total_steps)
 
                 train_loss = 0.
@@ -450,7 +450,7 @@ def train_conv(model, train_dataloader, epochs, lr, steps_til_summary, epochs_ti
                 for optim in optimizers:
                     optim.zero_grad()
                 train_loss.backward()
-                
+
                 # print('train losses: ', train_losses)
 
                 if gpus > 1:
@@ -479,7 +479,7 @@ def train_conv(model, train_dataloader, epochs, lr, steps_til_summary, epochs_ti
                             for val_i, (model_input, gt) in enumerate(val_dataloader):
                                 model_input = util.dict_to_gpu(model_input)
                                 gt = util.dict_to_gpu(gt)
-                                standard_input = {key: model_input[key] for key in 
+                                standard_input = {key: model_input[key] for key in
                                     ['point_cloud', 'coords', 'intrinsics']}
 
 
@@ -499,13 +499,13 @@ def train_conv(model, train_dataloader, epochs, lr, steps_til_summary, epochs_ti
 
                                 if loss_type == 'activations':
                                     model_output = {
-                                        'standard': standard_output, 
+                                        'standard': standard_output,
                                         'rot': rot_output,
                                         'standard_act_hat': standard_act_hat,
                                         'rot_act_hat': rot_act_hat}
                                 elif loss_type == 'latent':
                                     model_output = {
-                                        'standard': standard_output, 
+                                        'standard': standard_output,
                                         'rot': rot_output,
                                         'standard_act_hat': standard_latent,
                                         'rot_act_hat': rot_latent}
@@ -553,7 +553,7 @@ def train_conv_triplet(model, train_dataloader, epochs, lr, steps_til_summary, e
           overwrite=True, optimizers=None, batches_per_validation=10, gpus=1, rank=0, max_steps=None,
           config_dict={}):
     """
-    Convolutional occupancy network with triplet loss function 
+    Convolutional occupancy network with triplet loss function
 
     Args:
         model (_type_): _description_
@@ -579,12 +579,12 @@ def train_conv_triplet(model, train_dataloader, epochs, lr, steps_til_summary, e
     Returns:
         _type_: _description_
     """
-    
+
     old_summary_fn = summary_fn
     def summary_fn_wrapper(model, model_input, ground_truth, model_output, writer, iter, prefix=""):
-        standard_input = {key: model_input[key] for key in 
+        standard_input = {key: model_input[key] for key in
             ['point_cloud', 'coords', 'intrinsics']}
-            
+
         standard_output = model_output['standard']
 
         return old_summary_fn(model, standard_input, ground_truth, standard_output, writer, iter, prefix)
@@ -635,7 +635,7 @@ def train_conv_triplet(model, train_dataloader, epochs, lr, steps_til_summary, e
 
                 start_time = time.time()
 
-                standard_input = {key: model_input[key] for key in 
+                standard_input = {key: model_input[key] for key in
                     ['point_cloud', 'coords', 'intrinsics']}
 
 
@@ -678,12 +678,12 @@ def train_conv_triplet(model, train_dataloader, epochs, lr, steps_til_summary, e
 
 
                 model_output = {
-                    'standard': standard_output, 
+                    'standard': standard_output,
                     'rot': rot_output,
                     'standard_act_hat': standard_act_hat,
                     'rot_act_hat': rot_act_hat,
-                    'rot_negative_act_hat': rot_negative_act_hat} 
-                    
+                    'rot_negative_act_hat': rot_negative_act_hat}
+
                 losses = loss_fn(model_output, gt, it=total_steps)
 
                 train_loss = 0.
@@ -706,7 +706,7 @@ def train_conv_triplet(model, train_dataloader, epochs, lr, steps_til_summary, e
                 for optim in optimizers:
                     optim.zero_grad()
                 train_loss.backward()
-                
+
                 # print('train losses: ', train_losses)
 
                 if gpus > 1:
@@ -735,7 +735,7 @@ def train_conv_triplet(model, train_dataloader, epochs, lr, steps_til_summary, e
                             for val_i, (model_input, gt) in enumerate(val_dataloader):
                                 model_input = util.dict_to_gpu(model_input)
                                 gt = util.dict_to_gpu(gt)
-                                standard_input = {key: model_input[key] for key in 
+                                standard_input = {key: model_input[key] for key in
                                     ['point_cloud', 'coords', 'intrinsics']}
 
 
@@ -770,11 +770,11 @@ def train_conv_triplet(model, train_dataloader, epochs, lr, steps_til_summary, e
                                 #     {'point_cloud': model_input['coords']})
 
                                 # model_output = {
-                                #     'standard': standard_output, 
+                                #     'standard': standard_output,
                                 #     'rot': rot_output,
                                 #     'standard_latent': standard_latent,
                                 #     'rot_latent': rot_latent,
-                                #     'rot_negative_latent': rot_negative_latent} 
+                                #     'rot_negative_latent': rot_negative_latent}
 
                                 standard_output = model(standard_input)
                                 standard_latent = model.extract_latent(model_input)
@@ -786,16 +786,311 @@ def train_conv_triplet(model, train_dataloader, epochs, lr, steps_til_summary, e
 
                                 # rot_negative_output = model(rot_negative_input)
                                 rot_negative_latent = model.extract_latent(rot_negative_input)
-                                rot_negative_act_hat = model.forward_latent(rot_negative_latent, 
+                                rot_negative_act_hat = model.forward_latent(rot_negative_latent,
                                     rot_negative_input['coords'])
 
 
                                 model_output = {
-                                    'standard': standard_output, 
+                                    'standard': standard_output,
                                     'rot': rot_output,
                                     'standard_act_hat': standard_act_hat,
                                     'rot_act_hat': rot_act_hat,
-                                    'rot_negative_act_hat': rot_negative_act_hat} 
+                                    'rot_negative_act_hat': rot_negative_act_hat}
+
+                                val_loss = val_loss_fn(model_output, gt)
+
+                                for name, value in val_loss.items():
+                                    val_losses[name].append(value.cpu().numpy())
+
+                                if val_i == batches_per_validation:
+                                    break
+
+                        for loss_name, loss in val_losses.items():
+                            single_loss = np.mean(loss)
+                            summary_fn(model, model_input, gt, model_output, writer, total_steps, 'val_')
+                            writer.add_scalar('val_' + loss_name, single_loss, total_steps)
+
+                        model.train()
+
+                if (iters_til_checkpoint is not None) and (not total_steps % iters_til_checkpoint) and rank == 0:
+                    torch.save(model.state_dict(),
+                               os.path.join(checkpoints_dir, 'model_epoch_%04d_iter_%06d.pth' % (epoch, total_steps)))
+                    np.savetxt(os.path.join(checkpoints_dir, 'train_losses_%04d_iter_%06d.pth' % (epoch, total_steps)),
+                               np.array(train_losses))
+
+                total_steps += 1
+                if max_steps is not None and total_steps==max_steps:
+                    break
+
+            if max_steps is not None and total_steps==max_steps:
+                break
+
+        torch.save(model.state_dict(),
+                   os.path.join(checkpoints_dir, 'model_final.pth'))
+        np.savetxt(os.path.join(checkpoints_dir, 'train_losses_final.txt'),
+                   np.array(train_losses))
+
+        return model, optimizers
+
+
+def train_conv_triplet_latent(model, train_dataloader, epochs, lr, steps_til_summary, epochs_til_checkpoint, model_dir, loss_fn,
+          summary_fn=None, iters_til_checkpoint=None, val_dataloader=None, clip_grad=False, val_loss_fn=None,
+          overwrite=True, optimizers=None, batches_per_validation=10, gpus=1, rank=0, max_steps=None,
+          config_dict={}):
+    """
+    Convolutional occupancy network with triplet loss function
+
+    Compares latent only, not the activations
+
+    Args:
+        model (_type_): _description_
+        train_dataloader (_type_): _description_
+        epochs (_type_): _description_
+        lr (_type_): _description_
+        steps_til_summary (_type_): _description_
+        epochs_til_checkpoint (_type_): _description_
+        model_dir (_type_): _description_
+        loss_fn (_type_): _description_
+        summary_fn (_type_, optional): _description_. Defaults to None.
+        iters_til_checkpoint (_type_, optional): _description_. Defaults to None.
+        val_dataloader (_type_, optional): _description_. Defaults to None.
+        clip_grad (bool, optional): _description_. Defaults to False.
+        val_loss_fn (_type_, optional): _description_. Defaults to None.
+        overwrite (bool, optional): _description_. Defaults to True.
+        optimizers (_type_, optional): _description_. Defaults to None.
+        batches_per_validation (int, optional): _description_. Defaults to 10.
+        gpus (int, optional): _description_. Defaults to 1.
+        rank (int, optional): _description_. Defaults to 0.
+        max_steps (_type_, optional): _description_. Defaults to None.
+
+    Returns:
+        _type_: _description_
+    """
+
+    old_summary_fn = summary_fn
+    def summary_fn_wrapper(model, model_input, ground_truth, model_output, writer, iter, prefix=""):
+        standard_input = {key: model_input[key] for key in
+            ['point_cloud', 'coords', 'intrinsics']}
+
+        standard_output = model_output['standard']
+
+        return old_summary_fn(model, standard_input, ground_truth, standard_output, writer, iter, prefix)
+    summary_fn = summary_fn_wrapper
+
+    if optimizers is None:
+        optimizers = [torch.optim.Adam(lr=lr, params=model.parameters())]
+
+    if val_dataloader is not None:
+        assert val_loss_fn is not None, "If validation set is passed, have to pass a validation loss_fn!"
+
+    if rank == 0:
+        if os.path.exists(model_dir):
+            if overwrite:
+                shutil.rmtree(model_dir)
+            else:
+                val = input("The model directory %s exists. Overwrite? (y/n)"%model_dir)
+                if val == 'y' or overwrite:
+                    shutil.rmtree(model_dir)
+
+        os.makedirs(model_dir)
+
+        summaries_dir = os.path.join(model_dir, 'summaries')
+        util.cond_mkdir(summaries_dir)
+
+        checkpoints_dir = os.path.join(model_dir, 'checkpoints')
+        util.cond_mkdir(checkpoints_dir)
+
+        writer = SummaryWriter(summaries_dir)
+
+        config_fn = osp.join(model_dir, 'config.yml')
+        with open(config_fn, 'w') as f:
+            yaml.dump(config_dict, f, default_flow_style=False)
+
+    total_steps = 0
+    with tqdm(total=len(train_dataloader) * epochs) as pbar:
+        train_losses = []
+        for epoch in range(epochs):
+            if not epoch % epochs_til_checkpoint and epoch and rank == 0:
+                torch.save(model.state_dict(),
+                           os.path.join(checkpoints_dir, 'model_epoch_%04d_iter_%06d.pth' % (epoch, total_steps)))
+                np.savetxt(os.path.join(checkpoints_dir, 'train_losses_%04d_iter_%06d.pth' % (epoch, total_steps)),
+                           np.array(train_losses))
+
+            for step, (model_input, gt) in enumerate(train_dataloader):
+                model_input = util.dict_to_gpu(model_input)
+                gt = util.dict_to_gpu(gt) # gt -> Ground truth
+
+                start_time = time.time()
+
+                standard_input = {key: model_input[key] for key in
+                    ['point_cloud', 'coords', 'intrinsics']}
+
+
+                rot_input = {
+                    'point_cloud': model_input['rot_point_cloud'],
+                    'coords': model_input['rot_coords'],
+                    'intrinsics': model_input['intrinsics']
+                }
+
+                # print('pcd: ', model_input['point_cloud'][0, :5])
+                # print('rot_pcd: ', model_input['rot_point_cloud'][0, :5])
+                # print('rot coord: ', model_input['rot_coords'][0,:5])
+                # print('coord: ', model_input['coords'][0,:5])
+
+                # Negative input using unrotated coords
+                # rot_negative_input = {
+                #     'point_cloud': model_input['rot_point_cloud'],
+                #     'coords': model_input['coords'],
+                #     'intrinsics': model_input['intrinsics']
+                # }
+
+                # Negative input using random coordinates
+                rot_negative_input = {
+                    'point_cloud': model_input['rot_point_cloud'],
+                    'coords': model_input['rand_coords'],
+                    'intrinsics': model_input['intrinsics']
+                }
+
+                standard_output = model(standard_input)
+                standard_latent = model.extract_latent(model_input)
+                # standard_act_hat = model.forward_latent(standard_latent, model_input['coords'])
+
+                rot_output = model(rot_input)
+                rot_latent = model.extract_latent(rot_input)
+                # rot_act_hat = model.forward_latent(rot_latent, rot_input['coords'])
+
+                # rot_negative_output = model(rot_negative_input)
+                rot_negative_latent = model.extract_latent(rot_negative_input)
+                # rot_negative_act_hat = model.forward_latent(rot_negative_latent, rot_negative_input['coords'])
+
+
+                # model_output = {
+                #     'standard': standard_output,
+                #     'rot': rot_output,
+                #     'standard_act_hat': standard_act_hat,
+                #     'rot_act_hat': rot_act_hat,
+                #     'rot_negative_act_hat': rot_negative_act_hat}
+
+                model_output = {
+                    'standard': standard_output,
+                    'rot': rot_output,
+                    'standard_act_hat': standard_latent,
+                    'rot_act_hat': rot_latent,
+                    'rot_negative_act_hat': rot_negative_latent}
+
+
+                losses = loss_fn(model_output, gt, it=total_steps)
+
+                train_loss = 0.
+                for loss_name, loss in losses.items():
+                    single_loss = loss.mean()
+
+                    if rank == 0:
+                        writer.add_scalar(loss_name, single_loss, total_steps)
+                    train_loss += single_loss
+
+                train_losses.append(train_loss.item())
+                if rank == 0:
+                    writer.add_scalar("total_train_loss", train_loss, total_steps)
+
+                if not total_steps % steps_til_summary and rank == 0:
+                    torch.save(model.state_dict(),
+                               os.path.join(checkpoints_dir, 'model_current.pth'))
+                    summary_fn(model, model_input, gt, model_output, writer, total_steps)
+
+                for optim in optimizers:
+                    optim.zero_grad()
+                train_loss.backward()
+
+                # print('train losses: ', train_losses)
+
+                if gpus > 1:
+                    average_gradients(model)
+
+                if clip_grad:
+                    if isinstance(clip_grad, bool):
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.)
+                    else:
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=clip_grad)
+
+                for optim in optimizers:
+                    optim.step()
+
+                if rank == 0:
+                    pbar.update(1)
+
+                if not total_steps % steps_til_summary and rank == 0:
+                    print("Epoch %d, Total loss %0.6f, iteration time %0.6f" % (epoch, train_loss, time.time() - start_time))
+
+                    if val_dataloader is not None:
+                        print("Running validation set...")
+                        with torch.no_grad():
+                            model.eval()
+                            val_losses = defaultdict(list)
+                            for val_i, (model_input, gt) in enumerate(val_dataloader):
+                                model_input = util.dict_to_gpu(model_input)
+                                gt = util.dict_to_gpu(gt)
+                                standard_input = {key: model_input[key] for key in
+                                    ['point_cloud', 'coords', 'intrinsics']}
+
+
+                                rot_input = {
+                                    'point_cloud': model_input['rot_point_cloud'],
+                                    'coords': model_input['rot_coords'],
+                                    'intrinsics': model_input['intrinsics']
+                                }
+
+                                # rot_negative_input = {
+                                #     'point_cloud': model_input['rot_point_cloud'],
+                                #     'coords': model_input['coords'],
+                                #     'intrinsics': model_input['intrinsics']
+                                # }
+
+                                rot_negative_input = {
+                                    'point_cloud': model_input['rot_point_cloud'],
+                                    'coords': model_input['rand_coords'],
+                                    'intrinsics': model_input['intrinsics']
+                                }
+
+                                # standard_output = model(standard_input)
+                                # standard_latent = model.extract_latent(
+                                #         {'point_cloud': model_input['coords']})
+
+                                # rot_output = model(rot_input)
+                                # rot_latent = model.extract_latent(
+                                #     {'point_cloud': model_input['rot_coords']})
+
+                                # rot_negative_output = model(rot_negative_input)
+                                # rot_negative_latent = model.extract_latent(
+                                #     {'point_cloud': model_input['coords']})
+
+                                # model_output = {
+                                #     'standard': standard_output,
+                                #     'rot': rot_output,
+                                #     'standard_latent': standard_latent,
+                                #     'rot_latent': rot_latent,
+                                #     'rot_negative_latent': rot_negative_latent}
+
+                                standard_output = model(standard_input)
+                                standard_latent = model.extract_latent(model_input)
+                                # standard_act_hat = model.forward_latent(standard_latent, model_input['coords'])
+
+                                rot_output = model(rot_input)
+                                rot_latent = model.extract_latent(rot_input)
+                                # rot_act_hat = model.forward_latent(rot_latent, rot_input['coords'])
+
+                                # rot_negative_output = model(rot_negative_input)
+                                rot_negative_latent = model.extract_latent(rot_negative_input)
+                                # rot_negative_act_hat = model.forward_latent(rot_negative_latent,
+                                #     rot_negative_input['coords'])
+
+
+                                model_output = {
+                                    'standard': standard_output,
+                                    'rot': rot_output,
+                                    'standard_act_hat': standard_latent,
+                                    'rot_act_hat': rot_latent,
+                                    'rot_negative_act_hat': rot_negative_latent}
 
                                 val_loss = val_loss_fn(model_output, gt)
 

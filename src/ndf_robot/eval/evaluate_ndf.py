@@ -125,9 +125,9 @@ def main(args, global_dict):
         #     sigmoid=False).cuda()
 
         model = conv_occupancy_network.ConvolutionalOccupancyNetwork(
-            latent_dim=32,
+            # latent_dim=32,
             # latent_dim=64,
-            # latent_dim=4,
+            latent_dim=4,
             model_type='pointnet',
             return_features=True,
             sigmoid=False,
@@ -710,10 +710,24 @@ def main(args, global_dict):
                         time.sleep(0.8)
 
                         if g_idx == 1:
-                            grasp_success = object_is_still_grasped(robot, obj_id, right_pad_id, left_pad_id)
+                            # grasp_success = object_is_still_grasped(robot, obj_id, right_pad_id, left_pad_id)
+
+                            # TEST GRASP ONLY CODE (MAY BREAK REST OF PLACE)
+                            original_grasp_success = object_is_still_grasped(robot, obj_id, right_pad_id, left_pad_id)
+
+                            # If the ee was intersecting the mug, original_grasp_success would be true after
+                            # the table disappears.  However, an intersection is generally a false grasp
+                            # When the ee is opened again, a good grasp should fall down while a intersecting
+                            # grasp would stay in contact.
+                            robot.arm.eetool.open()
+                            ee_intersecting_mug = object_is_still_grasped(robot, obj_id, right_pad_id, left_pad_id)
+                            grasp_success = original_grasp_success and not ee_intersecting_mug
+
+                            if ee_intersecting_mug:
+                                print('Intersecting grasp detected')
 
                             if grasp_success:
-                            # turn OFF collisions between object / table and object / rack, and move to pre-place pose
+                                # turn OFF collisions between object / table and object / rack, and move to pre-place pose
                                 safeCollisionFilterPair(obj_id, table_id, -1, -1, enableCollision=True)
                                 robot.arm.eetool.open()
                                 p.resetBasePositionAndOrientation(obj_id, obj_pos_before_grasp, ori)
@@ -946,6 +960,7 @@ if __name__ == "__main__":
 
     obj_class = args.object_class
     shapenet_obj_dir = osp.join(path_util.get_ndf_obj_descriptions(), obj_class + '_centered_obj_normalized')
+    # shapenet_obj_dir = osp.join(path_util.get_ndf_obj_descriptions(), 'bowl' + '_centered_obj_normalized')
 
     demo_load_dir = osp.join(path_util.get_ndf_data(), 'demos', obj_class, args.demo_exp)
 
@@ -982,10 +997,16 @@ if __name__ == "__main__":
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_rot_similar_log_1/checkpoints/model_epoch_0005_iter_066000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_occ_similar_only_0/checkpoints/model_epoch_0000_iter_007000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'archive/conv_occ_latent_margin_143000.pth')
-    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_occ_similar_only_0/checkpoints/model_epoch_0010_iter_124000.pth')
+    conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_occ_similar_only_0/checkpoints/model_epoch_0010_iter_124000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent32_triplet_similar_occ_only_0/checkpoints/model_epoch_0009_iter_113000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_1/checkpoints/model_epoch_0010_iter_153000.pth')
-    conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_0/checkpoints/model_epoch_0001_iter_012000.pth')
+    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_0/checkpoints/model_epoch_0001_iter_012000.pth')
+    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_0/checkpoints/model_epoch_0005_iter_068000.pth')
+    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_part2_1/checkpoints/model_epoch_0007_iter_119000.pth')
+    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_0/checkpoints/model_epoch_0011_iter_143000.pth')
+    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_epoch_0014_iter_221000.pth')
+
+    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simfull_0/checkpoints/model_epoch_0000_iter_008000.pth')
 
     global_dict = dict(
         shapenet_obj_dir=shapenet_obj_dir,

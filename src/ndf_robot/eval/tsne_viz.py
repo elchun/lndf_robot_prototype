@@ -124,12 +124,12 @@ class TSNEViz:
                     pcd_torch = torch_util.transform_pcd_torch(pcd_torch,
                         random_transform).float()
 
-                elif rand_rotate:
-                    random_transform = torch.tensor(TSNEViz.__random_rot_transform()).float().to(self.dev)
-                    query_pts_torch = torch_util.transform_pcd_torch(query_pts_torch,
-                        random_transform).float()
-                    pcd_torch = torch_util.transform_pcd_torch(pcd_torch,
-                        random_transform).float()
+                # elif rand_rotate:
+                #     random_transform = torch.tensor(TSNEViz.__random_rot_transform()).float().to(self.dev)
+                #     query_pts_torch = torch_util.transform_pcd_torch(query_pts_torch,
+                #         random_transform).float()
+                #     pcd_torch = torch_util.transform_pcd_torch(pcd_torch,
+                #         random_transform).float()
 
                 model_input['coords'] = query_pts_torch[None, :, :]
                 model_input['point_cloud'] = pcd_torch[None, :, :]
@@ -301,10 +301,10 @@ if __name__ == '__main__':
         #     'mug_centered_obj_normalized/f1e439307b834015770a0ff1161fa15a//models/model_normalized.obj'),
         # osp.join(path_util.get_ndf_demo_obj_descriptions(),
         #     'mug_centered_obj_normalized/f7d776fd68b126f23b67070c4a034f08/models/model_normalized.obj'),
-        # osp.join(path_util.get_ndf_demo_obj_descriptions(),
-        #     'mug_centered_obj_normalized/eecb13f61a93b4048f58d8b19de93f99/models/model_normalized.obj'),
         osp.join(path_util.get_ndf_demo_obj_descriptions(),
-            'mug_centered_obj_normalized/e9bd4ee553eb35c1d5ccc40b510e4bd/models/model_normalized.obj'),
+            'mug_centered_obj_normalized/eecb13f61a93b4048f58d8b19de93f99/models/model_normalized.obj'),
+        # osp.join(path_util.get_ndf_demo_obj_descriptions(),
+        #     'mug_centered_obj_normalized/e9bd4ee553eb35c1d5ccc40b510e4bd/models/model_normalized.obj'),
 
         # Weird mugs
         # osp.join(path_util.get_ndf_demo_obj_descriptions(),
@@ -314,7 +314,9 @@ if __name__ == '__main__':
 
         # Bowls
         # osp.join(path_util.get_ndf_obj_descriptions(),
-            # 'bowl_centered_obj_normalized/1f910faf81555f8e664b3b9b23ddfcbc/models/model_normalized.obj'),
+        #     'bowl_centered_obj_normalized/1f910faf81555f8e664b3b9b23ddfcbc/models/model_normalized.obj'),
+        # osp.join(path_util.get_ndf_obj_descriptions(),
+        #     'bowl_centered_obj_normalized/2c1df84ec01cea4e525b133235812833/models/model_normalized.obj'),
     ]
     base_output_fn = 'tsne_viz/tsne_viz'
     # output_fn = 'tsne_viz_latent_32.html'
@@ -329,6 +331,10 @@ if __name__ == '__main__':
     #     acts='last').cuda()
 
     # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=8,
+    #     model_type='pointnet', return_features=True, sigmoid=True,
+    #     acts='last').cuda()
+
+    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=64,
     #     model_type='pointnet', return_features=True, sigmoid=True,
     #     acts='last').cuda()
 
@@ -353,7 +359,12 @@ if __name__ == '__main__':
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_occ_similar_only_0/checkpoints/model_epoch_0010_iter_124000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_1/checkpoints/model_epoch_0011_iter_170000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent32_triplet_similar_occ_only_0/checkpoints/model_epoch_0009_iter_113000.pth')
-    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_0/checkpoints/model_epoch_0001_iter_012000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_part2_1/checkpoints/model_epoch_0011_iter_179000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_0/checkpoints/model_epoch_0011_iter_143000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_occ_similar_only_margin_noneg_10_1/checkpoints/model_epoch_0011_iter_143000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_epoch_0011_iter_179000.pth')
+    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simfull_0/checkpoints/model_epoch_0007_iter_111000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simlat_100_0/checkpoints/model_epoch_0005_iter_080000.pth')
 
 
     model.load_state_dict(torch.load(model_path))
