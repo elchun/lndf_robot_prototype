@@ -2,6 +2,7 @@
 Generate TSNE visualization of mug with given model weights
 """
 import os.path as osp
+from cv2 import transform
 
 import torch
 import numpy as np
@@ -55,8 +56,30 @@ class TSNEViz:
         pcd = mesh.sample(5000)
 
         if sample_bb:
+            # pcd_mean = np.mean(pcd, axis=0)
+            # trans = np.eye(4)
+            # trans[:3, 3] = pcd_mean
+            # print(pcd_mean)
+            # print(trans)
+            # query_pts = trimesh.primitives.Box(extents=[1, 1, 1])
+            # # sphere = trimesh.primitives.Sphere(radius=1, center=pcd_mean)
+            # # query_pts = sphere.sample_volume(500)
+            # # https://trimsh.org/examples/quick_start.html
+            # # query_pts = mesh.bounding_box_oriented.sample_volume(500)
+
             to_origin, extents = trimesh.bounds.oriented_bounds(pcd)
-            query_pts = trimesh.sample.volume_rectangular(extents, 500, transform=to_origin)
+            max_extent = max(extents)
+            # print(max_extent)
+            extents_max = np.repeat(max_extent, 3)
+
+
+            # bb = trimesh.primitives.Box(extents=extents, transform=to_origin)
+
+            bb_scale = 1.5
+            query_pts = trimesh.sample.volume_rectangular(extents_max * bb_scale, 500, transform=to_origin)
+
+
+            # query_pts = trimesh.sample.volume_rectangular(extents, 500, transform=to_origin)
         else:
             query_pts = mesh.sample(500)  # Set to also sample within body
 
@@ -123,13 +146,6 @@ class TSNEViz:
                         random_transform).float()
                     pcd_torch = torch_util.transform_pcd_torch(pcd_torch,
                         random_transform).float()
-
-                # elif rand_rotate:
-                #     random_transform = torch.tensor(TSNEViz.__random_rot_transform()).float().to(self.dev)
-                #     query_pts_torch = torch_util.transform_pcd_torch(query_pts_torch,
-                #         random_transform).float()
-                #     pcd_torch = torch_util.transform_pcd_torch(pcd_torch,
-                #         random_transform).float()
 
                 model_input['coords'] = query_pts_torch[None, :, :]
                 model_input['point_cloud'] = pcd_torch[None, :, :]
@@ -315,8 +331,8 @@ if __name__ == '__main__':
         # Bowls
         # osp.join(path_util.get_ndf_obj_descriptions(),
         #     'bowl_centered_obj_normalized/1f910faf81555f8e664b3b9b23ddfcbc/models/model_normalized.obj'),
-        # osp.join(path_util.get_ndf_obj_descriptions(),
-        #     'bowl_centered_obj_normalized/2c1df84ec01cea4e525b133235812833/models/model_normalized.obj'),
+        osp.join(path_util.get_ndf_obj_descriptions(),
+            'bowl_centered_obj_normalized/2c1df84ec01cea4e525b133235812833/models/model_normalized.obj'),
     ]
     base_output_fn = 'tsne_viz/tsne_viz'
     # output_fn = 'tsne_viz_latent_32.html'
@@ -352,7 +368,7 @@ if __name__ == '__main__':
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_log_4_10_8_0/checkpoints/model_epoch_0011_iter_143000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_rot_similar_super_aggressive_1/checkpoints/model_epoch_0003_iter_042000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_rot_similar_log_1/checkpoints/model_epoch_0005_iter_066000.pth')
-    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_rot_similar_log_1/checkpoints/model_epoch_0005_iter_066000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_rot_similar_log_1/checkpoints/model_epoch_0011_iter_143000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_occ_similar_only_0/checkpoints/model_epoch_0006_iter_081000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_occ_similar_only_margin_noneg_10_1/checkpoints/model_epoch_0003_iter_039000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent32_triplet_similar_occ_only_all_1/checkpoints/model_epoch_0003_iter_037000.pth')
@@ -362,10 +378,10 @@ if __name__ == '__main__':
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_part2_1/checkpoints/model_epoch_0011_iter_179000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_0/checkpoints/model_epoch_0011_iter_143000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_occ_similar_only_margin_noneg_10_1/checkpoints/model_epoch_0011_iter_143000.pth')
-    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_epoch_0011_iter_179000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_epoch_0023_iter_358000.pth')
     model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simfull_0/checkpoints/model_epoch_0007_iter_111000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simlat_100_0/checkpoints/model_epoch_0005_iter_080000.pth')
-
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_0/checkpoints/model_final.pth')
 
     model.load_state_dict(torch.load(model_path))
 
@@ -373,7 +389,7 @@ if __name__ == '__main__':
     tsne_plotter = TSNEViz(model)
 
     for object_fn in object_fns:
-        # tsne_plotter.load_object(object_fn, sample_bb=True)
+        tsne_plotter.load_object(object_fn, sample_bb=True)
         tsne_plotter.load_object(object_fn, sample_bb=False)
 
     # tsne_plotter.viz_all_objects(base_output_fn=base_output_fn, rand_rotate=False)

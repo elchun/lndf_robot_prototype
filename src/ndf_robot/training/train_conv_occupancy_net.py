@@ -60,7 +60,7 @@ if __name__ == '__main__':
     opt = p.parse_args()
 
     # -- MODEL ARGUMENTS -- #
-    default_args = {
+    latent_dim_32 = {
         'latent_dim': 32,
         'return_features': True,
         'acts': 'last'
@@ -84,16 +84,16 @@ if __name__ == '__main__':
         'acts': 'last'
     }
 
-    latent_dim_32_inp = {
-        'latent_dim': 32,
-        'return_features': True,
-        'acts': 'last'
-    }
+    # latent_dim_32_inp = {
+    #     'latent_dim': 32,
+    #     'return_features': True,
+    #     'acts': 'last'
+    # }
 
 
     # conv_occ_args = latent_dim_4
     # conv_occ_args = default_args
-    conv_occ_args = latent_dim_32_inp
+    conv_occ_args = latent_dim_32
     # conv_occ_args = latent_dim_64
 
     # -- LOSS FUNCTION ARGS -- #
@@ -130,8 +130,8 @@ if __name__ == '__main__':
 
     similar_occ_only = {
         'occ_margin': 0,
-        'positive_loss_scale': 10000,
-        'negative_loss_scale': 10000,
+        'positive_loss_scale': 10,
+        'negative_loss_scale': 10,
         'similar_occ_only': True,
     }
 
@@ -157,9 +157,9 @@ if __name__ == '__main__':
     }
 
     # loss_fn_args = super_super_aggressive_similar
-    # loss_fn_args = similar_occ_only_no_neg
+    loss_fn_args = similar_occ_only
     # loss_fn_args = no_similarity
-    loss_fn_args = similar_occ_no_neg_latent_weight
+    # loss_fn_args = similar_occ_no_neg_latent_weight
 
     # -- DATALOADER ARGS -- #
     sidelength = 128
@@ -222,21 +222,21 @@ if __name__ == '__main__':
     # -- RUN TRAIN FUNCTION -- #
     loss_fn = val_loss_fn = losses.triplet(**loss_fn_args)
     # loss_fn = val_loss_fn = losses.rotated_triplet_log
-    # training.train_conv_triplet(model=model_parallel, train_dataloader=train_dataloader,
-    #     val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr,
-    #     steps_til_summary=opt.steps_til_summary,
-    #     epochs_til_checkpoint=opt.epochs_til_ckpt,
-    #     model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt,
-    #     summary_fn=summary_fn,clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True,
-    #     config_dict=config)
-
-    training.train_conv_triplet_latent(model=model_parallel, train_dataloader=train_dataloader,
+    training.train_conv_triplet(model=model_parallel, train_dataloader=train_dataloader,
         val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr,
         steps_til_summary=opt.steps_til_summary,
         epochs_til_checkpoint=opt.epochs_til_ckpt,
         model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt,
         summary_fn=summary_fn,clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True,
         config_dict=config)
+
+    # training.train_conv_triplet_latent(model=model_parallel, train_dataloader=train_dataloader,
+    #     val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr,
+    #     steps_til_summary=opt.steps_til_summary,
+    #     epochs_til_checkpoint=opt.epochs_til_ckpt,
+    #     model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt,
+    #     summary_fn=summary_fn,clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True,
+    #     config_dict=config)
     # else:
     #     # loss_fn = val_loss_fn = losses.rotated_margin
     #     loss_fn = val_loss_fn = losses.conv_occupancy_net
