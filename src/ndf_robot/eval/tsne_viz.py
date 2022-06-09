@@ -379,9 +379,10 @@ if __name__ == '__main__':
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_0/checkpoints/model_epoch_0011_iter_143000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_train_any_rot_hidden4_occ_similar_only_margin_noneg_10_1/checkpoints/model_epoch_0011_iter_143000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_epoch_0023_iter_358000.pth')
-    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simfull_0/checkpoints/model_epoch_0007_iter_111000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simfull_0/checkpoints/model_epoch_0007_iter_111000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simlat_100_0/checkpoints/model_epoch_0005_iter_080000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_0/checkpoints/model_final.pth')
+    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_10x10_0/checkpoints/model_epoch_0003_iter_051000.pth')
 
     model.load_state_dict(torch.load(model_path))
 

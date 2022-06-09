@@ -6,7 +6,7 @@ CUDA_VISIBLE_DEVICES=1 python evaluate_ndf.py \
         --model_path multi_category_weights \
         --save_vis_per_model \
         --config eval_mug_gen \
-	--exp conv_eval_any_latent_dim64_anyrot\
+	--exp conv_eval_any_latent_dim32_simocc_10x10\
         --num_iterations 100 \
         --any_pose \
         --only_test_ids \

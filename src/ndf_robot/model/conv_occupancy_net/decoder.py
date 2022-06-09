@@ -22,8 +22,8 @@ class LocalDecoder(nn.Module):
     '''
 
     def __init__(self, dim=3, c_dim=128,
-                 hidden_size=256, n_blocks=5, 
-                 leaky=False, sample_mode='bilinear', 
+                 hidden_size=256, n_blocks=5,
+                 leaky=False, sample_mode='bilinear',
                  padding=0.1, return_features=False,
                  sigmoid=True, acts='all'):
         super().__init__()
@@ -54,7 +54,7 @@ class LocalDecoder(nn.Module):
 
         self.sample_mode = sample_mode
         self.padding = padding
-    
+
 
     def sample_plane_feature(self, p, c, plane='xz'):
         xy = normalize_coordinate(p.clone(), plane=plane, padding=self.padding) # normalize to the range of (0, 1)
@@ -94,7 +94,7 @@ class LocalDecoder(nn.Module):
 
         p = p.float()
         acts.append(p)
-        acts_inp.append(p)
+        # acts_inp.append(p)
 
         net = self.fc_p(p)
         acts.append(net)
@@ -106,7 +106,7 @@ class LocalDecoder(nn.Module):
 
             net = self.blocks[i](net)
             acts.append(net)
-        
+
         last_act = net
 
         out = self.fc_out(self.actvn(net))
@@ -118,8 +118,8 @@ class LocalDecoder(nn.Module):
         if self.return_features:
             if self.acts == 'all':
                 acts = torch.cat(acts, dim=-1)
-            elif self.acts == 'inp':
-                acts = torch.cat(acts_inp, dim=-1)
+            # elif self.acts == 'inp': # broken
+            #     acts = torch.cat(acts_inp, dim=-1)
             elif self.acts == 'last':
                 acts = last_act
             elif self.acts == 'inp_first_rn': # Appears to return an empty list?
@@ -183,7 +183,7 @@ class PatchLocalDecoder(nn.Module):
             self.fc_p = nn.Linear(60, hidden_size)
         else:
             self.fc_p = nn.Linear(dim, hidden_size)
-    
+
     def sample_feature(self, xy, c, fea_type='2d'):
         if fea_type == '2d':
             xy = xy[:, :, None].float()
@@ -215,7 +215,7 @@ class PatchLocalDecoder(nn.Module):
         p = p.float()
         if self.map2local:
             p = self.map2local(p)
-        
+
         net = self.fc_p(p)
         for i in range(self.n_blocks):
             if self.c_dim != 0:
