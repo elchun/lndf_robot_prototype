@@ -1,40 +1,204 @@
-future
-cffi<=1.12.3
-pycparser==2.19
-pymunk==5.5.0
-numpy>=1.16.0
-torch>=1.7 # check if you're on 3090 machine, may need different torch install
-torchvision
-tensorboard>=2.0
-matplotlib
-pillow
-h5py
-six
-progressbar2
-opencv-python
-PyYAML
-gym
-pygame
-transforms3d
-sympy
-tinydb
-jupyterlab
-pandas
-imgaug
-psutil
-meshcat
-pyglet
-healpy
-configargparse
-#open3d>=0.11
-pynput>=1.7.3
-ipython
-tqdm
-jedi==0.17.2  # to fix ipython bug
-plotly>=4.14
-kaleido>=0.2.1  # needed for plotly .png rendering
-trimesh>=3.9
-rtree>=0.9.7  # needed for trimesh contains method
-networkx>=2.3
+absl-py==1.0.0
+airobot @ git+https://github.com/Improbable-AI/airobot.git@ba647ee176465c26bb19ecb8bea468fe4cc1dc72
+alabaster==0.7.12
+anyio==3.5.0
+argon2-cffi==21.3.0
+argon2-cffi-bindings==21.2.0
+astroid @ file:///tmp/build/80754af9/astroid_1628055155277/work
+astropy==4.1
+asttokens @ file:///home/conda/feedstock_root/build_artifacts/asttokens_1618968359944/work
+async-generator==1.10
+attrs==21.4.0
+autopep8==1.6.0
+Babel==2.9.1
+backcall==0.2.0
+beautifulsoup4 @ file:///tmp/build/80754af9/beautifulsoup4_1601924105527/work
+bleach==4.1.0
+brotlipy==0.7.0
+cached-property==1.5.2
+cachetools==4.2.4
+catkin-pkg==0.4.24
+certifi==2021.5.30
+cffi==1.12.3
+chardet @ file:///tmp/build/80754af9/chardet_1605303175790/work
+click==8.0.3
+cloudpickle==2.0.0
+colorlog==6.6.0
+commonmark==0.9.1
+conda==4.6.14
+conda-build==3.4.2
+conda-verify==3.1.1
+ConfigArgParse==1.5.3
+contextvars==2.4
+coverage==6.2
+cryptography @ file:///tmp/build/80754af9/cryptography_1635366128178/work
+cycler==0.11.0
+Cython @ file:///tmp/build/80754af9/cython_1626256602391/work
+dataclasses==0.8
+decorator==4.4.2
+defusedxml==0.7.1
+devtools @ file:///home/conda/feedstock_root/build_artifacts/python-devtools_1632935417193/work
+docutils==0.17.1
+entrypoints==0.4
+evdev==1.4.0
+executing @ file:///home/conda/feedstock_root/build_artifacts/executing_1633213722787/work
+filelock==3.0.12
+flake8==4.0.1
+future==0.18.2
+glob2==0.7
+google-auth==2.6.0
+google-auth-oauthlib==0.4.6
+grpcio==1.44.0
+gym==0.21.0
+h5py==3.1.0
+healpy==1.15.0
+idna @ file:///tmp/build/80754af9/idna_1593446292537/work
+imageio==2.15.0
+imagesize==1.3.0
+imgaug==0.4.0
+immutables==0.16
+importlib-metadata==4.8.3
+iniconfig==1.1.1
+ipykernel==5.5.6
+ipython==7.16.3
+ipython-genutils==0.2.0
+isort @ file:///tmp/build/80754af9/isort_1628603791788/work
+jedi==0.17.2
+Jinja2==2.11.2
+joblib==1.1.0
+json5==0.9.6
+jsonschema==3.2.0
+jupyter-client==7.1.2
+jupyter-core==4.9.2
+jupyter-server==1.13.1
+jupyterlab==3.2.9
+jupyterlab-pygments==0.1.2
+jupyterlab-server==2.10.3
+kaleido==0.2.1
+kiwisolver==1.3.1
+lazy-object-proxy @ file:///tmp/build/80754af9/lazy-object-proxy_1616526919073/work
+libarchive-c==2.9
+Markdown==3.3.6
+MarkupSafe @ file:///tmp/build/80754af9/markupsafe_1621528150516/work
+matplotlib==3.3.4
+mccabe==0.6.1
+meshcat==0.3.2
+mistune==0.8.4
+mpmath==1.2.1
+nbclassic==0.3.5
+nbclient==0.5.9
+nbconvert==6.0.7
+nbformat==5.1.3
+-e git+ssh://git@github.com/elchun/ndf_robot.git@bdd2c76d63131bbba066d57f69cee6ee755ebb85#egg=ndf_robot
+nest-asyncio==1.5.4
+networkx==2.5.1
+notebook==6.4.8
+numpy==1.19.5
+oauthlib==3.2.0
+opencv-python==4.5.5.64
+packaging==21.3
+pandas==1.1.5
+pandocfilters==1.5.0
+parso==0.7.1
+pexpect==4.8.0
+pickleshare==0.7.5
+Pillow==8.4.0
+pkginfo @ file:///tmp/build/80754af9/pkginfo_1643162084911/work
+plotly==5.6.0
+pluggy==1.0.0
+pockets==0.9.1
+progressbar2==3.55.0
+prometheus-client==0.13.1
+prompt-toolkit==3.0.28
+protobuf==3.19.4
+psutil==5.9.0
+ptyprocess==0.7.0
+py==1.11.0
+pyasn1==0.4.8
+pyasn1-modules==0.2.8
+pyassimp==4.1.4
 pybullet==3.1.3
-# git+https://github.com/Improbable-AI/airobot.git@qa
+pycodestyle==2.8.0
+pycosat==0.6.3
+pycparser==2.19
+pyflakes==2.4.0
+pygame==2.1.2
+pyglet==1.5.22
+Pygments==2.11.2
+pylint @ file:///tmp/build/80754af9/pylint_1627536508692/work
+pymunk==5.5.0
+pyngrok==5.1.0
+pynput==1.7.6
+pyOpenSSL @ file:///tmp/build/80754af9/pyopenssl_1594392929924/work
+pyparsing==3.0.7
+pyrsistent==0.18.0
+PySocks @ file:///tmp/build/80754af9/pysocks_1605305763431/work
+pytest==7.0.1
+pytest-cov==3.0.0
+pytest-html==3.1.1
+pytest-lazy-fixture==0.6.3
+pytest-metadata==1.11.0
+python-dateutil==2.8.2
+python-utils==3.1.0
+python-xlib==0.31
+pytz==2020.1
+PyWavelets==1.1.1
+PyYAML==5.4.1
+pyzmq==22.3.0
+recommonmark==0.7.1
+requests @ file:///tmp/build/80754af9/requests_1592841827918/work
+requests-oauthlib==1.3.1
+rospkg==1.4.0
+rsa==4.8
+Rtree==0.9.7
+ruamel-yaml-conda @ file:///tmp/build/80754af9/ruamel_yaml_1616016274869/work
+scikit-image==0.17.2
+scikit-learn==0.24.2
+scipy==1.5.4
+Send2Trash==1.8.0
+Shapely==1.8.1.post1
+six @ file:///home/conda/feedstock_root/build_artifacts/six_1620240208055/work
+sniffio==1.2.0
+snowballstemmer==2.2.0
+soupsieve==2.0.1
+Sphinx==4.4.0
+sphinx-rtd-theme==1.0.0
+sphinxcontrib-applehelp==1.0.2
+sphinxcontrib-devhelp==1.0.2
+sphinxcontrib-htmlhelp==2.0.0
+sphinxcontrib-jsmath==1.0.1
+sphinxcontrib-napoleon==0.7
+sphinxcontrib-qthelp==1.0.3
+sphinxcontrib-serializinghtml==1.1.5
+sympy==1.9
+tenacity==8.0.1
+tensorboard==2.9.0
+tensorboard-data-server==0.6.1
+tensorboard-plugin-wit==1.8.1
+terminado==0.12.1
+testpath==0.6.0
+threadpoolctl==3.1.0
+tifffile==2020.9.3
+tinydb==4.7.0
+toml @ file:///tmp/build/80754af9/toml_1616166611790/work
+tomli==1.2.3
+torch==1.10.1
+torch-scatter==2.0.9
+torch-tb-profiler==0.4.0
+torchvision==0.11.2
+tornado==6.1
+tqdm @ file:///tmp/build/80754af9/tqdm_1602185206534/work
+traitlets==4.3.3
+transforms3d==0.3.1
+trimesh==3.10.2
+typed-ast @ file:///tmp/build/80754af9/typed-ast_1624953671446/work
+typing_extensions==4.1.1
+u-msgpack-python==2.7.1
+urllib3 @ file:///tmp/build/80754af9/urllib3_1603305693037/work
+wcwidth==0.2.5
+webencodings==0.5.1
+websocket-client==1.3.1
+Werkzeug==2.0.3
+wrapt==1.12.1
+yacs==0.1.8
+zipp==3.6.0
