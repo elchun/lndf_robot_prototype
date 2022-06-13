@@ -292,24 +292,29 @@ def main(args, global_dict):
         query_pts_real_shape=place_optimizer_pts_rs,
         opt_iterations=args.opt_iterations)
 
+    rand_translate = True
     if args.query_point_type == 'normal':
         grasp_optimizer = OccNetOptimizer(
             model,
             query_pts=normal_query_points,
             query_pts_real_shape=normal_query_points,
-            opt_iterations=args.opt_iterations)
+            opt_iterations=args.opt_iterations,
+            rand_translate=rand_translate)
     elif args.query_point_type == 'sphere':
         grasp_optimizer = OccNetOptimizer(
             model,
             query_pts=sphere_query_points,
             query_pts_real_shape=np.vstack((sphere_query_points, optimizer_gripper_pts_rs)),
-            opt_iterations=args.opt_iterations)
+            opt_iterations=args.opt_iterations,
+            rand_translate=rand_translate)
     else:
         grasp_optimizer = OccNetOptimizer(
             model,
             query_pts=optimizer_gripper_pts,
             query_pts_real_shape=optimizer_gripper_pts_rs,
-            opt_iterations=args.opt_iterations)
+            opt_iterations=args.opt_iterations,
+            rand_translate=rand_translate)
+
     grasp_optimizer.set_demo_info(demo_target_info_list)
     place_optimizer.set_demo_info(demo_rack_target_info_list)
 
@@ -1002,14 +1007,14 @@ if __name__ == "__main__":
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_1/checkpoints/model_epoch_0010_iter_153000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_0/checkpoints/model_epoch_0001_iter_012000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_0/checkpoints/model_epoch_0005_iter_068000.pth')
-    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_part2_1/checkpoints/model_epoch_0007_iter_119000.pth')
+    conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_part2_1/checkpoints/model_epoch_0007_iter_119000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_0/checkpoints/model_epoch_0011_iter_143000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_epoch_0014_iter_221000.pth')
 
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simfull_0/checkpoints/model_epoch_0007_iter_111000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simfull_0/checkpoints/model_epoch_0007_iter_111000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_epoch_0023_iter_358000.pth')
-    conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_10x10_0/checkpoints/model_epoch_0008_iter_123000.pth')
+    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_10x10_0/checkpoints/model_epoch_0008_iter_123000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'old/conv_occ_exp_archive/checkpoints/model_epoch_0020_iter_149500.pth')
 
 

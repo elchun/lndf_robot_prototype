@@ -17,7 +17,8 @@ from ndf_robot.utils.plotly_save import plot3d
 
 class OccNetOptimizer:
     def __init__(self, model, query_pts, query_pts_real_shape=None, opt_iterations=250,
-                 noise_scale=0.0, noise_decay=0.5, single_object=False):
+                 noise_scale=0.0, noise_decay=0.5, single_object=False,
+                 rand_translate=False):
         self.model = model
         self.model_type = self.model.model_type
         self.query_pts_origin = query_pts
@@ -62,6 +63,9 @@ class OccNetOptimizer:
         # ENABLE TSNE HERE
         self.tsne_fn = osp.join(self.viz_path, 'tsne')
         # self.tsne_fn = None
+
+        # Translate query point init location randomly within bounding box of pcd
+        self.rand_translate = rand_translate
 
     def _scene_dict(self):
         self.scene_dict = {}
@@ -188,6 +192,37 @@ class OccNetOptimizer:
 
         query_pts_cam_cent_rs, query_pts_tf_rs = self._get_query_pts_rs()
         X_rs = query_pts_cam_cent_rs[:opt_pts][None, :, :].repeat((M, 1, 1))
+
+        # ADDITIONS
+        # print('shpae_pts_cent: ', shape_pts_cent.shape) # (n x 3)
+        # min_coords = torch.min(shape_pts_cent, dim=0).values
+        # max_coords = torch.max(shape_pts_cent, dim=0).values
+        min_coords = torch.min(shape_pts_cent, dim=0).values.reshape(3, 1)
+        max_coords = torch.max(shape_pts_cent, dim=0).values.reshape(3, 1)
+        coord_range = max_coords - min_coords
+
+        # print('min coords: ', min_coords)
+        # print('max coords: ', max_coords)
+
+        # Create a translation to random point in bounding box of observed pcd
+        # for each init
+        if self.rand_translate:
+            rand_translate = torch.rand(M, 3, 1).to(dev)
+            rand_translate = rand_translate * coord_range + min_coords
+            # # print('translate: ', rand_translate)
+
+            rand_mat_init[:, :3, 3:4] = rand_translate
+
+        # for start_number in range(M):
+        #     # rand_rot_idx = np.random.randint(self.rot_grid.shape[0], size=M)
+        #     # rand_rot_init = torch3d_util.matrix_to_axis_angle(torch.from_numpy(self.rot_grid[rand_rot_idx])).float()
+        #     # rand_mat_init = torch_util.angle_axis_to_rotation_matrix(rand_rot_init)
+        #     # rand_mat_init = rand_mat_init.squeeze().float().to(dev)
+
+        #     rand_translate = torch.rand(3).to(dev) * coord_range + min_coords
+        #     rand_mat_init[start_number, :3, 3] = rand_translate
+        #     # print('mat: ', rand_mat_init)
+        #     # print('rand translate: ', rand_translate)
 
         # set up optimization
         X = query_pts_cent[:opt_pts][None, :, :].repeat((M, 1, 1))
