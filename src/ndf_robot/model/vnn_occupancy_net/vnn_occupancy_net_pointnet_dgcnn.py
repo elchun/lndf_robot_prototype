@@ -58,10 +58,10 @@ class VNN_DGCNN(nn.Module):
 
 class VNNOccNet(nn.Module):
     def __init__(self,
-                 latent_dim,
+                 latent_dim: int,
                  model_type='pointnet',
                  sigmoid=True,
-                 return_features=False, 
+                 return_features=False,
                  acts='all',
                  scaling=10.0):
         super().__init__()
@@ -90,14 +90,14 @@ class VNNOccNet(nn.Module):
                 coords: Input query points
 
         Returns:
-            dict: Dict outputs 
+            dict: Dict outputs
                 occ: predicted occupancy
                 features: latent features
         """
         out_dict = {}
 
-        enc_in = input['point_cloud'] * self.scaling 
-        query_points = input['coords'] * self.scaling 
+        enc_in = input['point_cloud'] * self.scaling
+        query_points = input['coords'] * self.scaling
 
         z = self.encoder(enc_in)
 
@@ -109,13 +109,13 @@ class VNNOccNet(nn.Module):
         return out_dict
 
     def extract_latent(self, input):
-        enc_in = input['point_cloud'] * self.scaling 
+        enc_in = input['point_cloud'] * self.scaling
         z = self.encoder(enc_in)
         return z
 
     def forward_latent(self, z, coords):
         out_dict = {}
-        coords = coords * self.scaling 
+        coords = coords * self.scaling
         out_dict['occ'], out_dict['features'] = self.decoder(coords, z)
 
         return out_dict['features']
@@ -305,7 +305,7 @@ class DecoderInner(nn.Module):
 
         # print('acts: ')
         # for act in acts:
-        #     print(act.size()) 
+        #     print(act.size())
         # print('---')
 
         if self.sigmoid:
@@ -618,7 +618,7 @@ class CResnetBlockConv1d(nn.Module):
         size_out (int): output dimension
         size_h (int): hidden dimension
         norm_method (str): normalization method
-        legacy (bool): whether to use legacy blocks 
+        legacy (bool): whether to use legacy blocks
     '''
 
     def __init__(self, c_dim, size_in, size_h=None, size_out=None,
