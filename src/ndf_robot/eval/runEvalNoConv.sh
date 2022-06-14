@@ -10,6 +10,7 @@ CUDA_VISIBLE_DEVICES=0 python evaluate_ndf.py \
         --exp no_conv_2\
         --num_iterations 100 \
 	--no_conv \
+        --any_pose \
 #       --pybullet_viz \
 #       --use_full_hand \
 #		--grasp_viz \
