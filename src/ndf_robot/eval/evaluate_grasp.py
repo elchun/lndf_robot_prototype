@@ -18,7 +18,14 @@ Evaluator:
 
 from enum import Enum
 import numpy as np
-import os, os.path as osp
+import os.path as osp
+import yaml
+
+import torch
+
+from airobot import Robot
+from airobot.utils import common
+from airobot.utils.common import euler2quat
 
 from ndf_robot.utils import path_util
 
@@ -30,70 +37,151 @@ import ndf_robot.model.conv_occupancy_net.conv_occupancy_net \
 from ndf_robot.opt.optimizer import OccNetOptimizer
 
 
-class ModelType(Enum):
-    VNN_NDF = 1
-    CONV_OCC = 2
+ModelTypes = {
+    'CONV_OCC',
+    'VNN_NDF',
+}
 
-
-class QueryPtType(Enum):
-    SPHERE = 1
+QueryPointTypes = {
+    'SPHERE'
+}
 
 
 class EvaluateGrasp():
-    def __init__(self, model_type: ModelType, model_args: 'dict[str, any]',
-        optimizer_args: 'dict[str, any]', query_pt_type: QueryPtType,
-        query_pt_args: 'dict[str, any]', seed: int=0):
+    def __init__(self, optimizer: OccNetOptimizer, seed: 0, pybullet_viz: False):
+        self.optimizer = optimizer
+        self.seed = 0
 
-        # Set model
-        self.model_type = model_type
-        if self.model_type == ModelType.VNN_NDF:
-            self.model = vnn_occupancy_network.VNNOccNet(**model_args)
-        elif self.model_type == ModelType.CONV_OCC:
-            self.model = conv_occupancy_network.ConvolutionalOccupancyNetwork(
-                **model_args)
-
-        # Set query points
-        if query_pt_type == QueryPtType.SPHERE:
-            self.query_pts = QueryPoints.generate_sphere(**query_pt_args)
-
-        # Set optimizer
-        self.optimizer = OccNetOptimizer(self.model, self.query_pts,
-            **optimizer_args)
+        self.robot = Robot('franka',
+                           pb_cfg={'gui': pybullet_viz},
+                           arm_cfg={'self_collision': False, 'seed': seed})
 
 
 class EvaluateGraspParser():
     """
     Set up experiment from config file
-
-    File format is yaml with
-
-    evaluator:
-        ...
-
-    model:
-        model_type: VNN_NDF or CONV_OCC
-        model_args:
-            ...
-
-    optimizer:
-        optimizer_args:
-            ...
-
-    query_pts:
-        query_pts_type: SPHERE (later add GRIPPER)
-        query_pts_args:
-            ...
-
     """
     def __init__(self):
         self.config_dir = osp.join(path_util.get_ndf_eval(), 'eval_configs')
 
-    def load_from_dicts(model_args, optimizer_args, query_pt_args)
+        self.evaluator_dict = None
+        self.model_dict = None
+        self.optimizer_dict = None
+        self.query_pts_dict = None
+
+    def load_config(self, fname: str):
+        """
+        Load config from yaml file with following fields:
+            evaluator:
+                ...
+
+            model:
+                model_type: VNN_NDF or CONV_OCC
+                model_args:
+                    ...
+
+            optimizer:
+                optimizer_args:
+                    ...
+
+            query_pts:
+                query_pts_type: SPHERE (later add GRIPPER)
+                query_pts_args:
+                    ...
+
+        Args:
+            fname (str): Name of config file.  Assumes config file is in
+                'eval_configs' in 'eval' folder.  Name does not include any
+                path prefixes (e.g. 'default_config' is fine)
+
+        """
+        config_path = osp.join(self.config_dir, fname)
+        with open(config_path, "r") as stream:
+            try:
+                config_dict = yaml.safe_load(stream)
+            except yaml.YAMLError as exc:
+                print(exc)
+
+        self.evaluator_dict = config_dict['evaluator']
+        self.model_dict = config_dict['model']
+        self.optimizer_dict = config_dict['optimizer']
+        self.query_pts_dict = config_dict['query_pts']
+
+        print(config_dict)
+
+    def create_model(self) -> torch.nn.Module:
+        """
+        Create torch model from given configs
+
+        Returns:
+            torch.nn.Module: Either ConvOccNetwork or VNNOccNet
+        """
+        model_type = self.model_dict['type']
+        model_args = self.model_dict['args']
+
+        assert model_type in ModelTypes, 'Invalid model type'
+
+        if model_type == 'CONV_OCC':
+            model = conv_occupancy_network.ConvolutionalOccupancyNetwork(
+                **model_args
+            )
+        elif model_type == 'VNN_NDF':
+            model = vnn_occupancy_network.VNNOccNet(
+                **model_args
+            )
+
+        print('---MODEL---\n', model)
+        return model
+
+    def create_optimizer(self, model: torch.nn.Module,
+                         query_pts: np.ndarray) -> OccNetOptimizer:
+        """
+        Create OccNetOptimizer from given config
+
+        Args:
+            model (torch.nn.Module): Model to use in the optimizer
+            query_pts (np.ndarray): Query points to use in optimizer
+
+        Returns:
+            OccNetOptimizer: Optimizer to find best grasp position
+        """
+        optimizer_args = self.optimizer_dict['args']
+        optimizer = OccNetOptimizer(model, query_pts, **optimizer_args)
+        return optimizer
+
+    def create_query_pts(self) -> np.ndarray:
+        """
+        Create query points from given config
+
+        Returns:
+            np.ndarray: Query point as ndarray
+        """
+
+        query_pts_type = self.query_pts_dict['type']
+        query_pts_args = self.query_pts_dict['args']
+
+        assert query_pts_type in QueryPointTypes, 'Invalid query point type'
+
+        if query_pts_type == 'SPHERE':
+            query_pts = QueryPoints.generate_sphere(**query_pts_args)
+
+        return query_pts
 
 
 class QueryPoints():
     @staticmethod
-    def generate_sphere(n_pts, radius=0.05):
+    def generate_sphere(n_pts: int, radius: float=0.05) -> np.ndarray:
+        """
+        Sample points inside sphere centered at origin with radius {radius}
+
+        Args:
+            n_pts (int): Number of point to sample.
+            radius (float, optional): Radius of sphere to sample.
+                Defaults to 0.05.
+
+        Returns:
+            np.ndarray: (n_pts x 3) array of query points
+        """
         # http://extremelearning.com.au/how-to-generate-uniformly-random-points-on-n-spheres-and-n-balls/
         u = 2 * np.random.rand(n_pts, 1) - 1
         phi = 2 * np.pi * np.random.rand(n_pts, 1)
@@ -104,3 +192,15 @@ class QueryPoints():
 
         sphere_points = np.hstack((x, y, z))
         return sphere_points
+
+
+if __name__ == '__main__':
+    config_fname = 'debug_config.yml'
+
+    parser = EvaluateGraspParser()
+    parser.load_config(config_fname)
+    model = parser.create_model()
+    query_pts = parser.create_query_pts()
+    optimizer = parser.create_optimizer(model, query_pts)
+
+    print(optimizer)
