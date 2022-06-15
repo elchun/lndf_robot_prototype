@@ -4,3 +4,4 @@ if __name__ == '__main__':
     parser = EvaluateGraspParser()
     parser.load_config('debug_config.yml')
     parser.create_model()
+    parser.create_eval_dir('DEBUG')
