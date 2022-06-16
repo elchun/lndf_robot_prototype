@@ -107,6 +107,7 @@ class EvaluateGrasp():
                            pb_cfg={'gui': pybullet_viz},
                            arm_cfg={'self_collision': False, 'seed': seed})
         self.ik_helper = FrankaIK(gui=False)
+        self.obj_class = obj_class
 
         self.shapenet_obj_dir = shapenet_obj_dir
         self.eval_save_dir = eval_save_dir
@@ -121,12 +122,15 @@ class EvaluateGrasp():
         util.safe_makedirs(self.eval_grasp_imgs_dir)
 
     def configure_sim(self):
+        """
+        Run after demos are loaded
+        """
         p.changeDynamics(self.robot.arm.robot_id, RobotIDs.left_pad_id,
             lateralFriction=1.0)
         p.changeDynamics(self.robot.arm.robot_id, RobotIDs.right_pad_id,
             lateralFriction=1.0)
 
-        self.robot.arm.rest(force_reset=True)
+        self.robot.arm.reset(force_reset=True)
         self.robot.cam.setup_camera(
             focus_pt=[0.4, 0.0, SimConstants.TABLE_Z],
             dist=0.9,
@@ -175,7 +179,7 @@ class EvaluateGrasp():
 
         # Iterate through all demos, extract relevant information and
         # prepare to pass into optimizer
-        for grasp_demo_fn in enumerate(grasp_demo_fnames):
+        for grasp_demo_fn in grasp_demo_fnames:
             print('Loading demo from fname: %s' % grasp_demo_fn)
             grasp_data = np.load(grasp_demo_fn, allow_pickle=True)
             grasp_data_list.append(grasp_data)
@@ -271,6 +275,7 @@ class EvaluateGrasp():
             pos = [
                 np.random.random() * (x_high - x_low) + x_low,
                 np.random.random() * (y_high - y_low) + y_low,
+                SimConstants.TABLE_Z
             ]
 
             pose = pos + ori
@@ -313,8 +318,8 @@ class EvaluateGrasp():
             )
 
         # -- Run robot -- #
-        self.robot.arm.go_home(ignore_physive=True)
-        self.robot.move_ee_xyz([0, 0, 0.2])
+        self.robot.arm.go_home(ignore_physics=True)
+        self.robot.arm.move_ee_xyz([0, 0, 0.2])
 
         if any_pose:
             self.robot.pb_client.set_step_sim(True)
@@ -337,7 +342,7 @@ class EvaluateGrasp():
             o_cid = constraint_obj_world(obj_id, pos, ori)
             self.robot.pb_client.set_step_sim(False)
         safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=True)
-        p.changeDynamics(obj_id, -1, linearDamping=5, angularDaming=5)
+        p.changeDynamics(obj_id, -1, linearDamping=5, angularDamping=5)
         time.sleep(1.5)
 
         time.sleep(1000)
@@ -587,10 +592,21 @@ class QueryPoints():
 if __name__ == '__main__':
     config_fname = 'debug_config.yml'
 
-    parser = EvaluateGraspSetup()
-    parser.load_config(config_fname)
-    model = parser.create_model()
-    query_pts = parser.create_query_pts()
-    optimizer = parser.create_optimizer(model, query_pts)
+    setup = EvaluateGraspSetup()
+    setup.load_config(config_fname)
+    model = setup.create_model()
+    query_pts = setup.create_query_pts()
+    optimizer = setup.create_optimizer(model, query_pts)
+    shapenet_obj_dir = setup.get_shapenet_obj_dir()
+    eval_save_dir = setup.create_eval_dir('DEBUG')
+    demo_load_dir = setup.get_demo_load_dir(obj_class='mug')
+
+    experiment = EvaluateGrasp(optimizer=optimizer, seed=0,
+        shapenet_obj_dir=shapenet_obj_dir, eval_save_dir=eval_save_dir,
+        demo_load_dir=demo_load_dir, pybullet_viz=True, obj_class='mug')
+
+    experiment.load_demos()
+    experiment.configure_sim()
+    experiment.run_trial(iteration=0, rand_mesh_scale=True, any_pose=True)
 
     print(optimizer)
