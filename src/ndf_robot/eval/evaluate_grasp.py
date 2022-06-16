@@ -81,13 +81,19 @@ class SimConstants:
     TABLE_Z = 1.15
 
     # placement of object
+        # x is forward / back when facing robot
+        # +y is right when facing robot
     OBJ_SAMPLE_X_LOW_HIGH = [0.4, 0.5]
-    OBJ_SAMPLE_Y_LOW_HIGH = [-0.4, 0.4]
+    # OBJ_SAMPLE_Y_LOW_HIGH = [-0.4, 0.4]
+    OBJ_SAMPLE_Y_LOW_HIGH = [-0.5, 0]
 
     # Object scales
-    MESH_SCALE_DEFAULT = 0.3
-    MESH_SCALE_HIGH = 0.4
-    MESH_SCALE_LOW = 0.2
+    MESH_SCALE_DEFAULT = 0.6
+    MESH_SCALE_HIGH = 0.8
+    MESH_SCALE_LOW = 0.4
+
+    # Avoid Mugs
+
 
 
 class EvaluateGrasp():
@@ -240,7 +246,7 @@ class EvaluateGrasp():
 
     def run_trial(self, iteration: int = 0, rand_mesh_scale: bool = True,
                   any_pose: bool = True, thin_feature: bool = True,
-                  grasp_viz: bool = True, grasp_dist_thresh: float = 0.0025):
+                  grasp_viz: bool = False, grasp_dist_thresh: float = 0.0025):
 
         eval_iter_dir = osp.join(self.eval_save_dir, 'trial_%d' % iteration)
         util.safe_makedirs(eval_iter_dir)
@@ -477,12 +483,14 @@ class EvaluateGrasp():
                 grasp_rgb = self.robot.cam.get_images(get_rgb=True)[0]
                 grasp_img_fname = osp.join(self.eval_grasp_imgs_dir, '%d.png' % iteration)
                 util.np2img(grasp_rgb.astype(np.uint8), grasp_img_fname)
+                self.robot.arm.go_home(ignore_physics=True)
                 continue
 
             # -- Get grasp plan -- #
-            plan1 = self.ik_helper.plan_joint_motion(self.robot.arm.get_jpos(),
-                                                     jnt_pos)
+            home_jnt_pos = self.robot.arm.get_jpos()
+            plan1 = self.ik_helper.plan_joint_motion(home_jnt_pos, jnt_pos)
             plan2 = self.ik_helper.plan_joint_motion(jnt_pos, grasp_jnt_pos)
+            plan3 = self.ik_helper.plan_joint_motion(grasp_jnt_pos, home_jnt_pos)
 
             if plan1 is not None and plan2 is not None:
                 # First move to clearance distance, then try to grasp
@@ -496,7 +504,7 @@ class EvaluateGrasp():
                 for jnt in plan2:
                     self.robot.arm.set_jpos(jnt, wait=False)
                     time.sleep(0.04)
-                self.robot.arm.set_jpos(grasp_plan[-1], wait=False)
+                self.robot.arm.set_jpos(plan2[-1], wait=False)
 
                 # get pose that's straight up
                 offset_pose = util.transform_pose(
@@ -527,6 +535,15 @@ class EvaluateGrasp():
                     enableCollision=False)
                 time.sleep(0.8)
 
+                for jnt in plan3:
+                    self.robot.arm.set_jpos(jnt, wait=False)
+                    time.sleep(0.025)
+                self.robot.arm.set_jpos(plan3[-1], wait=False)
+                time.sleep(1)
+
+                # self.robot.arm.go_home(ignore_physics=False)
+                # time.sleep(0.8)
+
                 if g_idx == 1:
                     # TEST GRASP ONLY CODE (MAY BREAK REST OF PLACE)
                     original_grasp_success = object_is_still_grasped(self.robot,
@@ -549,15 +566,9 @@ class EvaluateGrasp():
 
                     print('Grasp success: ', grasp_success)
 
-                if offset_jnts is not None:
-                    offset_plan = self.ik_helper.plan_joint_motion(
-                        self.robot.arm.get_jpos(), offset_jnts)
+        self.robot.pb_client.remove_body(obj_id)
 
-                    if offset_plan is not None:
-                        for jnt in offset_plan:
-                            self.robot.arm.set_jpos(jnt, wait=False)
-                            time.sleep(0.04)
-                        self.robot.arm.set_jpos(offset_plan[-1], wait=True)
+
 
     @classmethod
     def hide_link(cls, obj_id, link_id):
@@ -798,6 +809,7 @@ if __name__ == '__main__':
 
     experiment.load_demos()
     experiment.configure_sim()
-    experiment.run_trial(iteration=0, rand_mesh_scale=True, any_pose=True)
+    for i in range(10):
+        experiment.run_trial(iteration=i, rand_mesh_scale=True, any_pose=True)
 
     print(optimizer)
