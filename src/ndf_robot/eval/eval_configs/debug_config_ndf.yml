@@ -1,0 +1,27 @@
+seed: 0
+
+evaluator:
+  pybullet_viz: False
+
+model:
+  type: VNN_NDF
+  checkpoint: multi_category_weights.pth
+  args:
+    latent_dim: 256
+    model_type: pointnet
+    return_features: True
+    sigmoid: True
+    acts: all
+
+optimizer:
+  args:
+    opt_iterations: 500
+    rand_translate: True
+
+query_pts:
+  type: SPHERE
+  args:
+    n_pts: 500
+    radius: 0.05
+
+

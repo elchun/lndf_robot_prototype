@@ -84,13 +84,13 @@ class SimConstants:
         # x is forward / back when facing robot
         # +y is right when facing robot
     OBJ_SAMPLE_X_LOW_HIGH = [0.4, 0.5]
-    # OBJ_SAMPLE_Y_LOW_HIGH = [-0.4, 0.4]
-    OBJ_SAMPLE_Y_LOW_HIGH = [-0.5, 0]
+    OBJ_SAMPLE_Y_LOW_HIGH = [-0.4, 0.4]
+    # OBJ_SAMPLE_Y_LOW_HIGH = [-0.5, 0]
 
     # Object scales
     MESH_SCALE_DEFAULT = 0.6
     MESH_SCALE_HIGH = 0.8
-    MESH_SCALE_LOW = 0.4
+    MESH_SCALE_LOW = 0.5
 
     # Avoid Mugs
 
@@ -154,6 +154,11 @@ class EvaluateGrasp():
 
         # put table at right spot
         table_ori = euler2quat([0, 0, np.pi / 2])
+
+        # Get raw table urdf
+        table_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table.urdf')
+        with open(table_urdf_fname, 'r', encoding='utf-8') as f:
+            self.table_urdf = f.read()
 
         # this is the URDF that was used in the demos -- make sure we load an identical one
         tmp_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table_rack_tmp.urdf')
@@ -224,8 +229,9 @@ class EvaluateGrasp():
             demo_target_info_list.append(target_info)
             demo_shapenet_ids.append(shapenet_id)
 
-            # -- Get table urdf -- #
-            self.table_urdf = grasp_data['table_urdf'].item()
+            # # -- Get table urdf -- #
+            # Used to get same urdf as used in demos (i.e. with rack)
+            # self.table_urdf = grasp_data['table_urdf'].item()
 
         # -- Set demos -- #
         self.optimizer.set_demo_info(demo_target_info_list)
@@ -488,8 +494,14 @@ class EvaluateGrasp():
 
             # -- Get grasp plan -- #
             home_jnt_pos = self.robot.arm.get_jpos()
+
+            # Get to pre grasp location
             plan1 = self.ik_helper.plan_joint_motion(home_jnt_pos, jnt_pos)
+
+            # Get to grasp location
             plan2 = self.ik_helper.plan_joint_motion(jnt_pos, grasp_jnt_pos)
+
+            # Return to home location (for checking if grasp was valid)
             plan3 = self.ik_helper.plan_joint_motion(grasp_jnt_pos, home_jnt_pos)
 
             if plan1 is not None and plan2 is not None:
@@ -545,7 +557,6 @@ class EvaluateGrasp():
                 # time.sleep(0.8)
 
                 if g_idx == 1:
-                    # TEST GRASP ONLY CODE (MAY BREAK REST OF PLACE)
                     original_grasp_success = object_is_still_grasped(self.robot,
                         obj_id, RobotIDs.right_pad_id, RobotIDs.left_pad_id)
 
@@ -567,6 +578,8 @@ class EvaluateGrasp():
                     print('Grasp success: ', grasp_success)
 
         self.robot.pb_client.remove_body(obj_id)
+
+        return grasp_success
 
 
 
@@ -793,6 +806,7 @@ class QueryPoints():
 
 if __name__ == '__main__':
     config_fname = 'debug_config.yml'
+    # config_fname = 'debug_config_ndf.yml'
 
     setup = EvaluateGraspSetup()
     setup.load_config(config_fname)
@@ -809,7 +823,11 @@ if __name__ == '__main__':
 
     experiment.load_demos()
     experiment.configure_sim()
-    for i in range(10):
-        experiment.run_trial(iteration=i, rand_mesh_scale=True, any_pose=True)
+    num_success = 0
+    for i in range(20):
+        num_success += experiment.run_trial(iteration=i, rand_mesh_scale=True, any_pose=True)
+        print('---')
+        print(f'Successes: {num_success} | Trials {i + 1} | '
+            + f'Success Rate: {num_success / (i + 1)}')
 
     print(optimizer)
