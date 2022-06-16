@@ -140,11 +140,11 @@ class EvaluateGrasp():
         # Set up cameras
         cam_cfg = get_default_cam_cfg()
 
-        cams = MultiCams(cam_cfg, self.robot.pb_client,
+        self.cams = MultiCams(cam_cfg, self.robot.pb_client,
                          n_cams=SimConstants.N_CAMERAS)
         cam_info = {}
         cam_info['pose_world'] = []
-        for cam in cams.cams:
+        for cam in self.cams.cams:
             cam_info['pose_world'].append(util.pose_from_matrix(cam.cam_ext_mat))
 
         # put table at right spot
@@ -363,12 +363,12 @@ class EvaluateGrasp():
             flat_seg = seg.flatten()
             flat_depth = depth.flatten()
             obj_inds = np.where(flat_seg == obj_id)
-            table_inds = np.where(flat_seg == table_id)
+            table_inds = np.where(flat_seg == self.table_id)
             seg_depth = flat_depth[obj_inds[0]]
 
             obj_pts = pts_raw[obj_inds[0], :]
             obj_pcd_pts.append(util.crop_pcd(obj_pts))
-            table_pts = pts_raw[table_inds[0], :][::int(table_inds[0].shape[0]/500)]
+            table_pts = pts_raw[table_inds[0], :][::int(table_inds[0].shape[0] / 500)]
             table_pcd_pts.append(table_pts)
 
             depth_imgs.append(seg_depth)
