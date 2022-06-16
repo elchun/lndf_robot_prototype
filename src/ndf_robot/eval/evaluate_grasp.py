@@ -15,10 +15,9 @@ Evaluator:
     Use configs to generate appropriate evaluator
     Copy configs to file evaluation folder
 """
-
-from enum import Enum
 import numpy as np
-import os, os.path as osp
+import os
+import os.path as osp
 import yaml
 import random
 from datetime import datetime
@@ -250,7 +249,7 @@ class EvaluateGrasp():
         obj_shapenet_id = random.sample(self.test_object_ids, 1)[0]
         id_str = 'Shapenet ID: %s' % obj_shapenet_id
 
-        upright_orientation = common.euler2quat([np.pi/2, 0, 0]).tolist()
+        upright_orientation = common.euler2quat([np.pi / 2, 0, 0]).tolist()
 
         obj_fname = osp.join(self.shapenet_obj_dir, obj_shapenet_id,
             'models/model_normalized.obj')
@@ -401,8 +400,164 @@ class EvaluateGrasp():
                 pose_source=util.list2pose_stamped(pre_grasp_ee_pose),
                 pose_transform=util.list2pose_stamped(pregrasp_offset_tf)))
 
+        # -- Attempt grasp -- #
+        jnt_pos = grasp_jnt_pos = grasp_plan = None
+        grasp_success = False
+        for g_idx in range(2):
+            # reset everything
+            self.robot.pb_client.set_step_sim(False)
+            safeCollisionFilterPair(obj_id, self.table_id, -1, -1,
+                enableCollision=True)
 
+            if any_pose:
+                # Set to step mode (presumably so object doesn't fall when
+                # o_cid constraint is removed)
+                self.robot.pb_client.set_step_sim(True)
+            safeRemoveConstraint(o_cid)
+            p.resetBasePositionAndOrientation(obj_id, pos, ori)
+            print(p.getBasePositionAndOrientation(obj_id))
+            time.sleep(0.5)
 
+            # Freeze object in space and return to realtime
+            if any_pose:
+                o_cid = constraint_obj_world(obj_id, pos, ori)
+                self.robot.pb_client.set_step_sim(False)
+
+            # turn OFF collisions between robot and object / table, and move to pre-grasp pose
+            for i in range(p.getNumJoints(self.robot.arm.robot_id)):
+                safeCollisionFilterPair(bodyUniqueIdA=self.robot.arm.robot_id,
+                    bodyUniqueIdB=self.table_id,
+                    linkIndexA=i,
+                    linkIndexB=-1,
+                    enableCollision=False,
+                    physicsClientId=self.robot.pb_client.get_client_id())
+
+                safeCollisionFilterPair(bodyUniqueIdA=self.robot.arm.robot_id,
+                    bodyUniqueIdB=obj_id,
+                    linkIndexA=i,
+                    linkIndexB=-1,
+                    enableCollision=False,
+                    physicsClientId=self.robot.pb_client.get_client_id())
+
+            self.robot.arm.eetool.open()
+
+            # -- Get ik -- #
+            ik_found = jnt_pos is not None and grasp_jnt_pos is not None
+            # Try to compute ik in three different ways
+            if not ik_found:
+                jnt_pos = self.ik_helper.get_feasible_ik(pre_pre_grasp_ee_pose)
+                grasp_jnt_pos = self.ik_helper.get_feasible_ik(pre_grasp_ee_pose)
+                ik_found = jnt_pos is not None and grasp_jnt_pos is not None
+
+            # What does this do?
+            if not ik_found:
+                jnt_pos = self.ik_helper.get_ik(pre_pre_grasp_ee_pose)
+                grasp_jnt_pos = self.ik_helper.get_ik(pre_grasp_ee_pose)
+                ik_found = jnt_pos is not None and grasp_jnt_pos is not None
+
+            if not ik_found:
+                jnt_pos = self.robot.arm.compute_ik(
+                    pre_pre_grasp_ee_pose[:3], pre_pre_grasp_ee_pose[3:])
+                # this is the pose that's at the grasp,
+                # where we just need to close the fingers
+                grasp_jnt_pos = self.robot.arm.compute_ik(
+                    pre_grasp_ee_pose[:3], pre_grasp_ee_pose[3:])
+
+                ik_found = jnt_pos is not None and grasp_jnt_pos is not None
+
+            if not ik_found:
+                continue
+
+            # Get grasp image
+            if g_idx == 0:
+                self.robot.pb_client.set_step_sim(True)
+                self.robot.arm.set_jpos(grasp_jnt_pos, ignore_physics=True)
+                self.robot.arm.eetool.close(ignore_physics=True)
+                time.sleep(0.2)
+                grasp_rgb = self.robot.cam.get_images(get_rgb=True)[0]
+                grasp_img_fname = osp.join(self.eval_grasp_imgs_dir, '%d.png' % iteration)
+                util.np2img(grasp_rgb.astype(np.uint8), grasp_img_fname)
+                continue
+
+            # -- Get grasp plan -- #
+            plan1 = self.ik_helper.plan_joint_motion(self.robot.arm.get_jpos(),
+                                                     jnt_pos)
+            plan2 = self.ik_helper.plan_joint_motion(jnt_pos, grasp_jnt_pos)
+
+            if plan1 is not None and plan2 is not None:
+                # First move to clearance distance, then try to grasp
+                grasp_plan = plan1 + plan2
+
+                self.robot.arm.eetool.open()
+                for jnt in plan1:
+                    self.robot.arm.set_jpos(jnt, wait=False)
+                    time.sleep(0.025)
+                self.robot.arm.set_jpos(plan1[-1], wait=False)
+                for jnt in plan2:
+                    self.robot.arm.set_jpos(jnt, wait=False)
+                    time.sleep(0.04)
+                self.robot.arm.set_jpos(grasp_plan[-1], wait=False)
+
+                # get pose that's straight up
+                offset_pose = util.transform_pose(
+                    pose_source=util.list2pose_stamped(
+                        np.concatenate(self.robot.arm.get_ee_pose()[:2]).tolist()),
+                    pose_transform=util.list2pose_stamped([0, 0, 0.15, 0, 0, 0, 1])
+                )
+
+                offset_pose_list = util.pose_stamped2list(offset_pose)
+                offset_jnts = self.ik_helper.get_feasible_ik(offset_pose_list)
+
+                # turn ON collisions between robot and object, and close fingers
+                for i in range(p.getNumJoints(self.robot.arm.robot_id)):
+                    safeCollisionFilterPair(bodyUniqueIdA=self.robot.arm.robot_id,
+                        bodyUniqueIdB=obj_id,
+                        linkIndexA=i,
+                        linkIndexB=-1,
+                        enableCollision=True,
+                        physicsClientId=self.robot.pb_client.get_client_id())
+
+                time.sleep(0.8)
+                obj_pos_before_grasp = p.getBasePositionAndOrientation(obj_id)[0]
+                jnt_pos_before_grasp = self.robot.arm.get_jpos()
+                soft_grasp_close(self.robot, RobotIDs.finger_joint_id, force=50)
+                safeRemoveConstraint(o_cid)
+                time.sleep(0.8)
+                safeCollisionFilterPair(obj_id, self.table_id, -1, -1,
+                    enableCollision=False)
+                time.sleep(0.8)
+
+                if g_idx == 1:
+                    # TEST GRASP ONLY CODE (MAY BREAK REST OF PLACE)
+                    original_grasp_success = object_is_still_grasped(self.robot,
+                        obj_id, RobotIDs.right_pad_id, RobotIDs.left_pad_id)
+
+                    # If the ee was intersecting the mug, original_grasp_success
+                    # would be true after the table disappears.  However, an
+                    # intersection is generally a false grasp When the ee is
+                    # opened again, a good grasp should fall down while a
+                    # intersecting grasp would stay in contact.
+
+                    self.robot.arm.eetool.open()
+                    ee_intersecting_mug = object_is_still_grasped(
+                        self.robot, obj_id, RobotIDs.right_pad_id, RobotIDs.left_pad_id)
+
+                    grasp_success = original_grasp_success and not ee_intersecting_mug
+
+                    if ee_intersecting_mug:
+                        print('Intersecting grasp detected')
+
+                    print('Grasp success: ', grasp_success)
+
+                if offset_jnts is not None:
+                    offset_plan = self.ik_helper.plan_joint_motion(
+                        self.robot.arm.get_jpos(), offset_jnts)
+
+                    if offset_plan is not None:
+                        for jnt in offset_plan:
+                            self.robot.arm.set_jpos(jnt, wait=False)
+                            time.sleep(0.04)
+                        self.robot.arm.set_jpos(offset_plan[-1], wait=True)
 
     @classmethod
     def hide_link(cls, obj_id, link_id):
