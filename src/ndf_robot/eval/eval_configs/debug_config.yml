@@ -1,0 +1,27 @@
+seed: 0
+
+evaluator:
+  pybullet_viz: False
+
+model:
+  type: CONV_OCC
+  checkpoint: ndf_vnn/conv_occ_hidden32_anyrot_part2_1/checkpoints/model_epoch_0007_iter_119000.pth
+  args:
+    latent_dim: 32
+    model_type: pointnet
+    return_features: True
+    sigmoid: False
+    acts: last
+
+optimizer:
+  args:
+    opt_iterations: 500
+    rand_translate: True
+
+query_pts:
+  type: SPHERE
+  args:
+    n_pts: 500
+    radius: 0.05
+
+
