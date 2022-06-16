@@ -91,7 +91,6 @@ class SimConstants:
     MESH_SCALE_LOW = 0.2
 
 
-
 class EvaluateGrasp():
     """
     Class for running evaluation on robot arm
@@ -99,7 +98,7 @@ class EvaluateGrasp():
 
     def __init__(self, optimizer: OccNetOptimizer, seed: int,
                  shapenet_obj_dir: str, eval_save_dir: str, demo_load_dir: str,
-                 pybullet_viz: bool=False, obj_class: str='mug'):
+                 pybullet_viz: bool = False, obj_class: str = 'mug'):
         self.optimizer = optimizer
         self.seed = seed
 
@@ -241,7 +240,9 @@ class EvaluateGrasp():
                 self.test_object_ids.append(s_id)
 
     def run_trial(self, iteration: int = 0, rand_mesh_scale: bool = True,
-                  any_pose: bool = True):
+                  any_pose: bool = True, thin_feature: bool = True,
+                  grasp_viz: bool = True, grasp_dist_thresh: float = 0.0025):
+
         eval_iter_dir = osp.join(self.eval_save_dir, 'trial_%d' % iteration)
         util.safe_makedirs(eval_iter_dir)
 
@@ -345,18 +346,60 @@ class EvaluateGrasp():
         p.changeDynamics(obj_id, -1, linearDamping=5, angularDamping=5)
         time.sleep(1.5)
 
-        time.sleep(1000)
         # -- Get object point cloud -- #
+        depth_imgs = []
+        seg_idxs = []
+        obj_pcd_pts = []
+        table_pcd_pts = []
 
+        for i, cam in enumerate(self.cams.cams):
+            # get image and raw point cloud
+            rgb, depth, seg = cam.get_images(get_rgb=True, get_depth=True,
+                get_seg=True)
+            pts_raw, _ = cam.get_pcd(in_world=True, rgb_image=rgb,
+                depth_image=depth, depth_min=0.0, depth_max=np.inf)
 
+            # flatten and find corresponding pixels in segmentation mask
+            flat_seg = seg.flatten()
+            flat_depth = depth.flatten()
+            obj_inds = np.where(flat_seg == obj_id)
+            table_inds = np.where(flat_seg == table_id)
+            seg_depth = flat_depth[obj_inds[0]]
 
+            obj_pts = pts_raw[obj_inds[0], :]
+            obj_pcd_pts.append(util.crop_pcd(obj_pts))
+            table_pts = pts_raw[table_inds[0], :][::int(table_inds[0].shape[0]/500)]
+            table_pcd_pts.append(table_pts)
 
+            depth_imgs.append(seg_depth)
+            seg_idxs.append(obj_inds)
 
+        # object shape point cloud
+        target_obj_pcd_obs = np.concatenate(obj_pcd_pts, axis=0)
+        target_pts_mean = np.mean(target_obj_pcd_obs, axis=0)
+        inliers = np.where(np.linalg.norm(
+            target_obj_pcd_obs - target_pts_mean, 2, 1) < 0.2)[0]
+        target_obj_pcd_obs = target_obj_pcd_obs[inliers]
 
+        # -- Get grasp position -- #
+        pre_grasp_ee_pose_mats, best_idx = self.optimizer.optimize_transform_implicit(
+            target_obj_pcd_obs, ee=True)
+        pre_grasp_ee_pose = util.pose_stamped2list(util.pose_from_matrix(
+            pre_grasp_ee_pose_mats[best_idx]))
 
-
-
-
+        # -- Post process grasp position -- #
+        new_grasp_pt = post_process_grasp_point(
+            pre_grasp_ee_pose,
+            target_obj_pcd_obs,
+            thin_feature=thin_feature,
+            grasp_viz=grasp_viz,
+            grasp_dist_thresh=grasp_dist_thresh)
+        pre_grasp_ee_pose[:3] = new_grasp_pt
+        pregrasp_offset_tf = get_ee_offset(ee_pose=pre_grasp_ee_pose)
+        pre_pre_grasp_ee_pose = util.pose_stamped2list(
+            util.transform_pose(
+                pose_source=util.list2pose_stamped(pre_grasp_ee_pose),
+                pose_transform=util.list2pose_stamped(pregrasp_offset_tf)))
 
 
 
@@ -370,13 +413,6 @@ class EvaluateGrasp():
     def show_link(cls, obj_id, link_id, color):
         if link_id is not None:
             p.changeVisualShape(obj_id, link_id, rgbaColor=color)
-
-
-
-
-
-
-
 
 
 class EvaluateGraspSetup():
