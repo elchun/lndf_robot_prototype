@@ -18,7 +18,7 @@ from ndf_robot.utils.plotly_save import plot3d
 class OccNetOptimizer:
     def __init__(self, model, query_pts, query_pts_real_shape=None, opt_iterations=250,
                  noise_scale=0.0, noise_decay=0.5, single_object=False,
-                 rand_translate=False):
+                 rand_translate=False, viz_path='visualization'):
         self.model = model
         self.model_type = self.model.model_type
         self.query_pts_origin = query_pts
@@ -52,7 +52,7 @@ class OccNetOptimizer:
             log_warn('\n\n**** SINGLE OBJECT SET TO TRUE, WILL *NOT* USE A NEW SHAPE AT TEST TIME, AND WILL EXPECT TARGET INFO TO BE SET****\n\n')
 
         self.debug_viz_path = 'debug_viz'
-        self.viz_path = 'visualization'
+        self.viz_path = viz_path
         util.safe_makedirs(self.debug_viz_path)
         util.safe_makedirs(self.viz_path)
         self.viz_files = []
@@ -105,7 +105,8 @@ class OccNetOptimizer:
         query_pts_tf_rs = query_pts_tf
         return query_pts_cam_cent_rs, query_pts_tf_rs
 
-    def optimize_transform_implicit(self, shape_pts_world_np, ee=True, *args, **kwargs):
+    def optimize_transform_implicit(self, shape_pts_world_np, viz_path='visualize',
+        use_tsne=False, ee=True, *args, **kwargs):
         """
         Function to optimzie the transformation of our query points, conditioned on
         a set of shape points observed in the world
@@ -114,6 +115,9 @@ class OccNetOptimizer:
             shape_pts_world (np.ndarray): N x 3 array representing 3D point cloud of the object
                 to be manipulated, expressed in the world coordinate system
         """
+        # Make temp viz dir
+        util.safe_makedirs(viz_path)
+
         dev = self.dev
         n_pts = 1500
         # opt_pts = 500
@@ -293,8 +297,8 @@ class OccNetOptimizer:
                     scene_dict=self.scene_dict,
                     z_plane=False)
 
-                if self.tsne_fn is not None:
-                    self._tsne_viz(in_pts, self.tsne_fn)
+                if use_tsne:
+                    self._tsne_viz(in_pts, osp.join(viz_path, 'tsne.html'))
 
             ###############################################################################
 
@@ -332,9 +336,9 @@ class OccNetOptimizer:
             plot3d(
                 all_pts,
                 ['black', 'purple'],
-                osp.join('visualization', opt_fname),
+                osp.join(viz_path, opt_fname),
                 z_plane=False)
-            self.viz_files.append(osp.join('visualization', opt_fname))
+            self.viz_files.append(osp.join(viz_path, opt_fname))
 
             if ee:
                 T_mat = transform_mat_np

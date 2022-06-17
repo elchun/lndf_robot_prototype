@@ -15,6 +15,7 @@ Evaluator:
     Use configs to generate appropriate evaluator
     Copy configs to file evaluation folder
 """
+import argparse
 import numpy as np
 import os
 import os.path as osp
@@ -22,6 +23,7 @@ import yaml
 import random
 from datetime import datetime
 import time
+from enum import Enum
 
 import torch
 import trimesh
@@ -62,6 +64,17 @@ ModelTypes = {
 QueryPointTypes = {
     'SPHERE'
 }
+
+
+class TrialResults(Enum):
+    SUCCESS = 0
+    UNKNOWN_FAILURE = 1
+    BAD_GRASP_POS = 2
+    NO_FEASIBLE_IK = 3
+    INTERSECTING_EE = 4
+    GET_FEASIBLE_IK_FAILED = 5
+    GET_IK_FAILED = 6
+    COMPUTE_IK_FAILED = 7
 
 
 class RobotIDs:
@@ -244,6 +257,22 @@ class SimConstants:
     ]
 
 
+class TrialData():
+    """
+    Named container class for trial specific information
+
+    Args:
+        grasp_success (bool): True if trial was successful
+        trial_result (TrialResults): What the outcome of the trial was
+            (including) failure modes
+        obj_shapenet_id (str): Shapenet id of object used in trial
+    """
+    grasp_success = None
+    trial_result = TrialResults.UNKNOWN_FAILURE
+    obj_shapenet_id = None
+    best_idx = -1
+
+
 class EvaluateGrasp():
     """
     Class for running evaluation on robot arm
@@ -252,7 +281,8 @@ class EvaluateGrasp():
     def __init__(self, optimizer: OccNetOptimizer, seed: int,
                  shapenet_obj_dir: str, eval_save_dir: str, demo_load_dir: str,
                  pybullet_viz: bool = False, obj_class: str = 'mug',
-                 num_trials: int = 100):
+                 num_trials: int = 100, include_avoid_obj: bool = True,
+                 any_pose: bool = True):
         self.optimizer = optimizer
         self.seed = seed
 
@@ -272,6 +302,12 @@ class EvaluateGrasp():
             '%s_test_object_split.txt' % obj_class), dtype=str).tolist()
 
         self.num_trials = num_trials
+        if include_avoid_obj:
+            self.avoid_shapenet_ids = []
+        else:
+            self.avoid_shapenet_ids = SimConstants.MUG_AVOID_SHAPENET_IDS
+
+        self.any_pose = any_pose
 
         util.safe_makedirs(self.eval_grasp_imgs_dir)
 
@@ -397,8 +433,8 @@ class EvaluateGrasp():
             shapenet_id_list = os.listdir(self.shapenet_obj_dir)
 
         for s_id in shapenet_id_list:
-            valid = s_id not in demo_shapenet_ids
-                # and s_id not in SimConstants.MUG_AVOID_SHAPENET_IDS
+            valid = s_id not in demo_shapenet_ids \
+                and s_id not in self.avoid_shapenet_ids
 
             if valid:
                 self.test_object_ids.append(s_id)
@@ -407,11 +443,15 @@ class EvaluateGrasp():
                   any_pose: bool = True, thin_feature: bool = True,
                   grasp_viz: bool = False, grasp_dist_thresh: float = 0.0025):
 
-        eval_iter_dir = osp.join(self.eval_save_dir, 'trial_%d' % iteration)
+        # For save purposes
+        trial_data = TrialData()
+
+        eval_iter_dir = osp.join(self.eval_save_dir, 'trial_%s' % str(iteration).zfill(3))
         util.safe_makedirs(eval_iter_dir)
 
         # -- Get and orient object -- #
         obj_shapenet_id = random.sample(self.test_object_ids, 1)[0]
+        trial_data.obj_shapenet_id = obj_shapenet_id
         id_str = 'Shapenet ID: %s' % obj_shapenet_id
 
         upright_orientation = common.euler2quat([np.pi / 2, 0, 0]).tolist()
@@ -546,12 +586,15 @@ class EvaluateGrasp():
         target_obj_pcd_obs = target_obj_pcd_obs[inliers]
 
         # -- Get grasp position -- #
+        opt_viz_path = osp.join(eval_iter_dir, 'visualize')
         pre_grasp_ee_pose_mats, best_idx = self.optimizer.optimize_transform_implicit(
-            target_obj_pcd_obs, ee=True)
+            target_obj_pcd_obs, ee=True, viz_path=opt_viz_path)
         pre_grasp_ee_pose = util.pose_stamped2list(util.pose_from_matrix(
             pre_grasp_ee_pose_mats[best_idx]))
+        trial_data.best_idx = best_idx
 
         # -- Post process grasp position -- #
+        print('pre_grasp_ee_pose: ', pre_grasp_ee_pose)
         new_grasp_pt = post_process_grasp_point(
             pre_grasp_ee_pose,
             target_obj_pcd_obs,
@@ -615,6 +658,7 @@ class EvaluateGrasp():
                 ik_found = jnt_pos is not None and grasp_jnt_pos is not None
                 if not ik_found:
                     print('get_feasible_ik failed')
+                    trial_data.trial_result = TrialResults.GET_FEASIBLE_IK_FAILED
 
             # What does this do?
             if not ik_found:
@@ -623,6 +667,7 @@ class EvaluateGrasp():
                 ik_found = jnt_pos is not None and grasp_jnt_pos is not None
                 if not ik_found:
                     print('get_ik failed')
+                    trial_data.trial_result = TrialResults.GET_IK_FAILED
 
             if not ik_found:
                 jnt_pos = self.robot.arm.compute_ik(
@@ -635,6 +680,7 @@ class EvaluateGrasp():
                 ik_found = jnt_pos is not None and grasp_jnt_pos is not None
                 if not ik_found:
                     print('compute_ik failed')
+                    trial_data.trial_result = TrialResults.COMPUTE_IK_FAILED
 
             if not ik_found:
                 continue
@@ -646,7 +692,8 @@ class EvaluateGrasp():
                 self.robot.arm.eetool.close(ignore_physics=True)
                 time.sleep(0.2)
                 grasp_rgb = self.robot.cam.get_images(get_rgb=True)[0]
-                grasp_img_fname = osp.join(self.eval_grasp_imgs_dir, '%d.png' % iteration)
+                grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
+                    '%s.png' % str(iteration).zfill(3))
                 util.np2img(grasp_rgb.astype(np.uint8), grasp_img_fname)
 
                 self.robot.arm.go_home(ignore_physics=True)
@@ -727,19 +774,29 @@ class EvaluateGrasp():
                     # intersecting grasp would stay in contact.
 
                     self.robot.arm.eetool.open()
+                    time.sleep(1)
                     ee_intersecting_mug = object_is_still_grasped(
-                        self.robot, obj_id, RobotIDs.right_pad_id, RobotIDs.left_pad_id)
+                        self.robot, obj_id, RobotIDs.right_pad_id,
+                        RobotIDs.left_pad_id)
 
                     grasp_success = original_grasp_success and not ee_intersecting_mug
 
                     if ee_intersecting_mug:
                         print('Intersecting grasp detected')
+                        trial_data.trial_result = TrialResults.INTERSECTING_EE
+                    else:
+                        if not grasp_success:
+                            trial_data.trial_result = TrialResults.BAD_GRASP_POS
 
                     log_info(f'Grasp success: {grasp_success}')
 
+        if grasp_success:
+            trial_data.trial_result = TrialResults.SUCCESS
+
+        trial_data.grasp_success = grasp_success
         self.robot.pb_client.remove_body(obj_id)
 
-        return grasp_success, obj_shapenet_id
+        return trial_data
 
     def run_experiment(self):
         # TODO: Add trial args
@@ -748,9 +805,15 @@ class EvaluateGrasp():
         """
         num_success = 0
         for it in range(self.num_trials):
-            grasp_success, obj_shapenet_id = experiment.run_trial(iteration=it,
-                rand_mesh_scale=True, any_pose=True)
+            trial_data = experiment.run_trial(iteration=it,
+                rand_mesh_scale=True, any_pose=self.any_pose)
+
+            grasp_success = trial_data.grasp_success
+            obj_shapenet_id = trial_data.obj_shapenet_id
+            trial_result = trial_data.trial_result
+
             num_success += grasp_success
+            log_info(f'Trial result: {trial_result}')
             log_str = f'Successes: {num_success} | Trials {it + 1} | ' \
                 + f'Success Rate: {num_success / (it + 1)}'
             log_info(log_str)
@@ -758,8 +821,10 @@ class EvaluateGrasp():
             with open(self.global_summary_fname, 'a') as f:
                 f.write(f'Trial number: {it}\n')
                 f.write(f'Grasp success: {grasp_success}\n')
+                f.write(f'Trial result: {trial_result}\n')
                 f.write(f'Success Rate: {num_success / (it + 1)}\n')
                 f.write(f'Shapenet id: {obj_shapenet_id}\n')
+                f.write(f'Best idx: {trial_data.best_idx}\n')
                 f.write('\n')
 
     @classmethod
@@ -820,6 +885,7 @@ class EvaluateGraspSetup():
             except yaml.YAMLError as exc:
                 print(exc)
 
+        self.config_dict = config_dict
         self.evaluator_dict = config_dict['evaluator']
         self.model_dict = config_dict['model']
         self.optimizer_dict = config_dict['optimizer']
@@ -862,7 +928,7 @@ class EvaluateGraspSetup():
         return model
 
     def create_optimizer(self, model: torch.nn.Module,
-                         query_pts: np.ndarray) -> OccNetOptimizer:
+                         query_pts: np.ndarray, eval_save_dir=None) -> OccNetOptimizer:
         """
         Create OccNetOptimizer from given config
 
@@ -874,7 +940,13 @@ class EvaluateGraspSetup():
             OccNetOptimizer: Optimizer to find best grasp position
         """
         optimizer_args = self.optimizer_dict['args']
-        optimizer = OccNetOptimizer(model, query_pts, **optimizer_args)
+        if eval_save_dir is not None:
+            opt_viz_path = osp.join(eval_save_dir, 'visualization')
+        else:
+            opt_viz_path = 'visualization'
+
+        optimizer = OccNetOptimizer(model, query_pts, viz_path=opt_viz_path,
+            **optimizer_args)
         return optimizer
 
     def create_query_pts(self) -> np.ndarray:
@@ -923,6 +995,14 @@ class EvaluateGraspSetup():
                                  experiment_name)
 
         util.safe_makedirs(eval_save_dir)
+
+        config_fname_yml = osp.join(eval_save_dir, 'config.yml')
+        config_fname_txt = osp.join(eval_save_dir, 'config.txt')
+        with open(config_fname_yml, 'w') as f:
+            yaml.dump(self.config_dict, f)
+
+        with open(config_fname_txt, 'w') as f:
+            yaml.dump(self.config_dict, f)
 
         return eval_save_dir
 
@@ -995,17 +1075,23 @@ class QueryPoints():
 
 
 if __name__ == '__main__':
-    config_fname = 'debug_config.yml'
+    # config_fname = 'debug_config.yml'
     # config_fname = 'debug_config_ndf.yml'
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config_fname', type=str, default='debug_config.yml',
+                        help='Filename of experiment config yml')
+
+    args = parser.parse_args()
+    config_fname = args.config_fname
 
     setup = EvaluateGraspSetup()
     setup.load_config(config_fname)
     model = setup.create_model()
     query_pts = setup.create_query_pts()
-    optimizer = setup.create_optimizer(model, query_pts)
     shapenet_obj_dir = setup.get_shapenet_obj_dir()
     eval_save_dir = setup.create_eval_dir()
     demo_load_dir = setup.get_demo_load_dir(obj_class='mug')
+    optimizer = setup.create_optimizer(model, query_pts, eval_save_dir=eval_save_dir)
     evaluator_args = setup.get_evaluator_args()
 
     experiment = EvaluateGrasp(optimizer=optimizer, seed=setup.get_seed(),

@@ -1,13 +1,14 @@
 
 setup_args:
-  exp_dir_suffix: DEBUG_NDF_NOAVOID
+  exp_dir_suffix: NDF_upright
   seed: 0
 
 evaluator:
   pybullet_viz: False
   obj_class: mug
   num_trials: 200
-  include_avoid_obj: True
+  include_avoid_obj: False
+  any_pose: False
 
 model:
   type: VNN_NDF
