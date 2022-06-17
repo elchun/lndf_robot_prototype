@@ -1,7 +1,12 @@
-seed: 0
+
+setup_args:
+  exp_dir_suffix: DEBUG_CONV_OCC_NO_AVOID
+  seed: 0
 
 evaluator:
   pybullet_viz: False
+  obj_class: mug
+  num_trials: 200
 
 model:
   type: CONV_OCC
@@ -15,7 +20,7 @@ model:
 
 optimizer:
   args:
-    opt_iterations: 500
+    opt_iterations: 1000
     rand_translate: True
 
 query_pts:

@@ -845,7 +845,7 @@ def main(args, global_dict):
             obj_cfg=util.cn2dict(obj_cfg)
         )
 
-        # save visualizations for debugging / looking at optimizaiton solutions
+        # save visualizations for debugging / looking at optimization solutions
         if args.save_vis_per_model:
             eval_iter_viz_dir = osp.join(eval_iter_dir, obj_shapenet_id)
             if not osp.exists(eval_iter_viz_dir):
@@ -896,6 +896,7 @@ def main(args, global_dict):
             f.write('\n')
 
         robot.pb_client.remove_body(obj_id)
+
 
 def make_unique_path_to_dir(base_path: str) -> str:
     """

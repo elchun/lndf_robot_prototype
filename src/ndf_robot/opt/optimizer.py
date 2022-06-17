@@ -351,6 +351,8 @@ class OccNetOptimizer:
         model_input = {}
         pcd_torch = torch.from_numpy(pcd).float().to(self.dev)
 
+        if pcd.shape[0] <= 0:
+            return
         rix = np.random.randint(0, pcd.shape[0], (n_query_pts))
         pcd_small = pcd[rix, :]
 
