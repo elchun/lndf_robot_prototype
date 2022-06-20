@@ -10,19 +10,19 @@ cscale = 'Viridis'
 black_marker = {
         'size': msz,
         'color': 'black',
-        'colorscale': cscale, 
-        'opacity': op 
+        'colorscale': cscale,
+        'opacity': op
         }
 blue_marker = {
         'size': msz,
         'color': 'blue',
-        'colorscale': cscale, 
+        'colorscale': cscale,
         'opacity': op
         }
 red_marker = {
         'size': msz,
         'color': 'red',
-        'colorscale': cscale, 
+        'colorscale': cscale,
         'opacity': op
         }
 purple_marker = {
@@ -53,7 +53,7 @@ marker_dict = {
         'green': green_marker
         }
 
-def plot3d(pts_list, colors=['black'], fname='default_3d.html', 
+def plot3d(pts_list, colors=['black'], fname='default_3d.html',
            auto_scene=False, scene_dict=None, z_plane=True, write=True,
            extra_data=None, pts_label_list=None):
     '''
@@ -62,7 +62,7 @@ def plot3d(pts_list, colors=['black'], fname='default_3d.html',
     Args:
         pts_list (list): list of numpy arrays, each containing a separate point cloud
         colors (list): list of color names corresponding to each point cloud in pts. If this is
-            not a list, or there's only one element in the list, we will assume to use the 
+            not a list, or there's only one element in the list, we will assume to use the
             specified colors for each point cloud
         fname (str): name of file to save
         auto_scene (bool): If true, let plotly autoconfigure the scene camera / boundaries / etc.
@@ -95,9 +95,9 @@ def plot3d(pts_list, colors=['black'], fname='default_3d.html',
                 'z': pts[:, 2],
                 'mode': 'markers',
                 'marker': marker_dict[colors[i]]}
-        
-        if add_labels: 
-            pcd_data['name'] = pts_label_list[i] 
+
+        if add_labels:
+            pcd_data['name'] = pts_label_list[i]
         fig_data.append(pcd_data)
 
     z_height = min(all_pts[:, 2])
@@ -109,7 +109,7 @@ def plot3d(pts_list, colors=['black'], fname='default_3d.html',
        'color': 'gray',
        'opacity': 0.5,
        'delaunayaxis': 'z'}
-    
+
     if z_plane:
         fig_data.append(plane_data)
 

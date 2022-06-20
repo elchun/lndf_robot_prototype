@@ -333,10 +333,18 @@ class OccNetOptimizer:
 
             all_pts = [ee_pts_world, shape_pts_world_np]
             opt_fname = 'ee_pose_optimized_%d.html' % j if ee else 'rack_pose_optimized_%d.html' % j
+            opt_scene_dict = {
+                'scene': {
+                    'xaxis': {'nticks': 16, 'range': [-1, 1]},
+                    'yaxis': {'nticks': 16, 'range': [-1, 1]},
+                    'zaxis': {'nticks': 16, 'range': [0, 2]}
+                }
+            }
             plot3d(
                 all_pts,
                 ['black', 'purple'],
                 osp.join(viz_path, opt_fname),
+                scene_dict=opt_scene_dict,
                 z_plane=False)
             self.viz_files.append(osp.join(viz_path, opt_fname))
 

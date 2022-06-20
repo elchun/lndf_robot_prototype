@@ -62,7 +62,8 @@ ModelTypes = {
 }
 
 QueryPointTypes = {
-    'SPHERE'
+    'SPHERE',
+    'RECT',
 }
 
 
@@ -297,6 +298,7 @@ class EvaluateGrasp():
         self.demo_load_dir = demo_load_dir
         self.eval_grasp_imgs_dir = osp.join(eval_save_dir, 'grasp_imgs')
         self.global_summary_fname = osp.join(eval_save_dir, 'global_summary.txt')
+        self.shapenet_id_list_fname = osp.join(eval_save_dir, 'shapenet_id_list.txt')
 
         self.test_shapenet_ids = np.loadtxt(osp.join(path_util.get_ndf_share(),
             '%s_test_object_split.txt' % obj_class), dtype=str).tolist()
@@ -453,6 +455,10 @@ class EvaluateGrasp():
         obj_shapenet_id = random.sample(self.test_object_ids, 1)[0]
         trial_data.obj_shapenet_id = obj_shapenet_id
         id_str = 'Shapenet ID: %s' % obj_shapenet_id
+
+        # Write at start so id is recorded regardless of any later bugs
+        with open(self.shapenet_id_list_fname, 'a') as f:
+            f.write(f'{trial_data.obj_shapenet_id}\n')
 
         upright_orientation = common.euler2quat([np.pi / 2, 0, 0]).tolist()
 
@@ -964,6 +970,8 @@ class EvaluateGraspSetup():
 
         if query_pts_type == 'SPHERE':
             query_pts = QueryPoints.generate_sphere(**query_pts_args)
+        elif query_pts_type == 'RECT':
+            query_pts = QueryPoints.generate_rect(**query_pts_args)
 
         return query_pts
 
@@ -1072,6 +1080,56 @@ class QueryPoints():
 
         sphere_points = np.hstack((x, y, z))
         return sphere_points
+
+    @staticmethod
+    def generate_rect(n_pts: int, x: float, y: float, z1: float, z2: float) \
+        -> np.ndarray:
+        """
+        Create rectangle of query points with center of grip at 'o' and
+        dimensions as shown.  'o' is centered in x and y.  All dims should be
+        positive.
+
+        With this system, z1 is closest to the gripper body while y is
+        along the direction that the gripper fingers move.  It seems that
+        a high z1 and lower z2 work well.
+
+                _________
+              /          /|
+         ___ /_________ / |
+          |  |         |  |
+          |  |         |  |
+          |  |         |  |
+          z2 |         |  |
+          |  |         |  |
+          |  |     o   |  |  __
+         -+- | - -/    |  /  /
+          z1 |         | /  y
+         _|_ |_________|/ _/_
+
+             |----x----|
+
+        Args:
+            n_pts (int): Number of point to sample.
+            x (float): x dim.
+            y (float): y dim.
+            z1 (float): z1 dim.
+            z2 (float): z2 dim.
+
+        Returns:
+            np.ndarray: (n_pts x 3) array of query points
+        """
+
+        rect_points = np.random.rand(n_pts, 3)
+        scale_mat = np.array(
+            [[x, 0, 0],
+             [0, y, 0],
+             [0, 0, z1 + z2]]
+        )
+        offset_mat = np.array(
+            [[x/2, y/2, z1]]
+        )
+        rect_points = rect_points @ scale_mat - offset_mat
+        return rect_points
 
 
 if __name__ == '__main__':
