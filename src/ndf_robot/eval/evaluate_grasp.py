@@ -49,6 +49,8 @@ from ndf_robot.opt.optimizer import OccNetOptimizer
 from ndf_robot.robot.multicam import MultiCams
 from ndf_robot.utils.franka_ik import FrankaIK
 
+from scipy.spatial.transform import Rotation as R
+
 from ndf_robot.utils.eval_gen_utils import (
     soft_grasp_close, constraint_grasp_close, constraint_obj_world, constraint_grasp_open,
     safeCollisionFilterPair, object_is_still_grasped, get_ee_offset, post_process_grasp_point,
@@ -76,6 +78,7 @@ class TrialResults(Enum):
     GET_FEASIBLE_IK_FAILED = 5
     GET_IK_FAILED = 6
     COMPUTE_IK_FAILED = 7
+    POST_PROCESS_FAILED = 8
 
 
 class RobotIDs:
@@ -102,6 +105,10 @@ class SimConstants:
     # OBJ_SAMPLE_Y_LOW_HIGH = [-0.4, 0.4]
     OBJ_SAMPLE_Y_LOW_HIGH = [-0.2, 0.2]
     # OBJ_SAMPLE_Y_LOW_HIGH = [-0.5, 0]
+
+    OBJ_SAMPLE_R_MIN_MAX = [0.02, 0.05]
+    OBJ_SAMPLE_X_OFFSET = 0.5
+    OBJ_SAMPLE_Y_OFFSET = 0
 
     # Object scales
     MESH_SCALE_DEFAULT = 0.5
@@ -268,7 +275,7 @@ class TrialData():
             (including) failure modes
         obj_shapenet_id (str): Shapenet id of object used in trial
     """
-    grasp_success = None
+    grasp_success = False
     trial_result = TrialResults.UNKNOWN_FAILURE
     obj_shapenet_id = None
     best_idx = -1
@@ -479,23 +486,35 @@ class EvaluateGrasp():
         x_low, x_high = SimConstants.OBJ_SAMPLE_X_LOW_HIGH
         y_low, y_high = SimConstants.OBJ_SAMPLE_Y_LOW_HIGH
 
+        min_r, max_r = SimConstants.OBJ_SAMPLE_R_MIN_MAX
+        x_offset = SimConstants.OBJ_SAMPLE_X_OFFSET
+        y_offset = SimConstants.OBJ_SAMPLE_Y_OFFSET
+
         if any_pose:
-            rp = np.random.rand(3) * (2 * np.pi / 3) - (np.pi / 3)
-            ori = common.euler2quat([rp[0], rp[1], rp[2]]).tolist()
+            pos, ori = self.compute_anyrot_pose(min_r, max_r)
 
             pos = [
-                np.random.random() * (x_high - x_low) + x_low,
-                np.random.random() * (y_high - y_low) + y_low,
-                SimConstants.TABLE_Z
+                pos[0] + x_offset,
+                pos[1] + y_offset,
+                pos[2]
             ]
 
-            pose = pos + ori
-            rand_yaw_T = util.rand_body_yaw_transform(pos, min_theta=-np.pi,
-                max_theta=np.pi)
-            pose_w_yaw = util.transform_pose(util.list2pose_stamped(pose),
-                util.pose_from_matrix(rand_yaw_T))
-            pos, ori = util.pose_stamped2list(pose_w_yaw)[:3], \
-                util.pose_stamped2list(pose_w_yaw)[3:]
+            # rp = np.random.rand(3) * (2 * np.pi / 3) - (np.pi / 3)
+            # ori = common.euler2quat([rp[0], rp[1], rp[2]]).tolist()
+
+            # pos = [
+            #     np.random.random() * (x_high - x_low) + x_low,
+            #     np.random.random() * (y_high - y_low) + y_low,
+            #     SimConstants.TABLE_Z
+            # ]
+
+            # pose = pos + ori  # concat of pos and orientation
+            # rand_yaw_T = util.rand_body_yaw_transform(pos, min_theta=-np.pi,
+            #     max_theta=np.pi)
+            # pose_w_yaw = util.transform_pose(util.list2pose_stamped(pose),
+            #     util.pose_from_matrix(rand_yaw_T))
+            # pos, ori = util.pose_stamped2list(pose_w_yaw)[:3], \
+            #     util.pose_stamped2list(pose_w_yaw)[3:]
         else:
             pos = [np.random.random() * (x_high - x_low) + x_low,
                 np.random.random() * (y_high - y_low) + y_low,
@@ -600,13 +619,18 @@ class EvaluateGrasp():
         trial_data.best_idx = best_idx
 
         # -- Post process grasp position -- #
-        print('pre_grasp_ee_pose: ', pre_grasp_ee_pose)
-        new_grasp_pt = post_process_grasp_point(
-            pre_grasp_ee_pose,
-            target_obj_pcd_obs,
-            thin_feature=thin_feature,
-            grasp_viz=grasp_viz,
-            grasp_dist_thresh=grasp_dist_thresh)
+        # print('pre_grasp_ee_pose: ', pre_grasp_ee_pose)
+        try:
+            new_grasp_pt = post_process_grasp_point(
+                pre_grasp_ee_pose,
+                target_obj_pcd_obs,
+                thin_feature=thin_feature,
+                grasp_viz=grasp_viz,
+                grasp_dist_thresh=grasp_dist_thresh)
+        except IndexError:
+            trial_data.trial_result = TrialResults.POST_PROCESS_FAILED
+            return trial_data
+
         pre_grasp_ee_pose[:3] = new_grasp_pt
         pregrasp_offset_tf = get_ee_offset(ee_pose=pre_grasp_ee_pose)
         pre_pre_grasp_ee_pose = util.pose_stamped2list(
@@ -842,6 +866,29 @@ class EvaluateGrasp():
     def show_link(cls, obj_id, link_id, color):
         if link_id is not None:
             p.changeVisualShape(obj_id, link_id, rgbaColor=color)
+
+    @classmethod
+    def compute_anyrot_pose(cls, min_r: float = 0.1, max_r: float = 0.3):
+        # TODO Docstring
+        ori_rot = R.random()
+        r = random.random() * (max_r - min_r) + min_r
+
+        pos_sphere = np.array([0, 0, -r])
+        pos_sphere = ori_rot.apply(pos_sphere)
+
+        # So that there is some variation in min z height
+        z_noise = random.random() * (min_r / 4)
+        pos = [
+            pos_sphere[0],
+            pos_sphere[1],
+            # pos_sphere[2],
+            max(SimConstants.TABLE_Z + z_noise, SimConstants.TABLE_Z + pos_sphere[2]),
+        ]
+
+        ori = ori_rot.as_quat().tolist()
+
+        # pose = pos + ori  # concat of pos and orientation
+        return pos, ori
 
 
 class EvaluateGraspSetup():
@@ -1093,20 +1140,20 @@ class QueryPoints():
         along the direction that the gripper fingers move.  It seems that
         a high z1 and lower z2 work well.
 
-                _________
-              /          /|
-         ___ /_________ / |
-          |  |         |  |
-          |  |         |  |
-          |  |         |  |
-          z2 |         |  |
-          |  |         |  |
-          |  |     o   |  |  __
-         -+- | - -/    |  /  /
-          z1 |         | /  y
-         _|_ |_________|/ _/_
+                   _________
+                 /          /|
+            ___ /_________ / |
+             |  |         |  |
+             |  |         |  |
+             |  |         |  |
+             z2 |         |  |
+             |  |         |  |
+             |  |     o   |  |  __
+            -+- | - -/    |  /  /
+             z1 |         | /  y
+            _|_ |_________|/ _/_
 
-             |----x----|
+                |----x----|
 
         Args:
             n_pts (int): Number of point to sample.
@@ -1165,5 +1212,3 @@ if __name__ == '__main__':
     #     print('---')
     #     print(f'Successes: {num_success} | Trials {i + 1} | '
     #         + f'Success Rate: {num_success / (i + 1)}')
-
-    print(optimizer)

@@ -1,6 +1,6 @@
 
 setup_args:
-  exp_dir_suffix: CONV_OCC_upright_QR4-fat_wide_rect
+  exp_dir_suffix: CONV_OCC_anyrot_d4_prelim
   # exp_dir_suffix: DEBUG_CONV_OCC_RECT_QUERY
   seed: 0
 
@@ -9,13 +9,15 @@ evaluator:
   obj_class: mug
   num_trials: 200
   include_avoid_obj: False
-  any_pose: False
+  any_pose: True
 
 model:
   type: CONV_OCC
-  checkpoint: ndf_vnn/conv_occ_hidden32_anyrot_part2_1/checkpoints/model_epoch_0007_iter_119000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden32_anyrot_part2_1/checkpoints/model_epoch_0007_iter_119000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_final.pth
+  checkpoint: ndf_vnn/conv_occ_hidden4_anyrot_6/checkpoints/model_final.pth
   args:
-    latent_dim: 32
+    latent_dim: 4
     model_type: pointnet
     return_features: True
     sigmoid: False
@@ -40,8 +42,8 @@ query_pts:
   type: RECT
   args:
     n_pts: 1000
-    x: 0.07
-    y: 0.07
+    x: 0.06
+    y: 0.09
     z1: 0.06
     z2: 0.02
 

@@ -293,7 +293,7 @@ class OccNetOptimizer:
                 plot3d(
                     [in_pts, shape_np],
                     ['blue', 'black'],
-                    osp.join(self.debug_viz_path, 'recon_overlay.html'),
+                    osp.join(viz_path, 'recon_overlay.html'),
                     scene_dict=self.scene_dict,
                     z_plane=False)
 

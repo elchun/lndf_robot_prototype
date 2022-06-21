@@ -90,10 +90,9 @@ if __name__ == '__main__':
     #     'acts': 'last'
     # }
 
-
-    # conv_occ_args = latent_dim_4
+    conv_occ_args = latent_dim_4
     # conv_occ_args = default_args
-    conv_occ_args = latent_dim_32
+    # conv_occ_args = latent_dim_32
     # conv_occ_args = latent_dim_64
 
     # -- LOSS FUNCTION ARGS -- #
@@ -157,8 +156,8 @@ if __name__ == '__main__':
     }
 
     # loss_fn_args = super_super_aggressive_similar
-    loss_fn_args = similar_occ_only
-    # loss_fn_args = no_similarity
+    # loss_fn_args = similar_occ_only
+    loss_fn_args = no_similarity
     # loss_fn_args = similar_occ_no_neg_latent_weight
 
     # -- DATALOADER ARGS -- #
@@ -227,7 +226,7 @@ if __name__ == '__main__':
         steps_til_summary=opt.steps_til_summary,
         epochs_til_checkpoint=opt.epochs_til_ckpt,
         model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt,
-        summary_fn=summary_fn,clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True,
+        summary_fn=summary_fn, clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True,
         config_dict=config)
 
     # training.train_conv_triplet_latent(model=model_parallel, train_dataloader=train_dataloader,
