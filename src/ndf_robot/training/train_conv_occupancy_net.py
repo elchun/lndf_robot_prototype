@@ -78,6 +78,12 @@ if __name__ == '__main__':
         'acts': 'last',
     }
 
+    latent_dim_16 = {
+        'latent_dim': 16,
+        'return_features': True,
+        'acts': 'last'
+    }
+
     latent_dim_64 = {
         'latent_dim': 64,
         'return_features': True,
@@ -90,8 +96,9 @@ if __name__ == '__main__':
     #     'acts': 'last'
     # }
 
-    conv_occ_args = latent_dim_4
+    # conv_occ_args = latent_dim_4
     # conv_occ_args = default_args
+    conv_occ_args = latent_dim_16
     # conv_occ_args = latent_dim_32
     # conv_occ_args = latent_dim_64
 

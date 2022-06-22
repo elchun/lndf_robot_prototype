@@ -16,6 +16,7 @@ Evaluator:
     Copy configs to file evaluation folder
 """
 import argparse
+from multiprocessing.sharedctypes import Value
 import numpy as np
 import os
 import os.path as osp
@@ -108,6 +109,7 @@ class SimConstants:
 
     # OBJ_SAMPLE_R_MIN_MAX = [0.05, 0.06]
     OBJ_SAMPLE_R_MIN_MAX = [0.06, 0.1]
+    # OBJ_SAMPLE_R_MIN_MAX = [0.1, 0.4]
     OBJ_SAMPLE_X_OFFSET = 0.5  # was 0.5
     OBJ_SAMPLE_Y_OFFSET = 0
 
@@ -493,6 +495,7 @@ class EvaluateGrasp():
 
         if any_pose:
             pos, ori = self.compute_anyrot_pose(min_r, max_r, x_offset, y_offset)
+            # pos, ori = self.compute_anyrot_debug(min_r, max_r, x_offset, y_offset)
 
         else:
             pos = [np.random.random() * (x_high - x_low) + x_low,
@@ -850,7 +853,7 @@ class EvaluateGrasp():
 
     @classmethod
     def compute_anyrot_pose(cls, min_r: float = 0.1, max_r: float = 0.3,
-        x_offset: float = 0, y_offset: float = 0) -> tuple(list):
+        x_offset: float = 0, y_offset: float = 0) -> 'tuple(list)':
         """
         Compute placement of mug for anyrot trials.  Makes most of
         the mugs physically possible to grab.  The goal is for the open
@@ -875,34 +878,89 @@ class EvaluateGrasp():
             tuple(list): (pos, ori) where pos is an xyz pose of dim (3, )
                 and ori is a quaternion of dim (4, )
         """
+        # Mugs init with the opening in the +y direction
+        # Reference frame is same as robot
+        #     If looking forward at robot, +y is to the right, +x is away,
+        #     from robot, +z is up from ground.
+
         ori_rot = R.random()
         r = random.random() * (max_r - min_r) + min_r
 
-        pos_sphere = np.array([0, 0, -r])
+        pos_sphere = np.array([0, -r, 0])
         pos_sphere = ori_rot.apply(pos_sphere)
 
         # So that there is some variation in min z height
-        z_noise = random.random() * (min_r / 4)
+        # z_center = SimConstants.TABLE_Z - 0.1
+        z_center = SimConstants.TABLE_Z + random.random() * 0.05
         pos = [
-            pos_sphere[0],
-            pos_sphere[1],
-            # pos_sphere[2],
-            max(SimConstants.TABLE_Z + z_noise, SimConstants.TABLE_Z + pos_sphere[2]),
+            pos_sphere[0] + x_offset,
+            pos_sphere[1] + y_offset,
+            max(z_center, pos_sphere[2] + z_center),
         ]
 
         ori = ori_rot.as_quat().tolist()
 
+        return pos, ori
+
+    @classmethod
+    def compute_anyrot_debug(cls, min_r: float = 0.1, max_r: float = 0.3,
+        x_offset: float = 0, y_offset: float = 0) -> 'tuple(list)':
+        """
+        DEBUG FUNCTION FOR compute_anyrot_pose
+
+        Compute placement of mug for anyrot trials.  Makes most of
+        the mugs physically possible to grab.  The goal is for the open
+        end of the mug to be facing the inside of a sphere of radius between
+        {min_r} and {max_r}.  The sphere is centered at (x_offset, y_offset,
+        table_height). Since the center of the sphere is at the table height,
+        any positions below the table are shifted up to table height + a
+        small random shift.  Computed as follows:
+
+        1. Get random orientation for mug.
+        2. Compute random radius between {min_r} and {max_r}.
+        3. Transform vector [0, 0, -r] with orientation of mug to get position.
+            of mug.
+
+        Args:
+            min_r (float, optional): min radius of sphere. Defaults to 0.1.
+            max_r (float, optional): max radius of sphere. Defaults to 0.3.
+            x_offset (float, optional): offset in positive x. Defaults to 0.
+            y_offset (float, optional): offset in positive y. Defaults to 0.
+
+        Returns:
+            tuple(list): (pos, ori) where pos is an xyz pose of dim (3, )
+                and ori is a quaternion of dim (4, )
+        """
+
+        # Mugs init with the opening in the +y direction
+        # Reference frame is same as robot
+        #     If looking forward at robot, +y is to the right, +x is away,
+        #     from robot, +z is up from ground.
+
+        ori_rot = R.random()
+        # ori_rot = R.from_matrix(EvaluateGrasp.make_rotation_matrix('x', np.pi))
+        # ori_rot = R.from_matrix(EvaluateGrasp.make_rotation_matrix('y', np.pi/2))
+        r = random.random() * (max_r - min_r) + min_r
+
+        r = 0.2
+
+        pos_sphere = np.array([0, -r, 0])
+        pos_sphere = ori_rot.apply(pos_sphere)
+
+        z_center = SimConstants.TABLE_Z
         pos = [
-            pos[0] + x_offset,
-            pos[1] + y_offset,
-            pos[2]
+            pos_sphere[0] + x_offset,
+            pos_sphere[1] + y_offset,
+            pos_sphere[2] + z_center,
         ]
+
+        ori = ori_rot.as_quat().tolist()
 
         return pos, ori
 
     @classmethod
     def compute_anyrot_pose_legacy(cls, x_high: float, x_low: float,
-        y_high: float, y_low: float) -> tuple(list):
+        y_high: float, y_low: float) -> 'tuple(list)':
         """
         Previous code for anyrot pos calculation.  May be buggy?  Only here
         for comparison to new code.
@@ -935,6 +993,41 @@ class EvaluateGrasp():
             util.pose_stamped2list(pose_w_yaw)[3:]
 
         return pos, ori
+
+
+    @staticmethod
+    def make_rotation_matrix(axis: str, theta: float):
+        """
+        Make rotation matrix about {axis} with angle {theta}
+
+        Args:
+            axis (str): {'x', 'y', 'z'}
+            theta (float): angle in radians
+        """
+
+        s = np.sin(theta)
+        c = np.cos(theta)
+
+        if axis == 'x':
+            r = [[1, 0, 0],
+                 [0, c, -s],
+                 [0, s, c]]
+
+        elif axis == 'y':
+            r = [[c, 0, s],
+                 [0, 1, 0],
+                 [-s, 0, c]]
+
+        elif axis == 'z':
+            r = [[c, -s, 0],
+                 [s, c, 0],
+                 [0, 0, 1]]
+
+        else:
+            raise ValueError('Unexpected axis')
+
+        return r
+
 
 
 class EvaluateGraspSetup():

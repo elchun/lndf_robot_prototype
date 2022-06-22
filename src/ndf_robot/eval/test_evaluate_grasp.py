@@ -30,12 +30,15 @@ if __name__ == '__main__':
 
     res = []
     for i in range(1000):
-        pos = experiment.compute_anyrot_pose()[:3]
+        pos = experiment.compute_anyrot_pose(0.4, 0.4, 0, 0)[0]
         res.append(pos)
 
     res = np.vstack(res)
 
     fig = px.scatter_3d(x=res[:, 0], y=res[:, 1], z=res[:, 2])
     fig.write_html('debug_anypose.html')
+
+
+    # x offset was 0.5
 
 
