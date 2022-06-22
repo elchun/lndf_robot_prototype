@@ -106,8 +106,9 @@ class SimConstants:
     OBJ_SAMPLE_Y_LOW_HIGH = [-0.2, 0.2]
     # OBJ_SAMPLE_Y_LOW_HIGH = [-0.5, 0]
 
-    OBJ_SAMPLE_R_MIN_MAX = [0.02, 0.05]
-    OBJ_SAMPLE_X_OFFSET = 0.5
+    # OBJ_SAMPLE_R_MIN_MAX = [0.05, 0.06]
+    OBJ_SAMPLE_R_MIN_MAX = [0.06, 0.1]
+    OBJ_SAMPLE_X_OFFSET = 0.5  # was 0.5
     OBJ_SAMPLE_Y_OFFSET = 0
 
     # Object scales
@@ -491,30 +492,8 @@ class EvaluateGrasp():
         y_offset = SimConstants.OBJ_SAMPLE_Y_OFFSET
 
         if any_pose:
-            pos, ori = self.compute_anyrot_pose(min_r, max_r)
+            pos, ori = self.compute_anyrot_pose(min_r, max_r, x_offset, y_offset)
 
-            pos = [
-                pos[0] + x_offset,
-                pos[1] + y_offset,
-                pos[2]
-            ]
-
-            # rp = np.random.rand(3) * (2 * np.pi / 3) - (np.pi / 3)
-            # ori = common.euler2quat([rp[0], rp[1], rp[2]]).tolist()
-
-            # pos = [
-            #     np.random.random() * (x_high - x_low) + x_low,
-            #     np.random.random() * (y_high - y_low) + y_low,
-            #     SimConstants.TABLE_Z
-            # ]
-
-            # pose = pos + ori  # concat of pos and orientation
-            # rand_yaw_T = util.rand_body_yaw_transform(pos, min_theta=-np.pi,
-            #     max_theta=np.pi)
-            # pose_w_yaw = util.transform_pose(util.list2pose_stamped(pose),
-            #     util.pose_from_matrix(rand_yaw_T))
-            # pos, ori = util.pose_stamped2list(pose_w_yaw)[:3], \
-            #     util.pose_stamped2list(pose_w_yaw)[3:]
         else:
             pos = [np.random.random() * (x_high - x_low) + x_low,
                 np.random.random() * (y_high - y_low) + y_low,
@@ -621,6 +600,8 @@ class EvaluateGrasp():
         # -- Post process grasp position -- #
         # print('pre_grasp_ee_pose: ', pre_grasp_ee_pose)
         try:
+            # When there are no nearby grasp points, this throws an index
+            # error.  The try catch allows us to run more trials after the error.
             new_grasp_pt = post_process_grasp_point(
                 pre_grasp_ee_pose,
                 target_obj_pcd_obs,
@@ -629,6 +610,7 @@ class EvaluateGrasp():
                 grasp_dist_thresh=grasp_dist_thresh)
         except IndexError:
             trial_data.trial_result = TrialResults.POST_PROCESS_FAILED
+            self.robot.pb_client.remove_body(obj_id)
             return trial_data
 
         pre_grasp_ee_pose[:3] = new_grasp_pt
@@ -828,15 +810,14 @@ class EvaluateGrasp():
 
         return trial_data
 
-    def run_experiment(self):
-        # TODO: Add trial args
+    def run_experiment(self, rand_mesh_scale: bool = True):
         """
         Run experiment for {self.num_trials}
         """
         num_success = 0
         for it in range(self.num_trials):
             trial_data = experiment.run_trial(iteration=it,
-                rand_mesh_scale=True, any_pose=self.any_pose)
+                rand_mesh_scale=rand_mesh_scale, any_pose=self.any_pose)
 
             grasp_success = trial_data.grasp_success
             obj_shapenet_id = trial_data.obj_shapenet_id
@@ -868,8 +849,32 @@ class EvaluateGrasp():
             p.changeVisualShape(obj_id, link_id, rgbaColor=color)
 
     @classmethod
-    def compute_anyrot_pose(cls, min_r: float = 0.1, max_r: float = 0.3):
-        # TODO Docstring
+    def compute_anyrot_pose(cls, min_r: float = 0.1, max_r: float = 0.3,
+        x_offset: float = 0, y_offset: float = 0) -> tuple(list):
+        """
+        Compute placement of mug for anyrot trials.  Makes most of
+        the mugs physically possible to grab.  The goal is for the open
+        end of the mug to be facing the inside of a sphere of radius between
+        {min_r} and {max_r}.  The sphere is centered at (x_offset, y_offset,
+        table_height). Since the center of the sphere is at the table height,
+        any positions below the table are shifted up to table height + a
+        small random shift.  Computed as follows:
+
+        1. Get random orientation for mug.
+        2. Compute random radius between {min_r} and {max_r}.
+        3. Transform vector [0, 0, -r] with orientation of mug to get position.
+            of mug.
+
+        Args:
+            min_r (float, optional): min radius of sphere. Defaults to 0.1.
+            max_r (float, optional): max radius of sphere. Defaults to 0.3.
+            x_offset (float, optional): offset in positive x. Defaults to 0.
+            y_offset (float, optional): offset in positive y. Defaults to 0.
+
+        Returns:
+            tuple(list): (pos, ori) where pos is an xyz pose of dim (3, )
+                and ori is a quaternion of dim (4, )
+        """
         ori_rot = R.random()
         r = random.random() * (max_r - min_r) + min_r
 
@@ -887,7 +892,48 @@ class EvaluateGrasp():
 
         ori = ori_rot.as_quat().tolist()
 
-        # pose = pos + ori  # concat of pos and orientation
+        pos = [
+            pos[0] + x_offset,
+            pos[1] + y_offset,
+            pos[2]
+        ]
+
+        return pos, ori
+
+    @classmethod
+    def compute_anyrot_pose_legacy(cls, x_high: float, x_low: float,
+        y_high: float, y_low: float) -> tuple(list):
+        """
+        Previous code for anyrot pos calculation.  May be buggy?  Only here
+        for comparison to new code.
+
+        Args:
+            x_high (float): max x value.
+            x_low (float): min x value.
+            y_high (float): max y value.
+            y_low (float): min y value.
+
+        Returns:
+            tuple(list): (pos, ori) where pos is an xyz pose of dim (3, )
+                and ori is a quaternion of dim (4, )
+        """
+        rp = np.random.rand(3) * (2 * np.pi / 3) - (np.pi / 3)
+        ori = common.euler2quat([rp[0], rp[1], rp[2]]).tolist()
+
+        pos = [
+            np.random.random() * (x_high - x_low) + x_low,
+            np.random.random() * (y_high - y_low) + y_low,
+            SimConstants.TABLE_Z
+        ]
+
+        pose = pos + ori  # concat of pos and orientation
+        rand_yaw_T = util.rand_body_yaw_transform(pos, min_theta=-np.pi,
+            max_theta=np.pi)
+        pose_w_yaw = util.transform_pose(util.list2pose_stamped(pose),
+            util.pose_from_matrix(rand_yaw_T))
+        pos, ori = util.pose_stamped2list(pose_w_yaw)[:3], \
+            util.pose_stamped2list(pose_w_yaw)[3:]
+
         return pos, ori
 
 

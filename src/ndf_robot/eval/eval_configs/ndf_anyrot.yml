@@ -1,6 +1,6 @@
 
 setup_args:
-  exp_dir_suffix: NDF_anyrot
+  exp_dir_suffix: NDF_anyrot_r0p06_0p1
   seed: 0
 
 evaluator:
