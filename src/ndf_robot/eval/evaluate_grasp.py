@@ -108,10 +108,11 @@ class SimConstants:
     # OBJ_SAMPLE_Y_LOW_HIGH = [-0.5, 0]
 
     # OBJ_SAMPLE_R_MIN_MAX = [0.05, 0.06]
-    OBJ_SAMPLE_R_MIN_MAX = [0.06, 0.1]
+    # OBJ_SAMPLE_R_MIN_MAX = [0.06, 0.1]
     # OBJ_SAMPLE_R_MIN_MAX = [0.1, 0.4]
-    OBJ_SAMPLE_X_OFFSET = 0.5  # was 0.5
-    OBJ_SAMPLE_Y_OFFSET = 0
+    OBJ_SAMPLE_R = 0.2  # was 1.5
+    # OBJ_SAMPLE_X_OFFSET = 0.4  # was 0.5
+    # OBJ_SAMPLE_Y_OFFSET = 0
 
     # Object scales
     MESH_SCALE_DEFAULT = 0.5
@@ -489,13 +490,15 @@ class EvaluateGrasp():
         x_low, x_high = SimConstants.OBJ_SAMPLE_X_LOW_HIGH
         y_low, y_high = SimConstants.OBJ_SAMPLE_Y_LOW_HIGH
 
-        min_r, max_r = SimConstants.OBJ_SAMPLE_R_MIN_MAX
-        x_offset = SimConstants.OBJ_SAMPLE_X_OFFSET
-        y_offset = SimConstants.OBJ_SAMPLE_Y_OFFSET
+        # min_r, max_r = SimConstants.OBJ_SAMPLE_R_MIN_MAX
+        r = SimConstants.OBJ_SAMPLE_R
+        # x_offset = SimConstants.OBJ_SAMPLE_X_OFFSET
+        # y_offset = SimConstants.OBJ_SAMPLE_Y_OFFSET
 
         if any_pose:
-            pos, ori = self.compute_anyrot_pose(min_r, max_r, x_offset, y_offset)
+            # pos, ori = self.compute_anyrot_pose(min_r, max_r, x_offset, y_offset)
             # pos, ori = self.compute_anyrot_debug(min_r, max_r, x_offset, y_offset)
+            pos, ori = self.compute_anyrot_pose_v2(x_low, x_high, y_low, y_high, r)
 
         else:
             pos = [np.random.random() * (x_high - x_low) + x_low,
@@ -890,7 +893,6 @@ class EvaluateGrasp():
         pos_sphere = ori_rot.apply(pos_sphere)
 
         # So that there is some variation in min z height
-        # z_center = SimConstants.TABLE_Z - 0.1
         z_center = SimConstants.TABLE_Z + random.random() * 0.05
         pos = [
             pos_sphere[0] + x_offset,
@@ -952,6 +954,63 @@ class EvaluateGrasp():
             pos_sphere[0] + x_offset,
             pos_sphere[1] + y_offset,
             pos_sphere[2] + z_center,
+        ]
+
+        ori = ori_rot.as_quat().tolist()
+
+        return pos, ori
+
+    @classmethod
+    def compute_anyrot_pose_v2(cls, x_min: float, x_max: float, y_min: float,
+        y_max: float, r: float = 0.1) -> 'tuple(list)':
+        """
+        Compute placement of mug for anyrot trials.  Makes most of
+        the mugs physically possible to grab.  The goal is for the open
+        end of the mug to be facing the inside of a sphere of radius {r}.
+        The sphere is centered at a random point with x and y coordinates
+        within [x_min, x_max] and [y_min, y_max], respectively. Since the center
+        of the sphere is at the table height, any positions below the table are
+        shifted up to table height + a small random shift.  Computed as follows:
+
+        1. Get random orientation for mug.
+        2. Transform vector [0, -r, 0] with orientation of mug to get position.
+            of mug. The vector has -r in the y position because the mug starts
+            with the opening facing the positive y direction.
+        3. Compute random shift in x and y
+
+        Args:
+            x_min (float): min x position.
+            x_max (float): max x position.
+            y_min (float): min y position.
+            y_max (float): max y position.
+            r (float, optional): radius of sphere to place mugs on.  Defaults to
+                0.1.
+
+        Returns:
+            tuple(list): (pos, ori) where pos is an xyz pose of dim (3, )
+                and ori is a quaternion of dim (4, )
+        """
+
+        # Mugs init with the opening in the +y direction
+        # Reference frame is same as robot
+        #     If looking forward at robot, +y is to the right, +x is away,
+        #     from robot, +z is up from ground.
+
+        # To debug, use EvaluateGrasp.make_rotation_matrix
+
+        ori_rot = R.random()
+
+        pos_sphere = np.array([0, -r, 0])
+        pos_sphere = ori_rot.apply(pos_sphere)
+
+        # So that there is some variation in min z height
+        z_center = SimConstants.TABLE_Z + random.random() * 0.05
+        x_offset = random.random() * (x_max - x_min) + x_min
+        y_offset = random.random() * (y_max - y_min) + y_min
+        pos = [
+            pos_sphere[0] + x_offset,
+            pos_sphere[1] + y_offset,
+            max(z_center, pos_sphere[2] + z_center),
         ]
 
         ori = ori_rot.as_quat().tolist()
