@@ -326,6 +326,7 @@ def process_xq_rs_data(grasp_data, place_data, shelf=True):
     else:
         return optimizer_gripper_pts_rs, place_demo_rack_pts_rs, None
 
+
 def post_process_grasp_point(pre_grasp_ee_pose, target_obj_pcd, thin_feature=True, grasp_viz=False, grasp_dist_thresh=0.0025):
     grasp_pt = pre_grasp_ee_pose[:3]
 

@@ -18,7 +18,8 @@ from ndf_robot.utils.plotly_save import plot3d
 class OccNetOptimizer:
     def __init__(self, model, query_pts, query_pts_real_shape=None, opt_iterations=250,
                  noise_scale=0.0, noise_decay=0.5, single_object=False,
-                 rand_translate=False, viz_path='visualization'):
+                 rand_translate=False, viz_path='visualization', use_tsne=False,
+                 M_override: 'bool | int' =None):
         self.model = model
         self.model_type = self.model.model_type
         self.query_pts_origin = query_pts
@@ -67,6 +68,12 @@ class OccNetOptimizer:
         # Translate query point init location randomly within bounding box of pcd
         self.rand_translate = rand_translate
 
+        # For saving tsne visualization
+        self.use_tsne = use_tsne
+
+        # For overriding number of initializations in opt
+        self.M_override = M_override
+
     def _scene_dict(self):
         self.scene_dict = {}
         plotly_scene = {
@@ -106,7 +113,7 @@ class OccNetOptimizer:
         return query_pts_cam_cent_rs, query_pts_tf_rs
 
     def optimize_transform_implicit(self, shape_pts_world_np, viz_path='visualize',
-        use_tsne=False, ee=True, *args, **kwargs):
+        ee=True, *args, **kwargs):
         """
         Function to optimzie the transformation of our query points, conditioned on
         a set of shape points observed in the world
@@ -173,7 +180,10 @@ class OccNetOptimizer:
         query_pts_tf = np.eye(4)
         query_pts_tf[:-1, -1] = -query_pts_mean.cpu().numpy()
 
-        if 'dgcnn' in self.model_type:
+        if self.M_override is not None:
+            assert type(self.M_override) == int, 'Expected int number of M'
+            full_opt = self.M_override
+        elif 'dgcnn' in self.model_type:
             full_opt = 5   # dgcnn can't fit 10 initialization in memory
         else:
             full_opt = 10
@@ -297,7 +307,7 @@ class OccNetOptimizer:
                     scene_dict=self.scene_dict,
                     z_plane=False)
 
-                if use_tsne:
+                if self.use_tsne:
                     self._tsne_viz(in_pts, osp.join(viz_path, 'tsne.html'))
 
             ###############################################################################

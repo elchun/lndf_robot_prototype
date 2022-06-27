@@ -1,6 +1,6 @@
 
 setup_args:
-  exp_dir_suffix: NDF_anyrot_Baseline
+  exp_dir_suffix: NDF_anyrot_tsne
   seed: 0
 
 evaluator:
@@ -24,6 +24,7 @@ optimizer:
   args:
     opt_iterations: 500
     rand_translate: False
+    use_tsne: True
 
 query_pts:
   type: SPHERE

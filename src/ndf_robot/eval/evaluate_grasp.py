@@ -97,22 +97,20 @@ class SimConstants:
     # placement of table
     TABLE_POS = [0.5, 0.0, 0.4]
     TABLE_SCALING = 0.9
+    # TABLE_Z = 1.05  # Was 1.15
     TABLE_Z = 1.15
+
+    # Different from table so that more stuff is in focus
+    CAMERA_FOCAL_Z = 1.15
 
     # placement of object
     # x is forward / back when facing robot
     # +y is right when facing robot
-    OBJ_SAMPLE_X_LOW_HIGH = [0.4, 0.5]
-    # OBJ_SAMPLE_Y_LOW_HIGH = [-0.4, 0.4]
-    OBJ_SAMPLE_Y_LOW_HIGH = [-0.2, 0.2]
-    # OBJ_SAMPLE_Y_LOW_HIGH = [-0.5, 0]
 
-    # OBJ_SAMPLE_R_MIN_MAX = [0.05, 0.06]
-    # OBJ_SAMPLE_R_MIN_MAX = [0.06, 0.1]
-    # OBJ_SAMPLE_R_MIN_MAX = [0.1, 0.4]
-    OBJ_SAMPLE_R = 0.2  # was 1.5
-    # OBJ_SAMPLE_X_OFFSET = 0.4  # was 0.5
-    # OBJ_SAMPLE_Y_OFFSET = 0
+    OBJ_SAMPLE_X_LOW_HIGH = [0.4, 0.5]
+    OBJ_SAMPLE_Y_LOW_HIGH = [-0.2, 0.2]
+    OBJ_SAMPLE_Z_OFFSET = 0.0  # was 0.1
+    OBJ_SAMPLE_R = 0.2  # was 0.2
 
     # Object scales
     MESH_SCALE_DEFAULT = 0.5
@@ -288,13 +286,62 @@ class TrialData():
 class EvaluateGrasp():
     """
     Class for running evaluation on robot arm
+
+    Attributes:
+        optimizer (OccNetOptimizer): Optimizer instance.
+        seed (int): Random seed.
+        robot (Robot): Robot to use in simulation.
+        ik_helper (FrankaIK): Ik generator.
+        obj_class (str): Objects used in test.
+        shapenet_obj_dir (str): Dir of test shapenet objects
+        eval_save_dir (str): Directory where all info about the trial is saved.
+        demo_load_dir (str): Directory where demos are loaded from.
+        eval_grasp_imgs_dir (str): Directory where grasp images are saved to.
+        global_summary_fname (str): Filename of main summary document where
+            trial results are written.
+        shapenet_id_list_fname (str): Filename of text list of shapenet ids.
+            Used to reproduce exact objects used in trial.
+        test_shapenet_ids: list of possible test object ids.  May include ids
+            from avoid_shapenet_ids.
+        num_trials (int): Number of trials to run.
+        avoid_shapenet_ids (list): Shapenet ids to not load.
+            Empty if include_avoid_obj is True
+        any_pose (bool): True to use any pose for objects.
+        cams (list): List of depth cameras used.
+        table_id (str or int?): Id that table is assigned when loaded into pb
+            simulation.
+
     """
 
     def __init__(self, optimizer: OccNetOptimizer, seed: int,
                  shapenet_obj_dir: str, eval_save_dir: str, demo_load_dir: str,
                  pybullet_viz: bool = False, obj_class: str = 'mug',
-                 num_trials: int = 100, include_avoid_obj: bool = True,
+                 num_trials: int = 200, include_avoid_obj: bool = True,
                  any_pose: bool = True):
+        """
+        Initialize training class
+
+        Args:
+            optimizer (OccNetOptimizer): instance of OccNetOptimizer initialized
+                prior to calling this.
+            seed (int): Int to serve as random seed.
+            shapenet_obj_dir (str): Directory of test shapenet objects
+            eval_save_dir (str): Directory to save trial.  Must have been created
+                first
+            demo_load_dir (str): Directory where the demos are located.
+            pybullet_viz (bool, optional): True to show simulation in window.
+                Will not work on remote server.  Defaults to False.
+            obj_class (str, optional): Type of object.  Must match object class
+                of shapenet_obj_dir. Defaults to 'mug'.
+            num_trials (int, optional): Number of trials to run.  200 seems
+                to provide a reasonable estimate. Defaults to 200.
+            include_avoid_obj (bool, optional): True to include objects
+                on the avoid object list (funky shapes and whatnot). Defaults
+                to True.
+            any_pose (bool, optional): True to use the anypose function to
+                randomly rotate the mug, then translate it graspable positions.
+                Defaults to True.
+        """
         self.optimizer = optimizer
         self.seed = seed
 
@@ -337,7 +384,7 @@ class EvaluateGrasp():
 
         self.robot.arm.reset(force_reset=True)
         self.robot.cam.setup_camera(
-            focus_pt=[0.4, 0.0, SimConstants.TABLE_Z],
+            focus_pt=[0.4, 0.0, SimConstants.CAMERA_FOCAL_Z],
             dist=0.9,
             yaw=45,
             pitch=-25,
@@ -454,7 +501,27 @@ class EvaluateGrasp():
 
     def run_trial(self, iteration: int = 0, rand_mesh_scale: bool = True,
                   any_pose: bool = True, thin_feature: bool = True,
-                  grasp_viz: bool = False, grasp_dist_thresh: float = 0.0025):
+                  grasp_viz: bool = False,
+                  grasp_dist_thresh: float = 0.0025) -> TrialData:
+        """
+        Run single trial instance.
+
+        Args:
+            iteration (int, optional): What iteration the trial is. Defaults to 0.
+            rand_mesh_scale (bool, optional): True to randomly scale mesh.
+                Defaults to True.
+            any_pose (bool, optional): True to use anypose function to pose mug.
+                Defaults to True.
+            thin_feature (bool, optional): True to treat object as thin feature
+                in grasp post process. Defaults to True.
+            grasp_viz (bool, optional): True to show image of grasp before trial
+                runs. Only works when pybullet_viz is enabled. Defaults to False.
+            grasp_dist_thresh (float, optional): Threshold to detect successful
+                grasp. Defaults to 0.0025.
+
+        Returns:
+            TrialData: Class for storing relevant info about the trial
+        """
 
         # For save purposes
         trial_data = TrialData()
@@ -465,7 +532,6 @@ class EvaluateGrasp():
         # -- Get and orient object -- #
         obj_shapenet_id = random.sample(self.test_object_ids, 1)[0]
         trial_data.obj_shapenet_id = obj_shapenet_id
-        id_str = 'Shapenet ID: %s' % obj_shapenet_id
 
         # Write at start so id is recorded regardless of any later bugs
         with open(self.shapenet_id_list_fname, 'a') as f:
@@ -896,7 +962,9 @@ class EvaluateGrasp():
         pos_sphere = ori_rot.apply(pos_sphere)
 
         # So that there is some variation in min z height
-        z_center = SimConstants.TABLE_Z + random.random() * 0.05
+        z_center = SimConstants.TABLE_Z + random.random() * 0.05 \
+            + SimConstants.OBJ_SAMPLE_Z_OFFSET
+
         x_offset = random.random() * (x_max - x_min) + x_min
         y_offset = random.random() * (y_max - y_min) + y_min
         pos = [
@@ -977,7 +1045,6 @@ class EvaluateGrasp():
             raise ValueError('Unexpected axis')
 
         return r
-
 
 
 class EvaluateGraspSetup():

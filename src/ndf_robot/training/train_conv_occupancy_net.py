@@ -1,5 +1,6 @@
 import sys
 import os, os.path as osp
+from turtle import position
 import configargparse
 import torch
 from torch.utils.data import DataLoader
@@ -90,6 +91,12 @@ if __name__ == '__main__':
         'acts': 'last'
     }
 
+    latent_dim_128 = {
+        'latent_dim': 128,
+        'return_features': True,
+        'acts': 'last'
+    }
+
     # latent_dim_32_inp = {
     #     'latent_dim': 32,
     #     'return_features': True,
@@ -98,73 +105,84 @@ if __name__ == '__main__':
 
     # conv_occ_args = latent_dim_4
     # conv_occ_args = default_args
-    conv_occ_args = latent_dim_16
+    # conv_occ_args = latent_dim_16
     # conv_occ_args = latent_dim_32
-    # conv_occ_args = latent_dim_64
+    conv_occ_args = latent_dim_64
 
     # -- LOSS FUNCTION ARGS -- #
-    default_args = {
+    # default_args = {
+    #     'occ_margin': 0,
+    #     'positive_loss_scale': 0.3,
+    #     'negative_loss_scale': 0.3,
+    #     'similar_occ_only': True,
+    # }
+
+    # no_similarity = {
+    #     'occ_margin': 0,
+    #     'positive_loss_scale': 0,
+    #     'negative_loss_scale': 0
+    # }
+
+    # aggressive_similar = {
+    #     'occ_margin': 0,
+    #     'positive_loss_scale': 1,
+    #     'negative_loss_scale': 1
+    # }
+
+    # super_aggressive_similar = {
+    #     'occ_margin': 0.13,
+    #     'positive_loss_scale': 5,
+    #     'negative_loss_scale': 0.3,
+    # }
+
+    # super_super_aggressive_similar = {
+    #     'occ_margin': 0.30,
+    #     'positive_loss_scale': 100,
+    #     'negative_loss_scale': 100,
+    # }
+
+    # similar_occ_only = {
+    #     'occ_margin': 0,
+    #     'positive_loss_scale': 10,
+    #     'negative_loss_scale': 10,
+    #     'similar_occ_only': True,
+    # }
+
+    # similar_occ_only_no_neg = {
+    #     'occ_margin': 0,
+    #     'positive_loss_scale': 10,
+    #     'negative_loss_scale': 0,
+    #     'similar_occ_only': True,
+    # }
+
+    # similar_occ_no_neg = {
+    #     'occ_margin': 0,
+    #     'positive_loss_scale': 10,
+    #     'negative_loss_scale': 0,
+    #     'similar_occ_only': False,
+    # }
+
+    # similar_occ_no_neg_latent_weight = {
+    #     'occ_margin': 0,
+    #     'positive_loss_scale': 100,
+    #     'negative_loss_scale': 0,
+    #     'similar_occ_only': False,
+    # }
+
+    latent_margin = {
         'occ_margin': 0,
-        'positive_loss_scale': 0.3,
-        'negative_loss_scale': 0.3,
-        'similar_occ_only': True,
-    }
-
-    no_similarity = {
-        'occ_margin': 0,
-        'positive_loss_scale': 0,
-        'negative_loss_scale': 0
-    }
-
-    aggressive_similar = {
-        'occ_margin': 0,
-        'positive_loss_scale': 1,
-        'negative_loss_scale': 1
-    }
-
-    super_aggressive_similar = {
-        'occ_margin': 0.13,
-        'positive_loss_scale': 5,
-        'negative_loss_scale': 0.3,
-    }
-
-    super_super_aggressive_similar = {
-        'occ_margin': 0.30,
-        'positive_loss_scale': 100,
-        'negative_loss_scale': 100,
-    }
-
-    similar_occ_only = {
-        'occ_margin': 0,
-        'positive_loss_scale': 10,
-        'negative_loss_scale': 10,
-        'similar_occ_only': True,
-    }
-
-    similar_occ_only_no_neg = {
-        'occ_margin': 0,
-        'positive_loss_scale': 10,
-        'negative_loss_scale': 0,
-        'similar_occ_only': True,
-    }
-
-    similar_occ_no_neg = {
-        'occ_margin': 0,
-        'positive_loss_scale': 10,
-        'negative_loss_scale': 0,
+        'positive_loss_scale': 10 ** 3,
+        'negative_loss_scale': 1,
+        'positive_margin': 10 ** (-6),
+        'negative_margin': 0.001,
         'similar_occ_only': False,
     }
 
-    similar_occ_no_neg_latent_weight = {
-        'occ_margin': 0,
-        'positive_loss_scale': 100,
-        'negative_loss_scale': 0,
-        'similar_occ_only': False,
-    }
+
 
     # loss_fn_args = super_super_aggressive_similar
     # loss_fn_args = similar_occ_only
-    loss_fn_args = no_similarity
+    loss_fn_args = latent_margin
     # loss_fn_args = similar_occ_no_neg_latent_weight
 
     # -- DATALOADER ARGS -- #

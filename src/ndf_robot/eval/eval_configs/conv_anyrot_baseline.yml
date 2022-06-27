@@ -1,6 +1,6 @@
 
 setup_args:
-  exp_dir_suffix: CONV_OCC_dim64_20init
+  exp_dir_suffix: CONV_OCC_baseline
   # exp_dir_suffix: DEBUG_CONV_OCC_RECT_QUERY
   seed: 0
 
@@ -13,17 +13,11 @@ evaluator:
 
 model:
   type: CONV_OCC
-  # checkpoint: ndf_vnn/conv_occ_hidden32_anyrot_part2_1/checkpoints/model_final.pth
-  # checkpoint: ndf_vnn/conv_occ_hidden32_anyrot_simfull_0/checkpoints/model_final.pth
-  checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_final.pth
-  # checkpoint: ndf_vnn/conv_occ_hidden16_anyrot_0/checkpoints/model_final.pth
+  checkpoint: ndf_vnn/conv_occ_hidden32_anyrot_part2_1/checkpoints/model_final.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_final.pth
   # checkpoint: ndf_vnn/conv_occ_hidden4_anyrot_6/checkpoints/model_final.pth
-  # checkpoint: ndf_vnn/conv_occ_hidden32_anyrot_simocc_0/checkpoints/model_final.pth
-  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_3/checkpoints/model_epoch_0017_iter_349000.pth
-  # checkpoint: ndf_vnn/conv_occ_hidden64_latent_margin_0/checkpoints/model_epoch_0014_iter_221000.pth
-
   args:
-    latent_dim: 64
+    latent_dim: 32
     model_type: pointnet
     return_features: True
     sigmoid: False
@@ -33,8 +27,6 @@ optimizer:
   args:
     opt_iterations: 1000
     rand_translate: True
-    use_tsne: False
-    M_override: None
 
 # query_pts:
 #   type: SPHERE
