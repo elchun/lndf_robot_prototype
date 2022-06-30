@@ -1,11 +1,12 @@
 
 setup_args:
-  exp_dir_suffix: NDF_anyrot_tsne
+  exp_dir_suffix: NDF_bowl
   seed: 0
 
 evaluator:
   pybullet_viz: False
-  obj_class: mug
+  # obj_class: mug
+  obj_class: bowl
   num_trials: 200
   include_avoid_obj: False
   any_pose: True
@@ -24,7 +25,7 @@ optimizer:
   args:
     opt_iterations: 500
     rand_translate: False
-    use_tsne: True
+    use_tsne: False
 
 query_pts:
   type: SPHERE

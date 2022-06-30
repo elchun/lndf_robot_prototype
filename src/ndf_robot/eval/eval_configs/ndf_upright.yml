@@ -1,12 +1,12 @@
 
 setup_args:
-  exp_dir_suffix: NDF_upright_2_Q1
+  exp_dir_suffix: NDF_upright_bowl
   seed: 0
 
 evaluator:
   pybullet_viz: False
-  obj_class: mug
-  num_trials: 1000
+  obj_class: bowl
+  num_trials: 200
   include_avoid_obj: False
   any_pose: False
 
@@ -24,6 +24,7 @@ optimizer:
   args:
     opt_iterations: 500
     rand_translate: False
+    use_tsne: False
 
 query_pts:
   type: SPHERE

@@ -1,26 +1,30 @@
 
 setup_args:
-  exp_dir_suffix: CONV_OCC_dim64_20init
-  # exp_dir_suffix: DEBUG_CONV_OCC_RECT_QUERY
+  exp_dir_suffix: CONV_OCC_latent_margin_4_odd_mug
   seed: 0
 
 evaluator:
   pybullet_viz: False
   obj_class: mug
   num_trials: 200
-  include_avoid_obj: False
+  include_avoid_obj: True
   any_pose: True
 
 model:
   type: CONV_OCC
   # checkpoint: ndf_vnn/conv_occ_hidden32_anyrot_part2_1/checkpoints/model_final.pth
   # checkpoint: ndf_vnn/conv_occ_hidden32_anyrot_simfull_0/checkpoints/model_final.pth
-  checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_final.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_final.pth
   # checkpoint: ndf_vnn/conv_occ_hidden16_anyrot_0/checkpoints/model_final.pth
   # checkpoint: ndf_vnn/conv_occ_hidden4_anyrot_6/checkpoints/model_final.pth
   # checkpoint: ndf_vnn/conv_occ_hidden32_anyrot_simocc_0/checkpoints/model_final.pth
-  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_3/checkpoints/model_epoch_0017_iter_349000.pth
-  # checkpoint: ndf_vnn/conv_occ_hidden64_latent_margin_0/checkpoints/model_epoch_0014_iter_221000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_3/checkpoints/model_final.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden64_latent_margin_0/checkpoints/model_epoch_0018_iter_271000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden64_latent_margin_2/checkpoints/model_epoch_0022_iter_333000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden64_latent_margin_4/checkpoints/model_epoch_0015_iter_228000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden64_latent_margin_0/checkpoints/model_epoch_0018_iter_271000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_final.pth
+  checkpoint: ndf_vnn/conv_occ_hidden64_latent_margin_4/checkpoints/model_epoch_0017_iter_255000.pth
 
   args:
     latent_dim: 64
@@ -34,7 +38,7 @@ optimizer:
     opt_iterations: 1000
     rand_translate: True
     use_tsne: False
-    M_override: None
+    M_override: 20
 
 # query_pts:
 #   type: SPHERE

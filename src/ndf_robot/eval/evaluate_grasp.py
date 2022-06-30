@@ -775,7 +775,7 @@ class EvaluateGrasp():
                 time.sleep(0.2)
                 grasp_rgb = self.robot.cam.get_images(get_rgb=True)[0]
                 grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
-                    '%s.png' % str(iteration).zfill(3))
+                    '%s_pose.png' % str(iteration).zfill(3))
                 util.np2img(grasp_rgb.astype(np.uint8), grasp_img_fname)
 
                 self.robot.arm.go_home(ignore_physics=True)
@@ -798,26 +798,15 @@ class EvaluateGrasp():
                 grasp_plan = plan1 + plan2
 
                 self.robot.arm.eetool.open()
+                # Go to clearance location (linearly away from grasp area)
                 for jnt in plan1:
                     self.robot.arm.set_jpos(jnt, wait=False)
                     time.sleep(0.025)
                 self.robot.arm.set_jpos(plan1[-1], wait=False)
-                for jnt in plan2:
-                    self.robot.arm.set_jpos(jnt, wait=False)
-                    time.sleep(0.04)
-                self.robot.arm.set_jpos(plan2[-1], wait=False)
 
-                # get pose that's straight up
-                offset_pose = util.transform_pose(
-                    pose_source=util.list2pose_stamped(
-                        np.concatenate(self.robot.arm.get_ee_pose()[:2]).tolist()),
-                    pose_transform=util.list2pose_stamped([0, 0, 0.15, 0, 0, 0, 1])
-                )
+                # Used to be below plan2 part
 
-                offset_pose_list = util.pose_stamped2list(offset_pose)
-                offset_jnts = self.ik_helper.get_feasible_ik(offset_pose_list)
-
-                # turn ON collisions between robot and object, and close fingers
+                # turn ON collisions between robot and object
                 for i in range(p.getNumJoints(self.robot.arm.robot_id)):
                     safeCollisionFilterPair(bodyUniqueIdA=self.robot.arm.robot_id,
                         bodyUniqueIdB=obj_id,
@@ -826,9 +815,31 @@ class EvaluateGrasp():
                         enableCollision=True,
                         physicsClientId=self.robot.pb_client.get_client_id())
 
+                # Go to grasp location
+                for jnt in plan2:
+                    self.robot.arm.set_jpos(jnt, wait=False)
+                    time.sleep(0.04)
+                self.robot.arm.set_jpos(plan2[-1], wait=False)
+
+                # get pose that's straight up
+                # offset_pose = util.transform_pose(
+                #     pose_source=util.list2pose_stamped(
+                #         np.concatenate(self.robot.arm.get_ee_pose()[:2]).tolist()),
+                #     pose_transform=util.list2pose_stamped([0, 0, 0.15, 0, 0, 0, 1])
+                # )
+
+                # offset_pose_list = util.pose_stamped2list(offset_pose)
+                # offset_jnts = self.ik_helper.get_feasible_ik(offset_pose_list)
+
                 time.sleep(0.8)
-                obj_pos_before_grasp = p.getBasePositionAndOrientation(obj_id)[0]
-                jnt_pos_before_grasp = self.robot.arm.get_jpos()
+                # obj_pos_before_grasp = p.getBasePositionAndOrientation(obj_id)[0]
+                # jnt_pos_before_grasp = self.robot.arm.get_jpos()
+
+                grasp_rgb = self.robot.cam.get_images(get_rgb=True)[0]
+                grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
+                    f'{str(iteration).zfill(3)}_grasp.png')
+                util.np2img(grasp_rgb.astype(np.uint8), grasp_img_fname)
+
                 soft_grasp_close(self.robot, RobotIDs.finger_joint_id, force=50)
                 safeRemoveConstraint(o_cid)
                 time.sleep(0.8)
@@ -849,11 +860,19 @@ class EvaluateGrasp():
                     original_grasp_success = object_is_still_grasped(self.robot,
                         obj_id, RobotIDs.right_pad_id, RobotIDs.left_pad_id)
 
+                    time.sleep(0.5)
+
                     # If the ee was intersecting the mug, original_grasp_success
                     # would be true after the table disappears.  However, an
                     # intersection is generally a false grasp When the ee is
-                    # opened again, a good grasp should fall down while a
+                    # opened again, a good grasp should fall down while an
                     # intersecting grasp would stay in contact.
+
+                    # -- Take image of grasp at clearance height -- #
+                    grasp_rgb = self.robot.cam.get_images(get_rgb=True)[0]
+                    grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
+                        '%s_clearance.png' % str(iteration).zfill(3))
+                    util.np2img(grasp_rgb.astype(np.uint8), grasp_img_fname)
 
                     self.robot.arm.eetool.open()
                     time.sleep(1)
