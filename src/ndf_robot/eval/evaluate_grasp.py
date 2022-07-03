@@ -1366,7 +1366,7 @@ class QueryPoints():
         Args:
             n_pts (int): Number of points to generate.
             radius (float): Radius of cylinder.
-            height (float): heigh tof cylinder.
+            height (float): height of cylinder.
             rot_axis (str, optional): Choose (x, y, z). Defaults to 'z'.
 
         Returns:

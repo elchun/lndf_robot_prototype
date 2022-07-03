@@ -64,9 +64,13 @@ ModelTypes = {
     'VNN_NDF',
 }
 
-QueryPointTypes = {
+GripperQueryPointTypes = {
     'SPHERE',
     'RECT',
+}
+
+RackQueryPointTypes = {
+    'ARM',
 }
 
 
@@ -1117,7 +1121,7 @@ class EvaluateGraspSetup():
         self.evaluator_dict = None
         self.model_dict = None
         self.optimizer_dict = None
-        self.query_pts_dict = None
+        self.gripper_query_pts_dict = None
 
         self.seed = None
 
@@ -1158,7 +1162,8 @@ class EvaluateGraspSetup():
         self.evaluator_dict = config_dict['evaluator']
         self.model_dict = config_dict['model']
         self.optimizer_dict = config_dict['optimizer']
-        self.query_pts_dict = config_dict['query_pts']
+        self.gripper_query_pts_dict = config_dict['gripper_query_pts']
+        self.rack_query_pts_dict = config_dict['rack_query_pts']
         self.setup_args = config_dict['setup_args']
 
         self.seed = self.setup_args['seed']
@@ -1218,7 +1223,7 @@ class EvaluateGraspSetup():
             **optimizer_args)
         return optimizer
 
-    def create_query_pts(self) -> np.ndarray:
+    def create_gripper_query_pts(self) -> np.ndarray:
         """
         Create query points from given config
 
@@ -1226,15 +1231,32 @@ class EvaluateGraspSetup():
             np.ndarray: Query point as ndarray
         """
 
-        query_pts_type = self.query_pts_dict['type']
-        query_pts_args = self.query_pts_dict['args']
+        query_pts_type = self.gripper_query_pts_dict['type']
+        query_pts_args = self.gripper_query_pts_dict['args']
 
-        assert query_pts_type in QueryPointTypes, 'Invalid query point type'
+        assert query_pts_type in GripperQueryPointTypes, 'Invalid query point type'
 
         if query_pts_type == 'SPHERE':
             query_pts = QueryPoints.generate_sphere(**query_pts_args)
         elif query_pts_type == 'RECT':
             query_pts = QueryPoints.generate_rect(**query_pts_args)
+
+        return query_pts
+
+    def create_rack_query_pts(self) -> np.ndarray:
+        """
+        Create rack query points from given config
+
+        Returns:
+            np.ndarray: Query point as ndarray
+        """
+        query_pts_type = self.rack_query_pts_dict['type']
+        query_pts_args = self.rack_query_pts_dict['args']
+
+        assert query_pts_type in RackQueryPointTypes, 'Invalid query point type'
+
+        if query_pts_type == 'ARM':
+            query_pts = QueryPoints.generate_rack_arm(**query_pts_args)
 
         return query_pts
 
@@ -1432,6 +1454,34 @@ class QueryPoints():
         points = points @ rotate
         return points
 
+    @staticmethod
+    def generate_rack_arm(n_pts: int) -> np.ndarray:
+        """
+        Generate points that align with arm on demo rack.
+
+        Args:
+            n_pts (int): Number of points in pcd.
+
+        Returns:
+            np.ndarray: (n_pts, 3).
+        """
+        y_rot_rad = 0.68
+        x_trans = 0.04
+        y_trans = 0
+        z_trans = 0.17
+
+        cylinder_pts = QueryPoints.generate_cylinder(n_pts, 0.02, 0.15, 'z')
+        transform = np.eye(4)
+        rot = EvaluateGrasp.make_rotation_matrix('y', y_rot_rad)
+        trans = np.array([[x_trans, y_trans, z_trans]]).T
+        transform[:3, :3] = rot
+        transform[:3, 3:4] = trans
+        cylinder_pcd = trimesh.PointCloud(cylinder_pts)
+        cylinder_pcd.apply_transform(transform)
+        cylinder_pts = np.asarray(cylinder_pcd.vertices)
+
+        return cylinder_pts
+
 
 if __name__ == '__main__':
     # config_fname = 'debug_config.yml'
@@ -1446,14 +1496,19 @@ if __name__ == '__main__':
     setup = EvaluateGraspSetup()
     setup.load_config(config_fname)
     model = setup.create_model()
-    query_pts = setup.create_query_pts()
+    gripper_query_pts = setup.create_gripper_query_pts()
+    rack_query_pts = setup.create_rack_query_pts()
+
     shapenet_obj_dir = setup.get_shapenet_obj_dir()
     eval_save_dir = setup.create_eval_dir()
     demo_load_dir = setup.get_demo_load_dir(obj_class='mug')
-    optimizer = setup.create_optimizer(model, query_pts, eval_save_dir=eval_save_dir)
+
+    grasp_optimizer = setup.create_optimizer(model, gripper_query_pts, eval_save_dir=eval_save_dir)
+    place_optimizer = setup.create_optimizer(model, rack_query_pts, eval_save_dir=eval_save_dir)
+
     evaluator_args = setup.get_evaluator_args()
 
-    experiment = EvaluateGrasp(optimizer=optimizer, seed=setup.get_seed(),
+    experiment = EvaluateGrasp(optimizer=grasp_optimizer, seed=setup.get_seed(),
         shapenet_obj_dir=shapenet_obj_dir, eval_save_dir=eval_save_dir,
         demo_load_dir=demo_load_dir, **evaluator_args)
 
