@@ -125,8 +125,8 @@ def main(args, global_dict):
         #     sigmoid=False).cuda()
 
         model = conv_occupancy_network.ConvolutionalOccupancyNetwork(
-            latent_dim=32,
-            # latent_dim=64,
+            # latent_dim=32,
+            latent_dim=64,
             # latent_dim=4,
             model_type='pointnet',
             return_features=True,
@@ -1008,7 +1008,7 @@ if __name__ == "__main__":
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_1/checkpoints/model_epoch_0010_iter_153000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_0/checkpoints/model_epoch_0001_iter_012000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_0/checkpoints/model_epoch_0005_iter_068000.pth')
-    conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_part2_1/checkpoints/model_epoch_0007_iter_119000.pth')
+    # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_part2_1/checkpoints/model_epoch_0007_iter_119000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_0/checkpoints/model_epoch_0011_iter_143000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_epoch_0014_iter_221000.pth')
 
@@ -1017,6 +1017,8 @@ if __name__ == "__main__":
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_epoch_0023_iter_358000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_simocc_10x10_0/checkpoints/model_epoch_0008_iter_123000.pth')
     # conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'old/conv_occ_exp_archive/checkpoints/model_epoch_0020_iter_149500.pth')
+
+    conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_final.pth')
 
 
     global_dict = dict(

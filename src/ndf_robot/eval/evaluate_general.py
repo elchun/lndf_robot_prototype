@@ -537,127 +537,20 @@ class EvaluateGrasp():
         with open(self.shapenet_id_list_fname, 'a') as f:
             f.write(f'{trial_data.obj_shapenet_id}\n')
 
-        upright_orientation = common.euler2quat([np.pi / 2, 0, 0]).tolist()
-
-        obj_fname = osp.join(self.shapenet_obj_dir, obj_shapenet_id,
-            'models/model_normalized.obj')
-
-        obj_file_dec = obj_fname.split('.obj')[0] + '_dec.obj'
-
-        scale_low = SimConstants.MESH_SCALE_LOW
-        scale_high = SimConstants.MESH_SCALE_HIGH
-        scale_default = SimConstants.MESH_SCALE_DEFAULT
-        if rand_mesh_scale:
-            mesh_scale = [np.random.random() * (scale_low - scale_high)
-                + scale_low] * 3
-        else:
-            mesh_scale = [scale_default] * 3
-
-        x_low, x_high = SimConstants.OBJ_SAMPLE_X_LOW_HIGH
-        y_low, y_high = SimConstants.OBJ_SAMPLE_Y_LOW_HIGH
-
-        # min_r, max_r = SimConstants.OBJ_SAMPLE_R_MIN_MAX
-        r = SimConstants.OBJ_SAMPLE_R
-        # x_offset = SimConstants.OBJ_SAMPLE_X_OFFSET
-        # y_offset = SimConstants.OBJ_SAMPLE_Y_OFFSET
-
-        if any_pose:
-            pos, ori = self.compute_anyrot_pose(x_low, x_high, y_low, y_high, r)
-
-        else:
-            pos = [np.random.random() * (x_high - x_low) + x_low,
-                np.random.random() * (y_high - y_low) + y_low,
-                SimConstants.TABLE_Z]
-            pose = util.list2pose_stamped(pos + upright_orientation)
-            rand_yaw_T = util.rand_body_yaw_transform(pos, min_theta=-np.pi,
-                max_theta=np.pi)
-            pose_w_yaw = util.transform_pose(pose,
-                util.pose_from_matrix(rand_yaw_T))
-            pos = util.pose_stamped2list(pose_w_yaw)[:3]
-            ori = util.pose_stamped2list(pose_w_yaw)[3:]
-
-        # convert mesh with vhacd
-        if not osp.exists(obj_file_dec):
-            p.vhacd(
-                obj_fname,
-                obj_file_dec,
-                'log.txt',
-                concavity=0.0025,
-                alpha=0.04,
-                beta=0.05,
-                gamma=0.00125,
-                minVolumePerCH=0.0001,
-                resolution=1000000,
-                depth=20,
-                planeDownsampling=4,
-                convexhullDownsampling=4,
-                pca=0,
-                mode=0,
-                convexhullApproximation=1
-            )
-
-        # -- Run robot -- #
+        # -- Home Robot -- #
         self.robot.arm.go_home(ignore_physics=True)
         self.robot.arm.move_ee_xyz([0, 0, 0.2])
 
-        if any_pose:
-            self.robot.pb_client.set_step_sim(True)
+        # -- load object -- #
+        obj_id, o_cid, pos, ori = self.insert_object(obj_shapenet_id,
+            rand_mesh_scale, any_pose)
 
-        # load object
-        obj_id = self.robot.pb_client.load_geom(
-            'mesh',
-            mass=0.01,
-            mesh_scale=mesh_scale,
-            visualfile=obj_file_dec,
-            collifile=obj_file_dec,
-            base_pos=pos,
-            base_ori=ori
-        )
-
-        p.changeDynamics(obj_id, -1, lateralFriction=0.5)
-
-        o_cid = None
-        if any_pose:
-            o_cid = constraint_obj_world(obj_id, pos, ori)
-            self.robot.pb_client.set_step_sim(False)
         safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=True)
         p.changeDynamics(obj_id, -1, linearDamping=5, angularDamping=5)
         time.sleep(1.5)
 
-        # -- Get object point cloud -- #
-        depth_imgs = []
-        seg_idxs = []
-        obj_pcd_pts = []
-        table_pcd_pts = []
-
-        for i, cam in enumerate(self.cams.cams):
-            # get image and raw point cloud
-            rgb, depth, seg = cam.get_images(get_rgb=True, get_depth=True,
-                get_seg=True)
-            pts_raw, _ = cam.get_pcd(in_world=True, rgb_image=rgb,
-                depth_image=depth, depth_min=0.0, depth_max=np.inf)
-
-            # flatten and find corresponding pixels in segmentation mask
-            flat_seg = seg.flatten()
-            flat_depth = depth.flatten()
-            obj_inds = np.where(flat_seg == obj_id)
-            table_inds = np.where(flat_seg == self.table_id)
-            seg_depth = flat_depth[obj_inds[0]]
-
-            obj_pts = pts_raw[obj_inds[0], :]
-            obj_pcd_pts.append(util.crop_pcd(obj_pts))
-            table_pts = pts_raw[table_inds[0], :][::int(table_inds[0].shape[0] / 500)]
-            table_pcd_pts.append(table_pts)
-
-            depth_imgs.append(seg_depth)
-            seg_idxs.append(obj_inds)
-
-        # object shape point cloud
-        target_obj_pcd_obs = np.concatenate(obj_pcd_pts, axis=0)
-        target_pts_mean = np.mean(target_obj_pcd_obs, axis=0)
-        inliers = np.where(np.linalg.norm(
-            target_obj_pcd_obs - target_pts_mean, 2, 1) < 0.2)[0]
-        target_obj_pcd_obs = target_obj_pcd_obs[inliers]
+        # -- Get object point cloud from cameras -- #
+        target_obj_pcd_obs = self.get_pcd(obj_id)
 
         # -- Get grasp position -- #
         opt_viz_path = osp.join(eval_iter_dir, 'visualize')
@@ -668,7 +561,6 @@ class EvaluateGrasp():
         trial_data.best_idx = best_idx
 
         # -- Post process grasp position -- #
-        # print('pre_grasp_ee_pose: ', pre_grasp_ee_pose)
         try:
             # When there are no nearby grasp points, this throws an index
             # error.  The try catch allows us to run more trials after the error.
@@ -1032,6 +924,155 @@ class EvaluateGrasp():
 
         return pos, ori
 
+    def insert_object(self, obj_shapenet_id: str, rand_mesh_scale: bool,
+        any_pose: bool) -> tuple:
+        """
+        Insert object described by {obj_shapenet_id} at calculated pose.
+        Scales input mesh by amount defined in SimConstants.  This amount is
+        constant if rand_mesh_scale is False, otherwise it varies based on
+        SimConstants.  Inserts object upright if any_pose is False, otherwise
+        inserts objects at random rotations and shifted according to
+        compute_anyrot_pose().
+
+        Args:
+            obj_shapenet_id (str): shapenet id of object
+            rand_mesh_scale (bool): True to use random scale for object
+            any_pose (bool): True to pose at random orientation and somewhat
+                random position.
+
+        Returns:
+            tuple: (obj simulation id, object constraint id,
+                object pose, object orientation)
+        """
+
+        # So that any_pose object doesn't immediately fall
+        if any_pose:
+            self.robot.pb_client.set_step_sim(True)
+
+        upright_orientation = common.euler2quat([np.pi / 2, 0, 0]).tolist()
+
+        obj_fname = osp.join(self.shapenet_obj_dir, obj_shapenet_id,
+            'models/model_normalized.obj')
+
+        obj_file_dec = obj_fname.split('.obj')[0] + '_dec.obj'
+
+        scale_low = SimConstants.MESH_SCALE_LOW
+        scale_high = SimConstants.MESH_SCALE_HIGH
+        scale_default = SimConstants.MESH_SCALE_DEFAULT
+        if rand_mesh_scale:
+            mesh_scale = [np.random.random() * (scale_low - scale_high)
+                + scale_low] * 3
+        else:
+            mesh_scale = [scale_default] * 3
+
+        x_low, x_high = SimConstants.OBJ_SAMPLE_X_LOW_HIGH
+        y_low, y_high = SimConstants.OBJ_SAMPLE_Y_LOW_HIGH
+        r = SimConstants.OBJ_SAMPLE_R
+
+        if any_pose:
+            pos, ori = self.compute_anyrot_pose(x_low, x_high, y_low, y_high, r)
+
+        else:
+            pos = [np.random.random() * (x_high - x_low) + x_low,
+                np.random.random() * (y_high - y_low) + y_low,
+                SimConstants.TABLE_Z]
+            pose = util.list2pose_stamped(pos + upright_orientation)
+            rand_yaw_T = util.rand_body_yaw_transform(pos, min_theta=-np.pi,
+                max_theta=np.pi)
+            pose_w_yaw = util.transform_pose(pose,
+                util.pose_from_matrix(rand_yaw_T))
+            pos = util.pose_stamped2list(pose_w_yaw)[:3]
+            ori = util.pose_stamped2list(pose_w_yaw)[3:]
+
+        # convert mesh with vhacd
+        if not osp.exists(obj_file_dec):
+            p.vhacd(
+                obj_fname,
+                obj_file_dec,
+                'log.txt',
+                concavity=0.0025,
+                alpha=0.04,
+                beta=0.05,
+                gamma=0.00125,
+                minVolumePerCH=0.0001,
+                resolution=1000000,
+                depth=20,
+                planeDownsampling=4,
+                convexhullDownsampling=4,
+                pca=0,
+                mode=0,
+                convexhullApproximation=1
+            )
+
+        if any_pose:
+            self.robot.pb_client.set_step_sim(True)
+
+        # load object
+        obj_id = self.robot.pb_client.load_geom(
+            'mesh',
+            mass=0.01,
+            mesh_scale=mesh_scale,
+            visualfile=obj_file_dec,
+            collifile=obj_file_dec,
+            base_pos=pos,
+            base_ori=ori
+        )
+
+        p.changeDynamics(obj_id, -1, lateralFriction=0.5)
+
+        o_cid = None
+        if any_pose:
+            o_cid = constraint_obj_world(obj_id, pos, ori)
+            self.robot.pb_client.set_step_sim(False)
+
+        return obj_id, o_cid, pos, ori
+
+    def get_pcd(self, obj_id: int) -> np.ndarray:
+        """
+        Use cameras to get point cloud.
+
+        Args:
+            obj_id (int): id of object in simulation.
+
+        Returns:
+            ndarray: Point cloud representing observed object.
+        """
+        depth_imgs = []
+        seg_idxs = []
+        obj_pcd_pts = []
+        table_pcd_pts = []
+
+        for i, cam in enumerate(self.cams.cams):
+            # get image and raw point cloud
+            rgb, depth, seg = cam.get_images(get_rgb=True, get_depth=True,
+                get_seg=True)
+            pts_raw, _ = cam.get_pcd(in_world=True, rgb_image=rgb,
+                depth_image=depth, depth_min=0.0, depth_max=np.inf)
+
+            # flatten and find corresponding pixels in segmentation mask
+            flat_seg = seg.flatten()
+            flat_depth = depth.flatten()
+            obj_inds = np.where(flat_seg == obj_id)
+            table_inds = np.where(flat_seg == self.table_id)
+            seg_depth = flat_depth[obj_inds[0]]
+
+            obj_pts = pts_raw[obj_inds[0], :]
+            obj_pcd_pts.append(util.crop_pcd(obj_pts))
+            table_pts = pts_raw[table_inds[0], :][::int(table_inds[0].shape[0] / 500)]
+            table_pcd_pts.append(table_pts)
+
+            depth_imgs.append(seg_depth)
+            seg_idxs.append(obj_inds)
+
+        # object shape point cloud
+        target_obj_pcd_obs = np.concatenate(obj_pcd_pts, axis=0)
+        target_pts_mean = np.mean(target_obj_pcd_obs, axis=0)
+        inliers = np.where(np.linalg.norm(
+            target_obj_pcd_obs - target_pts_mean, 2, 1) < 0.2)[0]
+        target_obj_pcd_obs = target_obj_pcd_obs[inliers]
+
+        return target_obj_pcd_obs
+
     @staticmethod
     def make_rotation_matrix(axis: str, theta: float):
         """
@@ -1354,6 +1395,42 @@ class QueryPoints():
         )
         rect_points = rect_points @ scale_mat - offset_mat
         return rect_points
+
+    @staticmethod
+    def generate_cylinder(n_pts: int, radius: float, height: float, rot_axis='z') \
+        -> np.ndarray:
+        """
+        Generate np array of {n_pts} 3d points with radius {radius} and
+        height {height} in the shape of a cylinder with axis of rotation about
+        {rot_axis} and points along the positive rot_axis.
+
+        Args:
+            n_pts (int): Number of points to generate.
+            radius (float): Radius of cylinder.
+            height (float): heigh tof cylinder.
+            rot_axis (str, optional): Choose (x, y, z). Defaults to 'z'.
+
+        Returns:
+            np.ndarray: (n_pts, 3) array of points.
+        """
+
+        U_TH = np.random.rand(n_pts, 1)
+        U_R = np.random.rand(n_pts, 1)
+        U_Z = np.random.rand(n_pts, 1)
+        X = radius * np.sqrt(U_R) * np.cos(2 * np.pi * U_TH)
+        Y = radius * np.sqrt(U_R) * np.sin(2 * np.pi * U_TH)
+        Z = height * U_Z
+        # Z = np.zeros((n_pts, 1))
+
+        points = np.hstack([X, Y, Z])
+        rotate = np.eye(3)
+        if rot_axis == 'x':
+            rotate[[0, 2]] = rotate[[2, 0]]
+        elif rot_axis == 'y':
+            rotate[[1, 2]] = rotate[[2, 1]]
+
+        points = points @ rotate
+        return points
 
 
 if __name__ == '__main__':

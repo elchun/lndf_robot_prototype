@@ -1103,7 +1103,7 @@ class EvaluateGraspSetup():
         Args:
             fname (str): Name of config file.  Assumes config file is in
                 'eval_configs' in 'eval' folder.  Name does not include any
-                path prefixes (e.g. 'default_config' is fine)
+                path prefixes (e.g. 'default_config.yml' is fine)
 
         """
         config_path = osp.join(self.config_dir, fname)
@@ -1354,6 +1354,42 @@ class QueryPoints():
         )
         rect_points = rect_points @ scale_mat - offset_mat
         return rect_points
+
+    @staticmethod
+    def generate_cylinder(n_pts: int, radius: float, height: float, rot_axis='z') \
+        -> np.ndarray:
+        """
+        Generate np array of {n_pts} 3d points with radius {radius} and
+        height {height} in the shape of a cylinder with axis of rotation about
+        {rot_axis} and points along the positive rot_axis.
+
+        Args:
+            n_pts (int): Number of points to generate.
+            radius (float): Radius of cylinder.
+            height (float): heigh tof cylinder.
+            rot_axis (str, optional): Choose (x, y, z). Defaults to 'z'.
+
+        Returns:
+            np.ndarray: (n_pts, 3) array of points.
+        """
+
+        U_TH = np.random.rand(n_pts, 1)
+        U_R = np.random.rand(n_pts, 1)
+        U_Z = np.random.rand(n_pts, 1)
+        X = radius * np.sqrt(U_R) * np.cos(2 * np.pi * U_TH)
+        Y = radius * np.sqrt(U_R) * np.sin(2 * np.pi * U_TH)
+        Z = height * U_Z
+        # Z = np.zeros((n_pts, 1))
+
+        points = np.hstack([X, Y, Z])
+        rotate = np.eye(3)
+        if rot_axis == 'x':
+            rotate[[0, 2]] = rotate[[2, 0]]
+        elif rot_axis == 'y':
+            rotate[[1, 2]] = rotate[[2, 1]]
+
+        points = points @ rotate
+        return points
 
 
 if __name__ == '__main__':
