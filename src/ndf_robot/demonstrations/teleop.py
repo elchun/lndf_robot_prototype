@@ -20,7 +20,7 @@ from ndf_robot.config.default_eval_cfg import get_eval_cfg_defaults
 from ndf_robot.config.default_obj_cfg import get_obj_cfg_defaults
 
 
-def hide_link(obj_id, link_id): 
+def hide_link(obj_id, link_id):
     if link_id is not None:
         p.changeVisualShape(obj_id, link_id, rgbaColor=[0, 0, 0, 0])
 
@@ -72,13 +72,13 @@ def worker_robot(child_conn, work_queue, result_queue, global_dict, worker_flag_
         if msg == "RESET":
             robot = Robot('franka', pb_cfg={'gui': True})
             new_home = [
-                -0.2798878477975077, 
-                -0.23823885657833854, 
-                0.28537688039025716, 
-                -2.081827496447527, 
-                0.10717202097307935, 
-                1.8621456957353935, 
-                0.8129974299835407                
+                -0.2798878477975077,
+                -0.23823885657833854,
+                0.28537688039025716,
+                -2.081827496447527,
+                0.10717202097307935,
+                1.8621456957353935,
+                0.8129974299835407
             ]
 
             # general experiment + environment setup/scene generation configs
@@ -144,7 +144,7 @@ def worker_robot(child_conn, work_queue, result_queue, global_dict, worker_flag_
 
             table_ori = euler2quat([0, 0, np.pi / 2])
             table_id = robot.pb_client.load_urdf(osp.join(path_util.get_ndf_descriptions(), 'hanging/table', table_urdf_file),
-                                    cfg.TABLE_POS, 
+                                    cfg.TABLE_POS,
                                     table_ori,
                                     scaling=cfg.TABLE_SCALING)
 
@@ -375,7 +375,7 @@ def worker_robot(child_conn, work_queue, result_queue, global_dict, worker_flag_
 
             # first go through and get unoccluded object observations
             hide_link(table_id, place_link_id)
-            for i, cam in enumerate(cams.cams): 
+            for i, cam in enumerate(cams.cams):
                 cam_int = cam.cam_int_mat
                 cam_ext = cam.cam_ext_mat
                 cam_intrinsics.append(cam_int)
@@ -400,28 +400,28 @@ def worker_robot(child_conn, work_queue, result_queue, global_dict, worker_flag_
 
                 table_val = table_id + ((table_link_id+1) << 24)
                 table_inds = np.where(flat_seg == table_val)
-                seg_depth = flat_depth[obj_inds[0]]  
+                seg_depth = flat_depth[obj_inds[0]]
 
                 obj_pts = pts_raw[obj_inds[0], :]
                 table_pts = pts_raw[table_inds[0], :]
                 obj_pcd_pts.append(util.crop_pcd(obj_pts))
                 table_pcd_pts.append(table_pts)
-           
+
                 # save sample
                 obj_poses.append(obj_pose_camera_np)
                 depth_imgs.append(depth)
                 seg_depth_imgs.append(seg_depth)
                 rgb_imgs.append(rgb)
                 seg_idxs.append(obj_inds)
-            
-            # now go back through and also get point clouds representing your environment objects 
+
+            # now go back through and also get point clouds representing your environment objects
             print('Have shelf: %s' % have_shelf)
             if have_shelf:
                 shelf_pose_world = np.concatenate(p.getLinkState(table_id, shelf_link_id)[:2]).tolist()
                 print('Shelf pose world: ', shelf_pose_world)
 
             show_link(table_id, place_link_id, place_color)
-            for i, cam in enumerate(cams.cams): 
+            for i, cam in enumerate(cams.cams):
                 rgb, depth, seg = cam.get_images(get_rgb=True, get_depth=True, get_seg=True)
                 pts_raw, _ = cam.get_pcd(in_world=True, rgb_image=rgb, depth_image=depth, depth_min=0.0, depth_max=np.inf)
 
@@ -460,10 +460,10 @@ def worker_robot(child_conn, work_queue, result_queue, global_dict, worker_flag_
             robot_joints = robot.arm.get_jpos()
             obj_pose_world = np.concatenate(p.getBasePositionAndOrientation(obj_id)[:2]).tolist()
             gripper_closest_points = p.getClosestPoints(
-                bodyA=obj_id, 
-                bodyB=robot.arm.robot_id, 
+                bodyA=obj_id,
+                bodyB=robot.arm.robot_id,
                 distance=0.0025,
-                linkIndexA=-1, 
+                linkIndexA=-1,
                 linkIndexB=right_pad_id)
 
             # sort by distance to the object
@@ -530,8 +530,8 @@ def worker_robot(child_conn, work_queue, result_queue, global_dict, worker_flag_
 
             # get contact point / closest point position
             rack_closest_points = p.getClosestPoints(
-                bodyA=obj_id, 
-                bodyB=table_id, 
+                bodyA=obj_id,
+                bodyB=table_id,
                 distance=0.005,
                 linkIndexA=-1,
                 linkIndexB=rack_link_id)
