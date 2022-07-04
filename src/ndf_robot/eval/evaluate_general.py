@@ -287,7 +287,7 @@ class TrialData():
     best_idx = -1
 
 
-class EvaluateGrasp():
+class EvaluateNetwork():
     """
     Class for running evaluation on robot arm
 
@@ -317,8 +317,8 @@ class EvaluateGrasp():
 
     """
 
-    def __init__(self, optimizer: OccNetOptimizer, seed: int,
-                 shapenet_obj_dir: str, eval_save_dir: str, demo_load_dir: str,
+    def __init__(self, grasp_optimizer: OccNetOptimizer, place_optimizer: OccNetOptimizer,
+                 seed: int, shapenet_obj_dir: str, eval_save_dir: str, demo_load_dir: str,
                  pybullet_viz: bool = False, obj_class: str = 'mug',
                  num_trials: int = 200, include_avoid_obj: bool = True,
                  any_pose: bool = True):
@@ -346,7 +346,8 @@ class EvaluateGrasp():
                 randomly rotate the mug, then translate it graspable positions.
                 Defaults to True.
         """
-        self.optimizer = optimizer
+        self.grasp_optimizer = grasp_optimizer
+        self.place_optimizer = place_optimizer
         self.seed = seed
 
         self.robot = Robot('franka',
@@ -432,6 +433,9 @@ class EvaluateGrasp():
         grasp_demo_fnames = [osp.join(self.demo_load_dir, fn) for fn in
             demo_fnames if 'grasp_demo' in fn]
 
+        place_demo_fnames = [osp.join(self.demo_load_dir, fn) for fn in
+            demo_fnames if 'place_demo' in fn]
+
         # Can add selection of less demos here
 
         grasp_data_list = []
@@ -454,7 +458,7 @@ class EvaluateGrasp():
             demo_obj_pts = demo_obj_pts[inliers]
 
             # -- Get query pts -- #
-            demo_gripper_pts = self.optimizer.query_pts_origin
+            demo_gripper_pts = self.grasp_optimizer.query_pts_origin
             demo_gripper_pcd = trimesh.PointCloud(demo_gripper_pts)
 
             # end-effector pose before grasping
@@ -486,7 +490,9 @@ class EvaluateGrasp():
             # self.table_urdf = grasp_data['table_urdf'].item()
 
         # -- Set demos -- #
-        self.optimizer.set_demo_info(demo_target_info_list)
+        self.grasp_optimizer.set_demo_info(demo_target_info_list)
+
+
 
         # -- Get test objects -- #
         self.test_object_ids = []
@@ -502,6 +508,11 @@ class EvaluateGrasp():
 
             if valid:
                 self.test_object_ids.append(s_id)
+
+    # def parse_demo(self, data):
+
+
+
 
     def run_trial(self, iteration: int = 0, rand_mesh_scale: bool = True,
                   any_pose: bool = True, thin_feature: bool = True,
@@ -558,7 +569,7 @@ class EvaluateGrasp():
 
         # -- Get grasp position -- #
         opt_viz_path = osp.join(eval_iter_dir, 'visualize')
-        pre_grasp_ee_pose_mats, best_idx = self.optimizer.optimize_transform_implicit(
+        pre_grasp_ee_pose_mats, best_idx = self.grasp_optimizer.optimize_transform_implicit(
             target_obj_pcd_obs, ee=True, viz_path=opt_viz_path)
         pre_grasp_ee_pose = util.pose_stamped2list(util.pose_from_matrix(
             pre_grasp_ee_pose_mats[best_idx]))
@@ -1120,7 +1131,7 @@ class EvaluateGraspSetup():
 
         self.evaluator_dict = None
         self.model_dict = None
-        self.optimizer_dict = None
+        self.grasp_optimizer_dict = None
         self.gripper_query_pts_dict = None
 
         self.seed = None
@@ -1161,7 +1172,10 @@ class EvaluateGraspSetup():
         self.config_dict = config_dict
         self.evaluator_dict = config_dict['evaluator']
         self.model_dict = config_dict['model']
-        self.optimizer_dict = config_dict['optimizer']
+
+        self.grasp_optimizer_dict = config_dict['grasp_optimizer']
+        self.place_optimizer_dict = config_dict['place_optimizer']
+
         self.gripper_query_pts_dict = config_dict['gripper_query_pts']
         self.rack_query_pts_dict = config_dict['rack_query_pts']
         self.setup_args = config_dict['setup_args']
@@ -1201,8 +1215,8 @@ class EvaluateGraspSetup():
         print('---MODEL---\n', model)
         return model
 
-    def create_optimizer(self, model: torch.nn.Module,
-                         query_pts: np.ndarray, eval_save_dir=None) -> OccNetOptimizer:
+    def create_grasp_optimizer(self, model: torch.nn.Module,
+            query_pts: np.ndarray, eval_save_dir=None) -> OccNetOptimizer:
         """
         Create OccNetOptimizer from given config
 
@@ -1213,7 +1227,29 @@ class EvaluateGraspSetup():
         Returns:
             OccNetOptimizer: Optimizer to find best grasp position
         """
-        optimizer_args = self.optimizer_dict['args']
+        optimizer_args = self.grasp_optimizer_dict['args']
+        if eval_save_dir is not None:
+            opt_viz_path = osp.join(eval_save_dir, 'visualization')
+        else:
+            opt_viz_path = 'visualization'
+
+        optimizer = OccNetOptimizer(model, query_pts, viz_path=opt_viz_path,
+            **optimizer_args)
+        return optimizer
+
+    def create_place_optimizer(self, model: torch.nn.Module,
+            query_pts: np.ndarray, eval_save_dir=None) -> OccNetOptimizer:
+        """
+        Create OccNetOptimizer from given config
+
+        Args:
+            model (torch.nn.Module): Model to use in the optimizer
+            query_pts (np.ndarray): Query points to use in optimizer
+
+        Returns:
+            OccNetOptimizer: Optimizer to find best grasp position
+        """
+        optimizer_args = self.place_optimizer_dict['args']
         if eval_save_dir is not None:
             opt_viz_path = osp.join(eval_save_dir, 'visualization')
         else:
@@ -1472,7 +1508,7 @@ class QueryPoints():
 
         cylinder_pts = QueryPoints.generate_cylinder(n_pts, 0.02, 0.15, 'z')
         transform = np.eye(4)
-        rot = EvaluateGrasp.make_rotation_matrix('y', y_rot_rad)
+        rot = EvaluateNetwork.make_rotation_matrix('y', y_rot_rad)
         trans = np.array([[x_trans, y_trans, z_trans]]).T
         transform[:3, :3] = rot
         transform[:3, 3:4] = trans
@@ -1503,12 +1539,13 @@ if __name__ == '__main__':
     eval_save_dir = setup.create_eval_dir()
     demo_load_dir = setup.get_demo_load_dir(obj_class='mug')
 
-    grasp_optimizer = setup.create_optimizer(model, gripper_query_pts, eval_save_dir=eval_save_dir)
-    place_optimizer = setup.create_optimizer(model, rack_query_pts, eval_save_dir=eval_save_dir)
+    grasp_optimizer = setup.create_grasp_optimizer(model, gripper_query_pts, eval_save_dir=eval_save_dir)
+    place_optimizer = setup.create_place_optimizer(model, rack_query_pts, eval_save_dir=eval_save_dir)
 
     evaluator_args = setup.get_evaluator_args()
 
-    experiment = EvaluateGrasp(optimizer=grasp_optimizer, seed=setup.get_seed(),
+    experiment = EvaluateNetwork(grasp_optimizer=grasp_optimizer, place_optimizer=place_optimizer,
+        seed=setup.get_seed(),
         shapenet_obj_dir=shapenet_obj_dir, eval_save_dir=eval_save_dir,
         demo_load_dir=demo_load_dir, **evaluator_args)
 

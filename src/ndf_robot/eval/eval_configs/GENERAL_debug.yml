@@ -1,6 +1,6 @@
 
 setup_args:
-  exp_dir_suffix: CONV_OCC_handle_grasp_anyrot
+  exp_dir_suffix: GEN_DEBUG
   demo_exp: 'mug_handle'
   seed: 0
 
@@ -34,19 +34,20 @@ model:
     sigmoid: False
     acts: last
 
-optimizer:
+grasp_optimizer:
   args:
     opt_iterations: 1000
     rand_translate: True
     use_tsne: False
     M_override: 20
 
-# query_pts:
-#   type: SPHERE
-#   args:
-#     n_pts: 1000
-#     # radius: 0.05
-#     radius: 0.09
+place_optimizer:
+  args:
+    opt_iterations: 1000
+    rand_translate: True
+    use_tsne: False
+    M_override: 20
+
 
 # With rect query points, z1 is actually pointing up when
 # used as a query point

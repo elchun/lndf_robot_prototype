@@ -1,4 +1,4 @@
-from ndf_robot.eval.evaluate_general import EvaluateGrasp, EvaluateGraspSetup, QueryPoints
+from ndf_robot.eval.evaluate_general import EvaluateNetwork, EvaluateGraspSetup, QueryPoints
 import plotly.express as px
 import numpy as np
 import os
@@ -6,7 +6,7 @@ import os.path as osp
 import trimesh
 
 if __name__ == '__main__':
-    config_fname = 'debug_config.yml'
+    config_fname = 'GENERAL_debug.yml'
 
     setup = EvaluateGraspSetup()
     setup.load_config(config_fname)
@@ -74,3 +74,15 @@ if __name__ == '__main__':
 
     fig.write_html('debug.html')
     print(place_data['rack_pointcloud_uniform'].shape)
+
+    # -- Looking at grasp demos -- #
+    grasp_demo_fnames = [osp.join(demo_load_dir, fn) for fn in
+        demo_fnames if 'grasp_demo' in fn]
+
+    grasp_demo_fn = grasp_demo_fnames[0]
+    print(f'Loading demo from fname: {grasp_demo_fn}')
+    grasp_data = np.load(grasp_demo_fn, allow_pickle=True)
+    files = grasp_data.files
+    print('---')
+    for f in files:
+        print(f)
