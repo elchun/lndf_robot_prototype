@@ -46,7 +46,8 @@ import ndf_robot.model.vnn_occupancy_net.vnn_occupancy_net_pointnet_dgcnn \
 import ndf_robot.model.conv_occupancy_net.conv_occupancy_net \
     as conv_occupancy_network
 
-from ndf_robot.opt.optimizer import OccNetOptimizer
+# from ndf_robot.opt.optimizer import OccNetOptimizer
+from ndf_robot.opt.optimizer_lite import OccNetOptimizer, Demo
 from ndf_robot.robot.multicam import MultiCams
 from ndf_robot.utils.franka_ik import FrankaIK
 
@@ -421,7 +422,7 @@ class EvaluateNetwork():
             table_ori,
             scaling=SimConstants.TABLE_SCALING)
 
-    def load_demos(self):
+    def load_demos(self, demo_fname_includes: str='grasp_demo'):
         """
         Load demos from self.demo_load_dir.  Add demo data to optimizer
         and save test_object_ids to self.test_object_ids
@@ -430,59 +431,46 @@ class EvaluateNetwork():
         assert len(demo_fnames), 'No demonstrations found in path: %s!' \
             % self.demo_load_dir
 
-        grasp_demo_fnames = [osp.join(self.demo_load_dir, fn) for fn in
-            demo_fnames if 'grasp_demo' in fn]
-
-        place_demo_fnames = [osp.join(self.demo_load_dir, fn) for fn in
-            demo_fnames if 'place_demo' in fn]
+        demo_fnames = [osp.join(self.demo_load_dir, fn) for fn in
+            demo_fnames if demo_fname_includes in fn]
 
         # Can add selection of less demos here
-
-        grasp_data_list = []
-        demo_target_info_list = []
         demo_shapenet_ids = []
 
         # Iterate through all demos, extract relevant information and
         # prepare to pass into optimizer
-        for grasp_demo_fn in grasp_demo_fnames:
+        for grasp_demo_fn in demo_fnames:
             print('Loading demo from fname: %s' % grasp_demo_fn)
-            grasp_data = np.load(grasp_demo_fn, allow_pickle=True)
-            grasp_data_list.append(grasp_data)
+            data = np.load(grasp_demo_fn, allow_pickle=True)
+            # grasp_data_list.append(data)
 
-            # -- Get object points -- #
-            # observed shape point cloud at start
-            demo_obj_pts = grasp_data['object_pointcloud']
+            # -- Get obj pts -- #
+            demo_obj_pts = data['object_pointcloud']
             demo_pts_mean = np.mean(demo_obj_pts, axis=0)
             inliers = np.where(
                 np.linalg.norm(demo_obj_pts - demo_pts_mean, 2, 1) < 0.2)[0]
             demo_obj_pts = demo_obj_pts[inliers]
+            demo_obj_pts = demo_obj_pts - demo_pts_mean
 
-            # -- Get query pts -- #
-            demo_gripper_pts = self.grasp_optimizer.query_pts_origin
-            demo_gripper_pcd = trimesh.PointCloud(demo_gripper_pts)
+            # -- Get query pts -- # #TODO
+            demo_query_pts = self.grasp_optimizer.query_pts
+            # demo_gripper_pcd = trimesh.PointCloud(demo_gripper_pts)
 
-            # end-effector pose before grasping
-            demo_ee_mat = util.matrix_from_pose(
-                    util.list2pose_stamped(grasp_data['ee_pose_world']))
-            demo_gripper_pcd.apply_transform(demo_ee_mat)
+            # translation and identity quaternion
+            demo_obj_pose_world = demo_pts_mean.flatten().tolist() + [0, 0, 0, 1]
 
-            # points we use to represent the gripper at their canonical pose
-            # position shown in the demonstration
-            demo_gripper_pts = np.asarray(demo_gripper_pcd.vertices)
+            demo = Demo(
+                obj_pts=demo_obj_pts,
+                query_pts=demo_query_pts,
+                obj_pose_world=demo_obj_pose_world,
+                query_pose_world=data['gripper_contact_pose'])
 
-            target_info = dict(
-                demo_query_pts=demo_gripper_pts,
-                demo_query_pts_real_shape=demo_gripper_pts,
-                demo_obj_pts=demo_obj_pts,
-                demo_ee_pose_world=grasp_data['ee_pose_world'],
-                demo_query_pt_pose=grasp_data['gripper_contact_pose'],
-                demo_obj_rel_transform=np.eye(4)
-            )
+            self.grasp_optimizer.add_demo(demo)
 
             # -- Get shapenet id -- #
-            shapenet_id = grasp_data['shapenet_id'].item()
+            shapenet_id = data['shapenet_id'].item()
 
-            demo_target_info_list.append(target_info)
+            # demo_target_info_list.append(target_info)
             demo_shapenet_ids.append(shapenet_id)
 
             # # -- Get table urdf -- #
@@ -490,9 +478,9 @@ class EvaluateNetwork():
             # self.table_urdf = grasp_data['table_urdf'].item()
 
         # -- Set demos -- #
-        self.grasp_optimizer.set_demo_info(demo_target_info_list)
+        # self.grasp_optimizer.set_demo_info(demo_target_info_list)
 
-
+        self.grasp_optimizer.process_demos()
 
         # -- Get test objects -- #
         self.test_object_ids = []
