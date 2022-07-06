@@ -20,7 +20,8 @@ class Demo:
     Container class for a demo.
     """
     def __init__(self, obj_pts: np.ndarray, query_pts: np.ndarray,
-                 obj_pose_world: np.ndarray, query_pose_world: np.ndarray):
+                 obj_pose_world: np.ndarray, query_pose_world: np.ndarray,
+                 obj_shapenet_id: str):
         """
         Create instance of demo
 
@@ -34,6 +35,7 @@ class Demo:
         self.query_pts = query_pts
         self.obj_pose_world = obj_pose_world
         self.query_pose_world = query_pose_world
+        self.obj_shapenet_id = obj_shapenet_id
 
 
 class OccNetOptimizer:

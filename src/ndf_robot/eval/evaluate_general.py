@@ -26,6 +26,8 @@ from datetime import datetime
 import time
 from enum import Enum
 
+from numpy.lib.npyio import NpzFile
+
 import torch
 import trimesh
 
@@ -288,6 +290,144 @@ class TrialData():
     best_idx = -1
 
 
+class DemoIO():
+    """Container class for converting data to standard format"""
+    @staticmethod
+    def process_grasp_data(data: NpzFile) -> Demo:
+        # -- Get obj pts in world coordinate frame -- #
+        demo_obj_pts = data['obj_pcd_ori']
+        demo_pts_mean = np.mean(demo_obj_pts, axis=0)
+        inliers = np.where(
+            np.linalg.norm(demo_obj_pts - demo_pts_mean, 2, 1) < 0.2)[0]
+        demo_obj_pts = demo_obj_pts[inliers]
+
+        # # -- Zero obj by applying inverse pose -- #
+        # demo_obj_pose_world = data['obj_pose_world']
+        # demo_obj_pose_mat = util.matrix_from_pose(
+        #     util.list2pose_stamped(demo_obj_pose_world))
+        # demo_obj_pose_inv = np.linalg.inv(demo_obj_pose_mat)
+        # demo_obj_pose_inv = util.pose_from_matrix(demo_obj_pose_inv)
+        # demo_obj_pts = OccNetOptimizer._apply_pose_numpy(
+        #     demo_obj_pts, util.pose_stamped2list(demo_obj_pose_inv))
+
+        # -- Get query pts -- #
+        demo_query_pts = data['gripper_pts_uniform']
+
+        # translation and identity quaternion
+        # demo_obj_pose_world = data['obj_pose_world']
+        # demo_obj_pose_world[:3] += demo_pts_mean.flatten().tolist()
+        # demo_obj_pose_world = demo_pts_mean.flatten().tolist() + [0, 0, 0, 1]
+        # demo_obj_pose_world = [0, 0, 0] + [0, 0, 0, 1]
+
+        demo = Demo(
+            obj_pts=demo_obj_pts,
+            query_pts=demo_query_pts,
+            obj_pose_world=data['obj_pose_world'],
+            query_pose_world=data['gripper_contact_pose'],
+            # query_pose_world=data['ee_pose_world'],
+            obj_shapenet_id=data['shapenet_id'].item())
+
+        return demo
+
+    @staticmethod
+    def process_place_data(data: NpzFile) -> Demo:
+        # -- Get obj pts -- #
+        demo_obj_pts = data['object_pointcloud']
+        demo_pts_mean = np.mean(demo_obj_pts, axis=0)
+        inliers = np.where(
+            np.linalg.norm(demo_obj_pts - demo_pts_mean, 2, 1) < 0.2)[0]
+        demo_obj_pts = demo_obj_pts[inliers]
+
+        # -- Get query pts --#
+        demo_query_pts = data['rack_pointcloud_gt']
+
+        # translation and identity quaternion
+        # demo_obj_pose_world = np.array(data['obj_pose_world'])
+        # demo_obj_pose_world[:3] += demo_pts_mean.flatten()
+        # demo_obj_pose_world = demo_pts_mean.flatten().tolist() + [0, 0, 0, 1]
+
+        demo = Demo(
+            obj_pts=demo_obj_pts,
+            query_pts=demo_query_pts,
+            obj_pose_world=data['obj_pose_world'],
+            query_pose_world=data['rack_pose_world'],
+            obj_shapenet_id=data['shapenet_id'].item())
+
+        return demo
+
+    @staticmethod
+    def OLD_process_grasp_data(data: NpzFile) -> Demo:
+
+        # Object pointcloud is observed and does NOT correspond to the location
+        # of the original object.  Instead, it is the result of the original
+        # object having the obj_pose_world transform applied to it.
+        # To get it to the location of the original object, we must
+        # apply the inverse of the obj_pose_world (as this transforms the raw
+        # object to the location that the pointcloud is at).
+
+        # -- Get obj pts -- #
+        demo_obj_pts = data['object_pointcloud']
+        demo_pts_mean = np.mean(demo_obj_pts, axis=0)
+        inliers = np.where(
+            np.linalg.norm(demo_obj_pts - demo_pts_mean, 2, 1) < 0.2)[0]
+        demo_obj_pts = demo_obj_pts[inliers]
+
+        # -- Zero obj by applying inverse pose -- #
+        demo_obj_pose_world = data['obj_pose_world']
+        demo_obj_pose_mat = util.matrix_from_pose(
+            util.list2pose_stamped(demo_obj_pose_world))
+        demo_obj_pose_inv = np.linalg.inv(demo_obj_pose_mat)
+        demo_obj_pose_inv = util.pose_from_matrix(demo_obj_pose_inv)
+        demo_obj_pts = OccNetOptimizer._apply_pose_numpy(
+            demo_obj_pts, util.pose_stamped2list(demo_obj_pose_inv))
+
+        # -- Get query pts -- #
+        demo_query_pts = data['gripper_pts_uniform']
+
+        # translation and identity quaternion
+        # demo_obj_pose_world = np.array(data['obj_pose_world'])
+        # demo_obj_pose_world[:3] += demo_pts_mean.flatten().tolist()
+        # demo_obj_pose_world = demo_pts_mean.flatten().tolist() + [0, 0, 0, 1]
+        # demo_obj_pose_world = [0, 0, 0] + [0, 0, 0, 1]
+
+        demo = Demo(
+            obj_pts=demo_obj_pts,
+            query_pts=demo_query_pts,
+            obj_pose_world=demo_obj_pose_world,
+            query_pose_world=data['gripper_contact_pose'],
+            # query_pose_world=data['ee_pose_world'],
+            obj_shapenet_id=data['shapenet_id'].item())
+
+        return demo
+
+    @staticmethod
+    def process_place_data(data: NpzFile) -> Demo:
+        # -- Get obj pts -- #
+        demo_obj_pts = data['object_pointcloud']
+        demo_pts_mean = np.mean(demo_obj_pts, axis=0)
+        inliers = np.where(
+            np.linalg.norm(demo_obj_pts - demo_pts_mean, 2, 1) < 0.2)[0]
+        demo_obj_pts = demo_obj_pts[inliers]
+        demo_obj_pts = demo_obj_pts - demo_pts_mean
+
+        # -- Get query pts --#
+        demo_query_pts = data['rack_pointcloud_gt']
+
+        # translation and identity quaternion
+        demo_obj_pose_world = np.array(data['obj_pose_world'])
+        # demo_obj_pose_world[:3] += demo_pts_mean.flatten()
+        # demo_obj_pose_world = demo_pts_mean.flatten().tolist() + [0, 0, 0, 1]
+
+        demo = Demo(
+            obj_pts=demo_obj_pts,
+            query_pts=demo_query_pts,
+            obj_pose_world=demo_obj_pose_world,
+            query_pose_world=data['rack_pose_world'],
+            obj_shapenet_id=data['shapenet_id'].item())
+
+        return demo
+
+
 class EvaluateNetwork():
     """
     Class for running evaluation on robot arm
@@ -422,7 +562,7 @@ class EvaluateNetwork():
             table_ori,
             scaling=SimConstants.TABLE_SCALING)
 
-    def load_demos(self, demo_fname_includes: str='grasp_demo'):
+    def load_demos(self):
         """
         Load demos from self.demo_load_dir.  Add demo data to optimizer
         and save test_object_ids to self.test_object_ids
@@ -431,56 +571,45 @@ class EvaluateNetwork():
         assert len(demo_fnames), 'No demonstrations found in path: %s!' \
             % self.demo_load_dir
 
-        demo_fnames = [osp.join(self.demo_load_dir, fn) for fn in
-            demo_fnames if demo_fname_includes in fn]
+        grasp_demo_fnames = [osp.join(self.demo_load_dir, fn) for fn in
+            demo_fnames if 'grasp_demo' in fn]
+
+        place_demo_fnames = [osp.join(self.demo_load_dir, fn) for fn in
+            demo_fnames if 'place_demo' in fn]
 
         # Can add selection of less demos here
         demo_shapenet_ids = []
 
         # Iterate through all demos, extract relevant information and
         # prepare to pass into optimizer
-        for grasp_demo_fn in demo_fnames:
-            print('Loading demo from fname: %s' % grasp_demo_fn)
-            data = np.load(grasp_demo_fn, allow_pickle=True)
-            # grasp_data_list.append(data)
+        for grasp_demo_fn in grasp_demo_fnames:
+            print('Loading grasp demo from fname: %s' % grasp_demo_fn)
+            grasp_data = np.load(grasp_demo_fn, allow_pickle=True)
 
-            # -- Get obj pts -- #
-            demo_obj_pts = data['object_pointcloud']
-            demo_pts_mean = np.mean(demo_obj_pts, axis=0)
-            inliers = np.where(
-                np.linalg.norm(demo_obj_pts - demo_pts_mean, 2, 1) < 0.2)[0]
-            demo_obj_pts = demo_obj_pts[inliers]
-            demo_obj_pts = demo_obj_pts - demo_pts_mean
-
-            # -- Get query pts -- # #TODO
-            demo_query_pts = self.grasp_optimizer.query_pts
-            # demo_gripper_pcd = trimesh.PointCloud(demo_gripper_pts)
-
-            # translation and identity quaternion
-            demo_obj_pose_world = demo_pts_mean.flatten().tolist() + [0, 0, 0, 1]
-
-            demo = Demo(
-                obj_pts=demo_obj_pts,
-                query_pts=demo_query_pts,
-                obj_pose_world=demo_obj_pose_world,
-                query_pose_world=data['gripper_contact_pose'])
+            demo = DemoIO.process_grasp_data(grasp_data)
 
             self.grasp_optimizer.add_demo(demo)
-
-            # -- Get shapenet id -- #
-            shapenet_id = data['shapenet_id'].item()
-
-            # demo_target_info_list.append(target_info)
-            demo_shapenet_ids.append(shapenet_id)
+            demo_shapenet_ids.append(demo.obj_shapenet_id)
 
             # # -- Get table urdf -- #
             # Used to get same urdf as used in demos (i.e. with rack)
             # self.table_urdf = grasp_data['table_urdf'].item()
 
-        # -- Set demos -- #
-        # self.grasp_optimizer.set_demo_info(demo_target_info_list)
-
         self.grasp_optimizer.process_demos()
+
+        for place_demo_fn in place_demo_fnames:
+            print('Loading place demo from fname: %s' % place_demo_fn)
+            place_data = np.load(place_demo_fn, allow_pickle=True)
+
+            demo = DemoIO.process_place_data(place_data)
+
+            self.place_optimizer.add_demo(demo)
+            demo_shapenet_ids.append(demo.obj_shapenet_id)
+
+            # # -- Get table urdf -- #
+            # Used to get same urdf as used in demos (i.e. with rack)
+            # self.table_urdf = grasp_data['table_urdf'].item()
+        self.place_optimizer.process_demos()
 
         # -- Get test objects -- #
         self.test_object_ids = []
@@ -496,11 +625,6 @@ class EvaluateNetwork():
 
             if valid:
                 self.test_object_ids.append(s_id)
-
-    # def parse_demo(self, data):
-
-
-
 
     def run_trial(self, iteration: int = 0, rand_mesh_scale: bool = True,
                   any_pose: bool = True, thin_feature: bool = True,
@@ -562,6 +686,14 @@ class EvaluateNetwork():
         pre_grasp_ee_pose = util.pose_stamped2list(util.pose_from_matrix(
             pre_grasp_ee_pose_mats[best_idx]))
         trial_data.best_idx = best_idx
+
+        # -- Get place position -- #
+        opt_viz_path = osp.join(eval_iter_dir, 'visualize')
+        pre_place_rack_pose_mats, best_idx = self.place_optimizer.optimize_transform_implicit(
+            target_obj_pcd_obs, ee=False, viz_path=opt_viz_path)
+        # pre_grasp_ee_pose = util.pose_stamped2list(util.pose_from_matrix(
+        #     pre_grasp_ee_pose_mats[best_idx]))
+        # trial_data.best_idx = best_idx
 
         # -- Post process grasp position -- #
         try:
@@ -1244,7 +1376,7 @@ class EvaluateGraspSetup():
             opt_viz_path = 'visualization'
 
         optimizer = OccNetOptimizer(model, query_pts, viz_path=opt_viz_path,
-            **optimizer_args)
+            opt_fname_prefix='rack_pose_optimized', **optimizer_args)
         return optimizer
 
     def create_gripper_query_pts(self) -> np.ndarray:

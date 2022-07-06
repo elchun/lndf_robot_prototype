@@ -16,12 +16,12 @@ if __name__ == '__main__':
     eval_save_dir = setup.create_eval_dir()
     demo_load_dir = setup.get_demo_load_dir(obj_class='mug')
 
-    grasp_optimizer = OccNetOptimizer(model, gripper_query_pts, eval_save_dir=eval_save_dir)
+    grasp_optimizer = OccNetOptimizer(model, query_pts = gripper_query_pts, eval_save_dir=eval_save_dir)
 
-    grasp_optimizer = setup.create_grasp_optimizer(model, gripper_query_pts, eval_save_dir=eval_save_dir)
-    place_optimizer = setup.create_place_optimizer(model, rack_query_pts, eval_save_dir=eval_save_dir)
+    # grasp_optimizer = setup.create_grasp_optimizer(model, gripper_query_pts, eval_save_dir=eval_save_dir)
+    # place_optimizer = setup.create_place_optimizer(model, rack_query_pts, eval_save_dir=eval_save_dir)
 
-    evaluator_args = setup.get_evaluator_args()
+    # evaluator_args = setup.get_evaluator_args()
 
     experiment = EvaluateNetwork(grasp_optimizer=grasp_optimizer, place_optimizer=place_optimizer,
         seed=setup.get_seed(),
@@ -78,3 +78,5 @@ if __name__ == '__main__':
     # x offset was 0.5
 
 
+
+    # optimizer_lite took 7:50 for 15 trials

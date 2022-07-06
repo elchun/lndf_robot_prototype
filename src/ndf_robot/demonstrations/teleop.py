@@ -444,6 +444,14 @@ def worker_robot(child_conn, work_queue, result_queue, global_dict, worker_flag_
                 shelf_pcd_pts.append(shelf_pts)
 
             pix_3d = np.concatenate(obj_pcd_pts, axis=0)
+
+            # Make a origin centered point cloud so that we use poses to move pcd
+            # to proper location. (center is same as ground truch object)
+            inv_obj_pose_world = util.get_inverse_pose(obj_pose_world)
+            # inv_obj_pose_world = np.hstack((-obj_pose_world[:3],
+            #     util.quat_inverse(obj_pose_world[3:])))
+            obj_pcd_ori = util.apply_pose_numpy(pix_3d, inv_obj_pose_world)
+
             table_pix_3d = np.concatenate(table_pcd_pts, axis=0)
             shelf_pix_3d = np.concatenate(shelf_pcd_pts, axis=0)
 
@@ -504,7 +512,8 @@ def worker_robot(child_conn, work_queue, result_queue, global_dict, worker_flag_
                 gripper_contact_pose=gripper_contact_pose,
                 table_urdf=table_urdf,
                 pcd_raw=pcd_raw,
-                cam_intrinsics=cam_intrinsics
+                cam_intrinsics=cam_intrinsics,
+                obj_pcd_ori=obj_pcd_ori
             )
 
             time.sleep(1.0)
@@ -580,7 +589,8 @@ def worker_robot(child_conn, work_queue, result_queue, global_dict, worker_flag_
                 shelf_pointcloud_gt=shelf_pts_gt,
                 table_urdf=table_urdf,
                 pcd_raw=pcd_raw,
-                cam_intrinsics=cam_intrinsics
+                cam_intrinsics=cam_intrinsics,
+                obj_pcd_ori=obj_pcd_ori
             )
 
             worker_flag_dict[worker_id] = True

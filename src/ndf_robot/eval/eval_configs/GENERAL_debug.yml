@@ -1,7 +1,8 @@
 
 setup_args:
   exp_dir_suffix: GEN_DEBUG
-  demo_exp: 'grasp_rim_hang_handle_gaussian_precise_w_shelf'
+  # demo_exp: 'grasp_rim_hang_handle_gaussian_precise_w_shelf'
+  demo_exp: 'grasp_rim_hang_handle_gaussian_precise_w_shelf_converted'
   seed: 0
 
 evaluator:
