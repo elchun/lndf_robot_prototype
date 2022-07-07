@@ -90,7 +90,7 @@ if __name__ == '__main__':
         # table_urdf
         # obj_pcd_ori
 
-    place_demo_fn = place_demo_fnames[2]
+    place_demo_fn = place_demo_fnames[4]
     print(f'Loading demo from fname: {place_demo_fn}')
     place_data = np.load(place_demo_fn, allow_pickle=True)
     files = place_data.files
@@ -99,7 +99,7 @@ if __name__ == '__main__':
         print(f)
 
 
-    grasp_demo_fn = grasp_demo_fnames[2]
+    grasp_demo_fn = grasp_demo_fnames[4]
     print(f'Loading demo from fname: {grasp_demo_fn}')
     grasp_data = np.load(grasp_demo_fn, allow_pickle=True)
 
@@ -116,6 +116,7 @@ if __name__ == '__main__':
     place_demo = DemoIO.process_place_data(place_data)
     grasp_demo = DemoIO.process_grasp_data(grasp_data)
 
+    rack_query_pts = setup.create_rack_query_pts()
 
 
     # -- Ground truth -- #
@@ -127,23 +128,26 @@ if __name__ == '__main__':
     true_grasp_query_pts = target_grip['demo_query_pts']
 
     demo_obj_pts = grasp_demo.obj_pts
-    demo_obj_pts = OccNetOptimizer._apply_pose_numpy(demo_obj_pts, grasp_demo.obj_pose_world)
+    demo_obj_pts = util.apply_pose_numpy(demo_obj_pts, grasp_demo.obj_pose_world)
 
     demo_query_pts = grasp_demo.query_pts
-    demo_query_pts = OccNetOptimizer._apply_pose_numpy(demo_query_pts, grasp_demo.query_pose_world)
+    demo_query_pts = util.apply_pose_numpy(demo_query_pts, grasp_demo.query_pose_world)
 
     demo_rack_pcd = util.apply_pose_numpy(place_demo.query_pts, place_demo.query_pose_world)
     demo_place_obj = util.apply_pose_numpy(grasp_demo.obj_pts, place_demo.obj_pose_world)
 
-
-    # multiplot([grasp_data['object_pointcloud'], grasp_data['obj_pcd_ori'], grasp_demo.obj_pts, demo_obj_pts])
-    # multiplot([grasp_data['object_pointcloud'], grasp_demo.obj_pts, demo_obj_pts])
-    # multiplot([true_grasp_obj_pts, true_grasp_query_pts, demo_obj_pts, demo_query_pts, grasp_data['']])
-    multiplot([true_grasp_obj_pts, true_grasp_query_pts, demo_obj_pts, demo_query_pts, demo_rack_pcd, demo_place_obj])
-    multiplot([demo_rack_pcd, demo_place_obj])
+    demo_rack_query_pcd = util.apply_pose_numpy(rack_query_pts, place_demo.query_pose_world)
 
 
-    demo_rack_pcd = OccNetOptimizer._apply_pose_numpy(place_demo.query_pts, place_demo.query_pose_world)
+    # # multiplot([grasp_data['object_pointcloud'], grasp_data['obj_pcd_ori'], grasp_demo.obj_pts, demo_obj_pts])
+    # # multiplot([grasp_data['object_pointcloud'], grasp_demo.obj_pts, demo_obj_pts])
+    # # multiplot([true_grasp_obj_pts, true_grasp_query_pts, demo_obj_pts, demo_query_pts, grasp_data['']])
+    # multiplot([true_grasp_obj_pts, true_grasp_query_pts, demo_obj_pts, demo_query_pts, demo_rack_pcd, demo_place_obj])
+    # multiplot([demo_rack_pcd, demo_place_obj, rack_query_pts, demo_rack_query_pcd])
+    multiplot([demo_rack_pcd, demo_place_obj, demo_rack_query_pcd])
+
+
+    demo_rack_pcd = util.apply_pose_numpy(place_demo.query_pts, place_demo.query_pose_world)
 
     # demo_obj_pcd = grasp_demo.obj_pts
     # demo_obj_pcd = OccNetOptimizer._apply_pose_numpy(demo_obj_pcd, grasp_demo.obj_pose_world)

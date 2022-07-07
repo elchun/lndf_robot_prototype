@@ -12,7 +12,7 @@ from airobot import log_info, log_warn, log_debug, log_critical
 
 from ndf_robot.utils import util, torch_util, trimesh_util, torch3d_util
 from ndf_robot.utils.eval_gen_utils import object_is_still_grasped
-from ndf_robot.utils.plotly_save import plot3d
+from ndf_robot.utils.plotly_save import plot3d, multiplot
 
 
 class Demo:
@@ -127,7 +127,7 @@ class OccNetOptimizer:
         """
         demo_acts_list = []
         demo_latents_list = []
-        for demo in self.demos:
+        for i, demo in enumerate(self.demos):
             # Note that obj_pts and query_pts are continuously modified here.
             # I think it makes the code cleaner, but they do change types
 
@@ -141,8 +141,11 @@ class OccNetOptimizer:
                     self.query_pts = demo.query_pts
 
             # -- Transform pts to same position as demo (in world coords) -- #
-            obj_pts = self._apply_pose_numpy(obj_pts, demo.obj_pose_world)
-            query_pts = self._apply_pose_numpy(query_pts, demo.query_pose_world)
+            obj_pts = util.apply_pose_numpy(obj_pts, demo.obj_pose_world)
+            query_pts = util.apply_pose_numpy(query_pts, demo.query_pose_world)
+            # DEBUG PLOTS
+            multiplot([demo.query_pts, self.query_pts], osp.join(self.debug_viz_path, 'query_compare.html'))
+            multiplot([obj_pts, query_pts], osp.join(self.debug_viz_path, f'demo_{i}.html'))
 
             # -- Keep relative orientation, but center points on obj mean -- #
             obj_pts = torch.from_numpy(obj_pts).float().to(self.dev)
@@ -170,23 +173,7 @@ class OccNetOptimizer:
         demo_acts_all = torch.stack(demo_acts_list, 0)
         self.target_act_hat = torch.mean(demo_acts_all, 0)
 
-    @staticmethod
-    def _apply_pose_numpy(pts: np.ndarray, pose: list) -> np.ndarray:
-        """
-        Apply pose in the form of to pts of shape (n x 3)
-
-        Args:
-            pts (np.ndarray): pts to transform.  Must be (n x 3)
-            pose (list): Pose in the form of [p_x, p_y, p_z, o_x, o_y, o_z, o_w]
-                where p is position and o is orientation
-
-        Returns:
-            np.ndarray: transformed pts.
-        """
-        pcd = trimesh.PointCloud(pts)
-        pose = util.matrix_from_pose(util.list2pose_stamped(pose))
-        pcd.apply_transform(pose)
-        return np.asarray(pcd.vertices)
+        # print('target_act_hat: ', self.target_act_hat)
 
     def optimize_transform_implicit(self, shape_pts_world_np, viz_path='visualize',
         ee=True, *args, **kwargs):
@@ -217,16 +204,19 @@ class OccNetOptimizer:
         obj_pts_mean = obj_pts.mean(0)
         obj_pts = obj_pts - obj_pts_mean
 
-        # -- Get query points (They are mean centered) -- #
+        # -- Get query points -- #
+        # Centers points so that its easier to translate them to init position
         query_pts = torch.from_numpy(self.query_pts).float().to(self.dev)
+        # query_pts_mean = query_pts.mean(0)
+        # query_pts = query_pts - query_pts_mean
 
         # # convert query points to camera frame, and center the query based on the it's shape mean, so that we perform optimization starting with the query at the origin
         # query_pts_world = torch.from_numpy(self.query_pts_origin).float().to(self.dev)
         # query_pts_mean = query_pts_world.mean(0)
         # query_pts_cent = query_pts_world - query_pts_mean
 
-        # query_pts_tf = np.eye(4)
-        # query_pts_tf[:-1, -1] = -query_pts_mean.cpu().numpy()
+        query_pts_tf = np.eye(4)
+        # query_pts_tf[:-1, -1] = query_pts_mean.cpu().numpy()
 
         # -- Get number of inits -- #
         if self.M_override is not None:
@@ -340,7 +330,10 @@ class OccNetOptimizer:
             transform_mat_np[:-1, -1] = trans_j.detach().cpu().numpy()
 
             # Send query points back to where they came from
+            # transform_mat_np = rand_mat_init[j].detach().cpu().numpy()
+            # transform_mat_np = np.matmul(transform_mat_np, query_pts_tf)
             transform_mat_np = np.matmul(transform_mat_np, rand_mat_init[j].detach().cpu().numpy())
+            # transform_mat_np = np.matmul(transform_mat_np, query_pts_tf)
             transform_mat_np = np.matmul(obj_mean_trans, transform_mat_np)
 
             final_query_pts = util.transform_pcd(self.query_pts, transform_mat_np)

@@ -287,7 +287,8 @@ class TrialData():
     grasp_success = False
     trial_result = TrialResults.UNKNOWN_FAILURE
     obj_shapenet_id = None
-    best_idx = -1
+    best_grasp_idx = -1
+    best_place_idx = -1
 
 
 class DemoIO():
@@ -301,30 +302,11 @@ class DemoIO():
             np.linalg.norm(demo_obj_pts - demo_pts_mean, 2, 1) < 0.2)[0]
         demo_obj_pts = demo_obj_pts[inliers]
 
-        # # -- Zero obj by applying inverse pose -- #
-        # demo_obj_pose_world = data['obj_pose_world']
-        # demo_obj_pose_mat = util.matrix_from_pose(
-        #     util.list2pose_stamped(demo_obj_pose_world))
-        # demo_obj_pose_inv = np.linalg.inv(demo_obj_pose_mat)
-        # demo_obj_pose_inv = util.pose_from_matrix(demo_obj_pose_inv)
-        # demo_obj_pts = OccNetOptimizer._apply_pose_numpy(
-        #     demo_obj_pts, util.pose_stamped2list(demo_obj_pose_inv))
-
-        # -- Get query pts -- #
-        demo_query_pts = data['gripper_pts_uniform']
-
-        # translation and identity quaternion
-        # demo_obj_pose_world = data['obj_pose_world']
-        # demo_obj_pose_world[:3] += demo_pts_mean.flatten().tolist()
-        # demo_obj_pose_world = demo_pts_mean.flatten().tolist() + [0, 0, 0, 1]
-        # demo_obj_pose_world = [0, 0, 0] + [0, 0, 0, 1]
-
         demo = Demo(
             obj_pts=demo_obj_pts,
-            query_pts=demo_query_pts,
+            query_pts=data['gripper_pts_uniform'],
             obj_pose_world=data['obj_pose_world'],
             query_pose_world=data['gripper_contact_pose'],
-            # query_pose_world=data['ee_pose_world'],
             obj_shapenet_id=data['shapenet_id'].item())
 
         return demo
@@ -332,96 +314,16 @@ class DemoIO():
     @staticmethod
     def process_place_data(data: NpzFile) -> Demo:
         # -- Get obj pts -- #
-        demo_obj_pts = data['object_pointcloud']
+        demo_obj_pts = data['obj_pcd_ori']
         demo_pts_mean = np.mean(demo_obj_pts, axis=0)
         inliers = np.where(
             np.linalg.norm(demo_obj_pts - demo_pts_mean, 2, 1) < 0.2)[0]
         demo_obj_pts = demo_obj_pts[inliers]
 
-        # -- Get query pts --#
-        demo_query_pts = data['rack_pointcloud_gt']
-
-        # translation and identity quaternion
-        # demo_obj_pose_world = np.array(data['obj_pose_world'])
-        # demo_obj_pose_world[:3] += demo_pts_mean.flatten()
-        # demo_obj_pose_world = demo_pts_mean.flatten().tolist() + [0, 0, 0, 1]
-
         demo = Demo(
             obj_pts=demo_obj_pts,
-            query_pts=demo_query_pts,
+            query_pts=data['rack_pointcloud_gt'],
             obj_pose_world=data['obj_pose_world'],
-            query_pose_world=data['rack_pose_world'],
-            obj_shapenet_id=data['shapenet_id'].item())
-
-        return demo
-
-    @staticmethod
-    def OLD_process_grasp_data(data: NpzFile) -> Demo:
-
-        # Object pointcloud is observed and does NOT correspond to the location
-        # of the original object.  Instead, it is the result of the original
-        # object having the obj_pose_world transform applied to it.
-        # To get it to the location of the original object, we must
-        # apply the inverse of the obj_pose_world (as this transforms the raw
-        # object to the location that the pointcloud is at).
-
-        # -- Get obj pts -- #
-        demo_obj_pts = data['object_pointcloud']
-        demo_pts_mean = np.mean(demo_obj_pts, axis=0)
-        inliers = np.where(
-            np.linalg.norm(demo_obj_pts - demo_pts_mean, 2, 1) < 0.2)[0]
-        demo_obj_pts = demo_obj_pts[inliers]
-
-        # -- Zero obj by applying inverse pose -- #
-        demo_obj_pose_world = data['obj_pose_world']
-        demo_obj_pose_mat = util.matrix_from_pose(
-            util.list2pose_stamped(demo_obj_pose_world))
-        demo_obj_pose_inv = np.linalg.inv(demo_obj_pose_mat)
-        demo_obj_pose_inv = util.pose_from_matrix(demo_obj_pose_inv)
-        demo_obj_pts = OccNetOptimizer._apply_pose_numpy(
-            demo_obj_pts, util.pose_stamped2list(demo_obj_pose_inv))
-
-        # -- Get query pts -- #
-        demo_query_pts = data['gripper_pts_uniform']
-
-        # translation and identity quaternion
-        # demo_obj_pose_world = np.array(data['obj_pose_world'])
-        # demo_obj_pose_world[:3] += demo_pts_mean.flatten().tolist()
-        # demo_obj_pose_world = demo_pts_mean.flatten().tolist() + [0, 0, 0, 1]
-        # demo_obj_pose_world = [0, 0, 0] + [0, 0, 0, 1]
-
-        demo = Demo(
-            obj_pts=demo_obj_pts,
-            query_pts=demo_query_pts,
-            obj_pose_world=demo_obj_pose_world,
-            query_pose_world=data['gripper_contact_pose'],
-            # query_pose_world=data['ee_pose_world'],
-            obj_shapenet_id=data['shapenet_id'].item())
-
-        return demo
-
-    @staticmethod
-    def process_place_data(data: NpzFile) -> Demo:
-        # -- Get obj pts -- #
-        demo_obj_pts = data['object_pointcloud']
-        demo_pts_mean = np.mean(demo_obj_pts, axis=0)
-        inliers = np.where(
-            np.linalg.norm(demo_obj_pts - demo_pts_mean, 2, 1) < 0.2)[0]
-        demo_obj_pts = demo_obj_pts[inliers]
-        demo_obj_pts = demo_obj_pts - demo_pts_mean
-
-        # -- Get query pts --#
-        demo_query_pts = data['rack_pointcloud_gt']
-
-        # translation and identity quaternion
-        demo_obj_pose_world = np.array(data['obj_pose_world'])
-        # demo_obj_pose_world[:3] += demo_pts_mean.flatten()
-        # demo_obj_pose_world = demo_pts_mean.flatten().tolist() + [0, 0, 0, 1]
-
-        demo = Demo(
-            obj_pts=demo_obj_pts,
-            query_pts=demo_query_pts,
-            obj_pose_world=demo_obj_pose_world,
             query_pose_world=data['rack_pose_world'],
             obj_shapenet_id=data['shapenet_id'].item())
 
@@ -681,16 +583,17 @@ class EvaluateNetwork():
 
         # -- Get grasp position -- #
         opt_viz_path = osp.join(eval_iter_dir, 'visualize')
-        pre_grasp_ee_pose_mats, best_idx = self.grasp_optimizer.optimize_transform_implicit(
+        pre_grasp_ee_pose_mats, best_grasp_idx = self.grasp_optimizer.optimize_transform_implicit(
             target_obj_pcd_obs, ee=True, viz_path=opt_viz_path)
         pre_grasp_ee_pose = util.pose_stamped2list(util.pose_from_matrix(
-            pre_grasp_ee_pose_mats[best_idx]))
-        trial_data.best_idx = best_idx
+            pre_grasp_ee_pose_mats[best_grasp_idx]))
+        trial_data.best_grasp_idx = best_grasp_idx
 
         # -- Get place position -- #
         opt_viz_path = osp.join(eval_iter_dir, 'visualize')
-        pre_place_rack_pose_mats, best_idx = self.place_optimizer.optimize_transform_implicit(
+        pre_place_rack_pose_mats, best_place_idx = self.place_optimizer.optimize_transform_implicit(
             target_obj_pcd_obs, ee=False, viz_path=opt_viz_path)
+        trial_data.best_place_idx = best_place_idx
         # pre_grasp_ee_pose = util.pose_stamped2list(util.pose_from_matrix(
         #     pre_grasp_ee_pose_mats[best_idx]))
         # trial_data.best_idx = best_idx
@@ -951,7 +854,8 @@ class EvaluateNetwork():
                 f.write(f'Trial result: {trial_result}\n')
                 f.write(f'Success Rate: {num_success / (it + 1)}\n')
                 f.write(f'Shapenet id: {obj_shapenet_id}\n')
-                f.write(f'Best idx: {trial_data.best_idx}\n')
+                f.write(f'Best Grasp idx: {trial_data.best_grasp_idx}\n')
+                f.write(f'Best Place idx: {trial_data.best_place_idx}\n')
                 f.write('\n')
 
     @classmethod
@@ -1611,7 +1515,9 @@ class QueryPoints():
         return points
 
     @staticmethod
-    def generate_rack_arm(n_pts: int) -> np.ndarray:
+    def generate_rack_arm(n_pts: int, radius: float, height: float,
+        y_rot_rad: float = 0.68, x_trans: float = 0.04,
+        y_trans: float = 0, z_trans: float = 0.17) -> np.ndarray:
         """
         Generate points that align with arm on demo rack.
 
@@ -1621,12 +1527,12 @@ class QueryPoints():
         Returns:
             np.ndarray: (n_pts, 3).
         """
-        y_rot_rad = 0.68
-        x_trans = 0.04
-        y_trans = 0
-        z_trans = 0.17
+        # y_rot_rad = 0.68
+        # x_trans = 0.04
+        # y_trans = 0
+        # z_trans = 0.17
 
-        cylinder_pts = QueryPoints.generate_cylinder(n_pts, 0.02, 0.15, 'z')
+        cylinder_pts = QueryPoints.generate_cylinder(n_pts, radius, height, 'z')
         transform = np.eye(4)
         rot = EvaluateNetwork.make_rotation_matrix('y', y_rot_rad)
         trans = np.array([[x_trans, y_trans, z_trans]]).T
