@@ -5,6 +5,7 @@ Script to generate query points to align with a portion of another shape.
 
 @author elchun
 """
+from tinydb import Query
 from ndf_robot.utils.plotly_save import multiplot
 from ndf_robot.eval.evaluate_general import QueryPoints
 import os.path as osp
@@ -35,19 +36,37 @@ def get_reference_pts_rack() -> np.ndarray:
     return ref_pts
 
 
+def get_working_pts_rack(**kwargs) -> np.ndarray:
+    return QueryPoints.generate_rack_arm(**kwargs)
+
+
 def print_result_yml(input_args: dict):
+    """
+    Print dict in format that can be pasted into yaml file.
+
+    Args:
+        input_args (dict): Dict to print.
+    """
     for k, v in input_args.items():
         print(f'{k}: {v}')
 
 
 def print_result_dict(input_args: dict):
+    """
+    Print dict in format that can be pasted into a dict.
+
+    Args:
+        input_args (dict): Dict to print.
+    """
     for k, v in input_args.items():
         print(f"'{k}': {v},")
 
 
 if __name__ == '__main__':
+    # -- Reference points in the chart -- #
     reference_pts = get_reference_pts_rack()
 
+    # -- Arguments used to generate working points -- #
     working_args = {
         # 'n_pts': 1000,
         # 'radius': 0.05,
@@ -66,11 +85,14 @@ if __name__ == '__main__':
         'z_trans': 0.19,
     }
 
+    def working_pts_generator(**kwargs):
+        return QueryPoints.generate_rack_arm(**kwargs)
+
     print('Choose param to tune, type "SAVE" to print in yml format. \n' \
         + 'Press Enter to modify same parameter.')
     previous_key_to_modify = None
     while True:
-        working_pts = QueryPoints.generate_rack_arm(**working_args)
+        working_pts = working_pts_generator(**working_args)
         multiplot([reference_pts, working_pts], 'query_tune.html')
 
         key_to_modify = input('Enter param to tune: ')
@@ -81,9 +103,13 @@ if __name__ == '__main__':
             continue
         elif key_to_modify == '' and previous_key_to_modify is not None:
             key_to_modify = previous_key_to_modify
+        elif key_to_modify == 'exit':
+            print_result_yml(working_args)
+            print('---')
+            print_result_dict(working_args)
+            break
         elif key_to_modify not in working_args.keys():
             print(f'Invalid input: select from {working_args.keys()}')
-            continue
 
         print(f'Current value: {working_args[key_to_modify]}')
         current_type = type(working_args[key_to_modify])

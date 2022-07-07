@@ -10,7 +10,7 @@ evaluator:
   obj_class: mug
   num_trials: 200
   include_avoid_obj: False
-  any_pose: False
+  any_pose: True
 
 model:
   type: CONV_OCC
