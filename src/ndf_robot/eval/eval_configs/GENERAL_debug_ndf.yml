@@ -27,14 +27,14 @@ grasp_optimizer:
     opt_iterations: 1000
     rand_translate: True
     use_tsne: False
-    M_override: 20
+    M_override: 10
 
 place_optimizer:
   args:
     opt_iterations: 1000
     rand_translate: True
     use_tsne: False
-    M_override: 20
+    M_override: 10
 
 
 # With rect query points, z1 is actually pointing up when

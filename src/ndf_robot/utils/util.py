@@ -784,3 +784,36 @@ def get_inverse_pose(pose: list) -> list:
     inv_pose_mat = np.linalg.inv(pose_mat)
     inv_pose = pose_stamped2list(pose_from_matrix(inv_pose_mat))
     return inv_pose
+
+
+def make_rotation_matrix(axis: str, theta: float):
+    """
+    Make rotation matrix about {axis} with angle {theta}
+
+    Args:
+        axis (str): {'x', 'y', 'z'}
+        theta (float): angle in radians
+    """
+
+    s = np.sin(theta)
+    c = np.cos(theta)
+
+    if axis == 'x':
+        r = [[1, 0, 0],
+             [0, c, -s],
+             [0, s, c]]
+
+    elif axis == 'y':
+        r = [[c, 0, s],
+             [0, 1, 0],
+             [-s, 0, c]]
+
+    elif axis == 'z':
+        r = [[c, -s, 0],
+             [s, c, 0],
+             [0, 0, 1]]
+
+    else:
+        raise ValueError('Unexpected axis')
+
+    return r

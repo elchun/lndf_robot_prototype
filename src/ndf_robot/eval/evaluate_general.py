@@ -87,6 +87,7 @@ class TrialResults(Enum):
     GET_IK_FAILED = 6
     COMPUTE_IK_FAILED = 7
     POST_PROCESS_FAILED = 8
+    GET_PCD_FAILED = 9
 
 
 class RobotIDs:
@@ -609,6 +610,11 @@ class EvaluateNetwork():
         # -- Get object point cloud from cameras -- #
         target_obj_pcd_obs = self.get_pcd(obj_id)
 
+        if target_obj_pcd_obs is None or target_obj_pcd_obs.shape[0] == 0:
+            trial_data.trial_result = TrialResults.GET_PCD_FAILED
+            self.robot.pb_client.remove_body(obj_id)
+            return trial_data
+
         # -- Get grasp position -- #
         opt_viz_path = osp.join(eval_iter_dir, 'visualize')
         pre_grasp_ee_pose_mats, best_grasp_idx = self.grasp_optimizer.optimize_transform_implicit(
@@ -888,8 +894,8 @@ class EvaluateNetwork():
             num_place_success += place_success_teleport
             log_info(f'Trial result: {trial_result}')
             log_str = f'Successes: {num_success} | Trials {it + 1} | ' \
-                + f'Grasp Success Rate: {num_success / (it + 1):0.3f} | ' \
-                + f'Place Success Rate: {num_place_success / (it + 1):0.3f}'
+                + f'Grasp Success: {num_success / (it + 1):0.3f} | ' \
+                + f'Place Success: {num_place_success / (it + 1):0.3f}'
             log_info(log_str)
 
             with open(self.global_summary_fname, 'a') as f:
