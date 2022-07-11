@@ -1,5 +1,5 @@
 """
-Generate TSNE visualization of mug with given model weights
+Script for TSNE visualization of mug with given model weights
 """
 import os.path as osp
 from cv2 import transform

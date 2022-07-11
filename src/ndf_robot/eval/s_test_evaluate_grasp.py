@@ -1,3 +1,7 @@
+"""
+Script for testing evaluate_grasp
+"""
+
 from ndf_robot.eval.evaluate_grasp import EvaluateGrasp, EvaluateGraspSetup, QueryPoints
 from ndf_robot.opt.optimizer_lite import OccNetOptimizer
 import plotly.express as px

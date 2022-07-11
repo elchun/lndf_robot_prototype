@@ -3,7 +3,12 @@ import trimesh
 
 from ndf_robot.utils import util
 
+
 class QueryPoints():
+    """
+    Container class for generating different shaped query points.
+    """
+
     @staticmethod
     def generate_sphere(n_pts: int, radius: float=0.05) -> np.ndarray:
         """
@@ -44,13 +49,13 @@ class QueryPoints():
                  /          /|
             ___ /_________ / |
              |  |         |  |
-             |  |         |  |
-             |  |         |  |
              z2 |         |  |
+             |  |     o   |  |
+            -+- | - -/    |  |
              |  |         |  |
-             |  |     o   |  |  __
-            -+- | - -/    |  /  /
-             z1 |         | /  y
+             |  |         |  |  __
+             z1 |         |  /  /
+             |  |         | /  y
             _|_ |_________|/ _/_
 
                 |----x----|
@@ -73,7 +78,7 @@ class QueryPoints():
              [0, 0, z1 + z2]]
         )
         offset_mat = np.array(
-            [[x/2, y/2, z1]]
+            [[x / 2, y / 2, z1]]
         )
         rect_points = rect_points @ scale_mat - offset_mat
         return rect_points

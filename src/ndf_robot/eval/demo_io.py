@@ -1,0 +1,87 @@
+import numpy as np
+
+from numpy.lib.npyio import NpzFile
+from ndf_robot.opt.optimizer_lite import Demo
+
+
+class DemoIO():
+    """Container class for converting data to standard format"""
+    @staticmethod
+    def process_grasp_data(data: NpzFile) -> Demo:
+        """
+        Construct {Demo} object from {data} representing grasp demo.
+
+        Args:
+            data (NpzFile): Imput data produced by simulation demo.
+
+        Returns:
+            Demo: Container for relevant demo information.
+        """
+        # -- Get obj pts in world coordinate frame -- #
+        demo_obj_pts = data['obj_pcd_ori']
+        demo_pts_mean = np.mean(demo_obj_pts, axis=0)
+        inliers = np.where(
+            np.linalg.norm(demo_obj_pts - demo_pts_mean, 2, 1) < 0.2)[0]
+        demo_obj_pts = demo_obj_pts[inliers]
+
+        demo = Demo(
+            obj_pts=demo_obj_pts,
+            query_pts=data['gripper_pts_uniform'],
+            obj_pose_world=data['obj_pose_world'],
+            query_pose_world=data['gripper_contact_pose'],
+            obj_shapenet_id=data['shapenet_id'].item())
+
+        return demo
+
+    @staticmethod
+    def process_place_data(data: NpzFile) -> Demo:
+        """
+        Construct {Demo} object from {data} representing place demo.
+
+        Args:
+            data (NpzFile): Imput data produced by simulation demo.
+
+        Returns:
+            Demo: Container for relevant demo information.
+        """
+        # -- Get obj pts -- #
+        demo_obj_pts = data['obj_pcd_ori']
+        demo_pts_mean = np.mean(demo_obj_pts, axis=0)
+        inliers = np.where(
+            np.linalg.norm(demo_obj_pts - demo_pts_mean, 2, 1) < 0.2)[0]
+        demo_obj_pts = demo_obj_pts[inliers]
+
+        demo = Demo(
+            obj_pts=demo_obj_pts,
+            query_pts=data['rack_pointcloud_gt'],
+            obj_pose_world=data['obj_pose_world'],
+            query_pose_world=data['rack_pose_world'],
+            obj_shapenet_id=data['shapenet_id'].item())
+
+        return demo
+
+    @staticmethod
+    def get_table_urdf(data: NpzFile) -> str:
+        """
+        Helper method to get table urdf from any demo object.
+
+        Args:
+            data (NpzFile): Any result from demo.
+
+        Returns:
+            str: Urdf of table.
+        """
+        return data['table_urdf'].item()
+
+    @staticmethod
+    def get_rack_pose(data: NpzFile) -> list:
+        """
+        Helper method to get table urdf from place demo.
+
+        Args:
+            data (NpzFile): Place demo
+
+        Returns:
+            list: Pose of rack so we can place in demo.
+        """
+        return data['rack_pose_world']
