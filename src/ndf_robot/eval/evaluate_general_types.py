@@ -238,5 +238,6 @@ class TrialData():
 
 
 class TaskData():
+    obj_shapenet_id: str
     trial_result: TrialResults
     best_opt_idx: int
