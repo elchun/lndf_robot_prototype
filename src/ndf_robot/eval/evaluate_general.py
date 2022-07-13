@@ -65,7 +65,7 @@ from ndf_robot.utils.eval_gen_utils import (
 
 from ndf_robot.eval.query_points import QueryPoints
 from ndf_robot.eval.evaluate_general_types import ModelTypes, \
-    GripperQueryPointTypes, RackQueryPointTypes, TrialResults, \
+    QueryPointTypes, RackQueryPointTypes, TrialResults, \
     RobotIDs, SimConstants, TrialData, TaskData
 from ndf_robot.eval.demo_io import DemoIO
 
@@ -648,7 +648,7 @@ class EvaluateNetwork():
                 trial_data.trial_result = TrialResults.INTERSECTING_EE
             else:
                 if not grasp_success:
-                    trial_data.trial_result = TrialResults.BAD_GRASP_POS
+                    trial_data.trial_result = TrialResults.BAD_OPT_POS
 
             log_info(f'Grasp success: {grasp_success}')
 
@@ -1181,7 +1181,7 @@ class EvaluateGraspSetup():
         query_pts_type = self.gripper_query_pts_dict['type']
         query_pts_args = self.gripper_query_pts_dict['args']
 
-        assert query_pts_type in GripperQueryPointTypes, 'Invalid query point type'
+        assert query_pts_type in QueryPointTypes, 'Invalid query point type'
 
         if query_pts_type == 'SPHERE':
             query_pts = QueryPoints.generate_sphere(**query_pts_args)

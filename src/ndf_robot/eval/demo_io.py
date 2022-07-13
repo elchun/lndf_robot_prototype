@@ -76,7 +76,7 @@ class DemoIO():
     @staticmethod
     def get_rack_pose(data: NpzFile) -> list:
         """
-        Helper method to get table urdf from place demo.
+        Helper method to get rack pose from place demo.
 
         Args:
             data (NpzFile): Place demo
@@ -85,3 +85,16 @@ class DemoIO():
             list: Pose of rack so we can place in demo.
         """
         return data['rack_pose_world']
+
+    @staticmethod
+    def get_shelf_pose(data: NpzFile) -> list:
+        """
+        Helper method to get shelf pose from place demo.
+
+        Args:
+            data (NpzFile): Place demo with shelf pose
+
+        Returns:
+            list: Pose of shelf so we can place in demo.
+        """
+        return data['shelf_pose_world']

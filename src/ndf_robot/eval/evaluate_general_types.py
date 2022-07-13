@@ -1,3 +1,4 @@
+from ast import Name
 from enum import Enum
 from typing import NamedTuple
 
@@ -6,20 +7,26 @@ ModelTypes = {
     'VNN_NDF',
 }
 
-GripperQueryPointTypes = {
+QueryPointTypes = {
     'SPHERE',
     'RECT',
-}
-
-RackQueryPointTypes = {
     'ARM',
 }
+
+# GripperPointTypes = {
+#     'SPHERE',
+#     'RECT',
+# }
+
+# RackQueryPointTypes = {
+#     'ARM',
+# }
 
 
 class TrialResults(Enum):
     SUCCESS = 0
     UNKNOWN_FAILURE = 1
-    BAD_GRASP_POS = 2
+    BAD_OPT_POS = 2
     NO_FEASIBLE_IK = 3
     INTERSECTING_EE = 4
     GET_FEASIBLE_IK_FAILED = 5
@@ -59,8 +66,8 @@ class SimConstants:
     # +y is right when facing robot
 
     OBJ_SAMPLE_X_LOW_HIGH = [0.4, 0.5]
-    # OBJ_SAMPLE_Y_LOW_HIGH = [-0.2, 0.2]
-    OBJ_SAMPLE_Y_LOW_HIGH = [-0.3, 0]
+    OBJ_SAMPLE_Y_LOW_HIGH = [-0.2, 0.2]
+    # OBJ_SAMPLE_Y_LOW_HIGH = [-0.3, 0]
     OBJ_SAMPLE_Z_OFFSET = 0.0  # was 0.1
     OBJ_SAMPLE_R = 0.2  # was 0.2
 
@@ -241,3 +248,9 @@ class TaskData():
     obj_shapenet_id: str
     trial_result: TrialResults
     best_opt_idx: int
+
+
+class ExperimentTypes(Enum):
+    GRASP = 0
+    RACK_PLACE_TELEPORT = 1
+    SHELF_PLACE_TELEPORT = 2

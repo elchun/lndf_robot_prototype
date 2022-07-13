@@ -35,9 +35,8 @@ from ndf_robot.utils.eval_gen_utils import (
     safeCollisionFilterPair, object_is_still_grasped, get_ee_offset, post_process_grasp_point,
     process_demo_data_rack, process_demo_data_shelf, process_xq_data, process_xq_rs_data, safeRemoveConstraint,
 )
-from ndf_robot.eval.evaluate_general_types import ModelTypes, \
-    GripperQueryPointTypes, RackQueryPointTypes, TrialResults, \
-    RobotIDs, SimConstants, TrialData, TaskData
+from ndf_robot.eval.evaluate_general_types import (ExperimentTypes, ModelTypes,
+    QueryPointTypes, TrialResults, RobotIDs, SimConstants, TrialData, TaskData)
 from ndf_robot.eval.query_points import QueryPoints
 from ndf_robot.eval.demo_io import DemoIO
 
@@ -73,16 +72,42 @@ class EvaluateNetwork():
 
         self.any_pose = any_pose
 
+        self.experiment_type = None
+
     def load_demos(self):
+        """
+        Load demos relevant to optimizers used.
+
+        Raises:
+            NotImplementedError: Implement this!
+        """
         raise NotImplementedError
 
     def configure_sim(self):
+        """
+        Configure simulation with relevant objects.
+
+        Raises:
+            NotImplementedError: Implement this!
+        """
         raise NotImplementedError
 
     def run_trial(self):
+        """
+        Run a single trial for given experiment
+
+        Raises:
+            NotImplementedError: Implement this!
+        """
         raise NotImplementedError
 
     def run_experiment(self):
+        """
+        Run experiment of length specified in config.
+
+        Raises:
+            NotImplementedError: Implement this!
+        """
         raise NotImplementedError
 
     def _compute_ik_cascade(self, pose: list):
@@ -357,7 +382,9 @@ class EvaluateGrasp(EvaluateNetwork):
             demo_load_dir, pybullet_viz, num_trials, include_avoid_obj,
             any_pose)
 
+        print(f'avoid obj: {include_avoid_obj}')
         self.grasp_optimizer = grasp_optimizer
+        self.experiment_type = ExperimentTypes.GRASP
 
     def load_demos(self):
         """
@@ -441,8 +468,8 @@ class EvaluateGrasp(EvaluateNetwork):
         table_ori = euler2quat([0, 0, np.pi / 2])
 
         # Get raw table urdf
-        # table_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table.urdf')
-        table_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table_rack.urdf')
+        table_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table.urdf')
+        # table_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table_rack.urdf')
         with open(table_urdf_fname, 'r', encoding='utf-8') as f:
             self.table_urdf = f.read()
 
@@ -514,6 +541,7 @@ class EvaluateGrasp(EvaluateNetwork):
 
         if target_obj_pcd_obs is None or target_obj_pcd_obs.shape[0] == 0:
             trial_data.trial_result = TrialResults.GET_PCD_FAILED
+            self.robot.pb_client.remove_body(obj_id)
             return trial_data
 
         # -- Get grasp position -- #
@@ -537,7 +565,7 @@ class EvaluateGrasp(EvaluateNetwork):
                 grasp_dist_thresh=grasp_dist_thresh)
         except IndexError:
             trial_data.trial_result = TrialResults.POST_PROCESS_FAILED
-            # self.robot.pb_client.remove_body(obj_id)
+            self.robot.pb_client.remove_body(obj_id)
             return trial_data
 
         grasp_ee_pose[:3] = new_grasp_pt
@@ -630,6 +658,7 @@ class EvaluateGrasp(EvaluateNetwork):
 
         if None in [plan1, plan2, plan3]:
             trial_data.trial_result = TrialResults.JOINT_PLAN_FAILED
+            self.robot.pb_client.remove_body(obj_id)
             return trial_data
 
         if None not in [plan1, plan2, plan3]:
@@ -710,13 +739,14 @@ class EvaluateGrasp(EvaluateNetwork):
                 trial_data.trial_result = TrialResults.INTERSECTING_EE
             else:
                 if not grasp_success:
-                    trial_data.trial_result = TrialResults.BAD_GRASP_POS
+                    trial_data.trial_result = TrialResults.BAD_OPT_POS
 
             log_info(f'Grasp success: {grasp_success}')
 
             if grasp_success:
                 trial_data.trial_result = TrialResults.SUCCESS
 
+        self.robot.pb_client.remove_body(obj_id)
         return trial_data
 
     def run_experiment(self, rand_mesh_scale: bool = True):
@@ -740,7 +770,9 @@ class EvaluateGrasp(EvaluateNetwork):
             if trial_result == TrialResults.SUCCESS:
                 num_success += 1
 
+            log_info(f'Experiment: {self.experiment_type}')
             log_info(f'Trial result: {trial_result}')
+            log_info(f'Shapenet id: {obj_shapenet_id}')
             log_str = f'Successes: {num_success} | Trials {it + 1} | ' \
                 + f'Success Rate: {num_success / (it + 1):0.3f}'
             log_info(log_str)
@@ -754,82 +786,583 @@ class EvaluateGrasp(EvaluateNetwork):
                 f.write('\n')
 
 
+class EvaluateRackPlaceTeleport(EvaluateNetwork):
+    def __init__(self, place_optimizer: OccNetOptimizer,
+                 seed: int, shapenet_obj_dir: str, eval_save_dir: str,
+                 demo_load_dir: str, pybullet_viz: bool = False,
+                 obj_class: str = 'mug', num_trials: int = 200,
+                 include_avoid_obj: bool = True, any_pose: bool = True):
+
+        super().__init__(seed, shapenet_obj_dir, eval_save_dir,
+            demo_load_dir, pybullet_viz, num_trials, include_avoid_obj,
+            any_pose)
+
+        self.place_optimizer = place_optimizer
+        self.experiment_type = ExperimentTypes.RACK_PLACE_TELEPORT
+
+    def load_demos(self):
+        """
+        Load demos from self.demo_load_dir.  Add demo data to optimizer
+        and save test_object_ids to self.test_object_ids
+        """
+        demo_fnames = os.listdir(self.demo_load_dir)
+        assert len(demo_fnames), 'No demonstrations found in path: %s!' \
+            % self.demo_load_dir
+
+        place_demo_fnames = [osp.join(self.demo_load_dir, fn) for fn in
+            demo_fnames if 'place_demo' in fn]
+
+        # Can add selection of less demos here
+        demo_shapenet_ids = []
+
+        for place_demo_fn in place_demo_fnames:
+            print('Loading place demo from fname: %s' % place_demo_fn)
+            place_data = np.load(place_demo_fn, allow_pickle=True)
+
+            demo = DemoIO.process_place_data(place_data)
+
+            self.place_optimizer.add_demo(demo)
+            demo_shapenet_ids.append(demo.obj_shapenet_id)
+
+        self.place_optimizer.process_demos()
+
+        # -- Get urdf -- #
+        place_data = np.load(place_demo_fnames[0], allow_pickle=True)
+        self.table_urdf = DemoIO.get_table_urdf(place_data)
+        self.rack_pose = DemoIO.get_rack_pose(place_data)
+
+        # -- Get test objects -- #
+        self.test_object_ids = []
+        shapenet_id_list = [fn.split('_')[0]
+            for fn in os.listdir(self.shapenet_obj_dir)]
+
+        for s_id in shapenet_id_list:
+            valid = s_id not in demo_shapenet_ids \
+                and s_id not in self.avoid_shapenet_ids
+
+            if valid:
+                self.test_object_ids.append(s_id)
+
+    def configure_sim(self):
+        """
+        Run after demos are loaded
+        """
+        set_log_level('debug')
+
+        p.changeDynamics(self.robot.arm.robot_id, RobotIDs.left_pad_id,
+            lateralFriction=1.0)
+        p.changeDynamics(self.robot.arm.robot_id, RobotIDs.right_pad_id,
+            lateralFriction=1.0)
+
+        self.robot.arm.reset(force_reset=True)
+        self.robot.cam.setup_camera(
+            focus_pt=[0.4, 0.0, SimConstants.CAMERA_FOCAL_Z],
+            dist=0.9,
+            yaw=45,
+            pitch=-25,
+            roll=0)
+
+        # Set up cameras
+        cam_cfg = get_default_cam_cfg()
+
+        self.cams = MultiCams(cam_cfg, self.robot.pb_client,
+                         n_cams=SimConstants.N_CAMERAS)
+        cam_info = {}
+        cam_info['pose_world'] = []
+        for cam in self.cams.cams:
+            cam_info['pose_world'].append(util.pose_from_matrix(cam.cam_ext_mat))
+
+        # put table at right spot
+        table_ori = euler2quat([0, 0, np.pi / 2])
+
+        # Get raw table urdf
+        # table_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table.urdf')
+        table_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table_rack.urdf')
+        with open(table_urdf_fname, 'r', encoding='utf-8') as f:
+            self.table_urdf = f.read()
+
+        # this is the URDF that was used in the demos -- make sure we load an identical one
+        tmp_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table_rack_tmp.urdf')
+        open(tmp_urdf_fname, 'w').write(self.table_urdf)
+        self.table_id = self.robot.pb_client.load_urdf(tmp_urdf_fname,
+            SimConstants.TABLE_POS,
+            table_ori,
+            scaling=SimConstants.TABLE_SCALING)
+
+    def run_trial(self, iteration: int = 0, rand_mesh_scale: bool = True,
+                  any_pose: bool = True, thin_feature: bool = True,
+                  grasp_viz: bool = False,
+                  grasp_dist_thresh: float = 0.0025,
+                  obj_shapenet_id: 'str | None' = None) -> TrialData:
+        trial_data = TaskData()
+
+        # -- Get and orient object -- #
+        if obj_shapenet_id is None:
+            obj_shapenet_id = random.sample(self.test_object_ids, 1)[0]
+            log_info('Generate random obj id.')
+        else:
+            log_info('Using predefined obj id.')
+        trial_data.obj_shapenet_id = obj_shapenet_id
+
+        # Write at start so id is recorded regardless of any later bugs
+        with open(self.shapenet_id_list_fname, 'a') as f:
+            f.write(f'{trial_data.obj_shapenet_id}\n')
+
+        # -- Home Robot -- #
+        self.robot.arm.go_home(ignore_physics=True)
+        self.robot.arm.move_ee_xyz([0, 0, 0.2])
+
+        # -- load object -- #
+        obj_id, o_cid, pos, ori = self._insert_object(obj_shapenet_id,
+            rand_mesh_scale, any_pose)
+
+        safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=True)
+        p.changeDynamics(obj_id, -1, linearDamping=5, angularDamping=5)
+        time.sleep(1.5)
+
+        # -- Get object point cloud from cameras -- #
+        target_obj_pcd_obs = self._get_pcd(obj_id)
+
+        eval_iter_dir = osp.join(self.eval_save_dir, 'trial_%s' % str(iteration).zfill(3))
+        util.safe_makedirs(eval_iter_dir)
+
+        if target_obj_pcd_obs is None or target_obj_pcd_obs.shape[0] == 0:
+            trial_data.trial_result = TrialResults.GET_PCD_FAILED
+            self.robot.pb_client.remove_body(obj_id)
+            return trial_data
+
+        # -- Get place position -- #
+        opt_viz_path = osp.join(eval_iter_dir, 'visualize')
+        rack_pose_mats, best_place_idx = self.place_optimizer.optimize_transform_implicit(
+            target_obj_pcd_obs, ee=False, viz_path=opt_viz_path)
+        trial_data.best_opt_idx = best_place_idx
+        rack_relative_pose = util.transform_pose(
+            util.pose_from_matrix(rack_pose_mats[best_place_idx]), util.list2pose_stamped(self.rack_pose))
+
+        # -- Try place teleport -- #
+        obj_pose_world = p.getBasePositionAndOrientation(obj_id)
+        obj_pose_world = util.list2pose_stamped(list(obj_pose_world[0]) + list(obj_pose_world[1]))
+        obj_end_pose = util.transform_pose(obj_pose_world, rack_relative_pose)
+        obj_end_pose = util.pose_stamped2list(obj_end_pose)
+        placement_link_id = 0
+
+        safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=False)
+        safeCollisionFilterPair(obj_id, self.table_id, -1, placement_link_id, enableCollision=False)
+        self.robot.pb_client.set_step_sim(True)
+        safeRemoveConstraint(o_cid)
+        self.robot.pb_client.reset_body(obj_id, obj_end_pose[:3], obj_end_pose[3:])
+
+        # First image suspends object in air, second is when constraints are
+        # removed.
+        time.sleep(1.0)
+        teleport_img_fname = osp.join(self.eval_grasp_imgs_dir,
+            f'{str(iteration).zfill(3)}_teleport_place_1.png')
+        self._take_image(teleport_img_fname)
+        safeCollisionFilterPair(obj_id, self.table_id, -1, placement_link_id, enableCollision=True)
+        self.robot.pb_client.set_step_sim(False)
+        time.sleep(1.0)
+        teleport_img_fname = osp.join(self.eval_grasp_imgs_dir,
+            f'{str(iteration).zfill(3)}_teleport_place_2.png')
+        self._take_image(teleport_img_fname)
+
+        # -- Check teleport was successful -- #
+        obj_surf_contacts = p.getContactPoints(obj_id, self.table_id, -1, placement_link_id)
+        touching_surf = len(obj_surf_contacts) > 0
+        place_success_teleport = touching_surf
+        if place_success_teleport:
+            trial_data.trial_result = TrialResults.SUCCESS
+        else:
+            trial_data.trial_result = TrialResults.BAD_OPT_POS
+
+        self.robot.pb_client.remove_body(obj_id)
+        return trial_data
+
+    def run_experiment(self, rand_mesh_scale: bool = True):
+        """
+        Run experiment for {self.num_trials}
+        """
+        num_success = 0
+
+        obj_shapenet_id_list = random.choices(self.test_object_ids, k=self.num_trials)
+
+        for it in range(self.num_trials):
+            obj_shapenet_id = obj_shapenet_id_list[it]
+            trial_data: TaskData = self.run_trial(iteration=it,
+                rand_mesh_scale=rand_mesh_scale, any_pose=self.any_pose,
+                obj_shapenet_id=obj_shapenet_id)
+
+            trial_result = trial_data.trial_result
+            obj_shapenet_id = trial_data.obj_shapenet_id
+            best_opt_idx = trial_data.best_opt_idx
+
+            if trial_result == TrialResults.SUCCESS:
+                num_success += 1
+
+            log_info(f'Experiment: {self.experiment_type}')
+            log_info(f'Trial result: {trial_result}')
+            log_info(f'Shapenet id: {obj_shapenet_id}')
+            log_str = f'Successes: {num_success} | Trials {it + 1} | ' \
+                + f'Success Rate: {num_success / (it + 1):0.3f}'
+            log_info(log_str)
+
+            with open(self.global_summary_fname, 'a') as f:
+                f.write(f'Trial number: {it}\n')
+                f.write(f'Trial result: {trial_result}\n')
+                f.write(f'Place teleport Success Rate: {num_success / (it + 1): 0.3f}\n')
+                f.write(f'Shapenet id: {obj_shapenet_id}\n')
+                f.write(f'Best Grasp idx: {best_opt_idx}\n')
+                f.write('\n')
+
+
+class EvaluateShelfPlaceTeleport(EvaluateNetwork):
+    def __init__(self, place_optimizer: OccNetOptimizer,
+                 seed: int, shapenet_obj_dir: str, eval_save_dir: str,
+                 demo_load_dir: str, pybullet_viz: bool = False,
+                 obj_class: str = 'mug', num_trials: int = 200,
+                 include_avoid_obj: bool = True, any_pose: bool = True):
+
+        super().__init__(seed, shapenet_obj_dir, eval_save_dir,
+            demo_load_dir, pybullet_viz, num_trials, include_avoid_obj,
+            any_pose)
+
+        self.place_optimizer = place_optimizer
+        self.experiment_type = ExperimentTypes.SHELF_PLACE_TELEPORT
+
+    def load_demos(self):
+        """
+        Load demos from self.demo_load_dir.  Add demo data to optimizer
+        and save test_object_ids to self.test_object_ids
+        """
+        demo_fnames = os.listdir(self.demo_load_dir)
+        assert len(demo_fnames), 'No demonstrations found in path: %s!' \
+            % self.demo_load_dir
+
+        place_demo_fnames = [osp.join(self.demo_load_dir, fn) for fn in
+            demo_fnames if 'place_demo' in fn]
+
+        # Can add selection of less demos here
+        demo_shapenet_ids = []
+
+        for place_demo_fn in place_demo_fnames:
+            print('Loading place demo from fname: %s' % place_demo_fn)
+            place_data = np.load(place_demo_fn, allow_pickle=True)
+
+            demo = DemoIO.process_place_data(place_data)
+
+            self.place_optimizer.add_demo(demo)
+            demo_shapenet_ids.append(demo.obj_shapenet_id)
+
+        self.place_optimizer.process_demos()
+
+        # -- Get urdf -- #
+        place_data = np.load(place_demo_fnames[0], allow_pickle=True)
+        self.table_urdf = DemoIO.get_table_urdf(place_data)
+        self.shelf_pose = DemoIO.get_shelf_pose(place_data)
+
+        # -- Get test objects -- #
+        self.test_object_ids = []
+        shapenet_id_list = [fn.split('_')[0]
+            for fn in os.listdir(self.shapenet_obj_dir)]
+
+        for s_id in shapenet_id_list:
+            valid = s_id not in demo_shapenet_ids \
+                and s_id not in self.avoid_shapenet_ids
+
+            if valid:
+                self.test_object_ids.append(s_id)
+
+    def configure_sim(self):
+        """
+        Run after demos are loaded
+        """
+        set_log_level('debug')
+
+        p.changeDynamics(self.robot.arm.robot_id, RobotIDs.left_pad_id,
+            lateralFriction=1.0)
+        p.changeDynamics(self.robot.arm.robot_id, RobotIDs.right_pad_id,
+            lateralFriction=1.0)
+
+        self.robot.arm.reset(force_reset=True)
+        self.robot.cam.setup_camera(
+            focus_pt=[0.4, 0.0, SimConstants.CAMERA_FOCAL_Z],
+            dist=0.9,
+            yaw=45,
+            pitch=-25,
+            roll=0)
+
+        # Set up cameras
+        cam_cfg = get_default_cam_cfg()
+
+        self.cams = MultiCams(cam_cfg, self.robot.pb_client,
+                         n_cams=SimConstants.N_CAMERAS)
+        cam_info = {}
+        cam_info['pose_world'] = []
+        for cam in self.cams.cams:
+            cam_info['pose_world'].append(util.pose_from_matrix(cam.cam_ext_mat))
+
+        # put table at right spot
+        table_ori = euler2quat([0, 0, np.pi / 2])
+
+        # table_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table_shelf.urdf')
+        # with open(table_urdf_fname, 'r', encoding='utf-8') as f:
+        #     self.table_urdf = f.read()
+
+        # Write urdf from demo to temp file.
+        tmp_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table_rack_tmp.urdf')
+        open(tmp_urdf_fname, 'w').write(self.table_urdf)
+        self.table_id = self.robot.pb_client.load_urdf(tmp_urdf_fname,
+            SimConstants.TABLE_POS,
+            table_ori,
+            scaling=SimConstants.TABLE_SCALING)
+
+    def run_trial(self, iteration: int = 0, rand_mesh_scale: bool = True,
+                  any_pose: bool = True, thin_feature: bool = True,
+                  grasp_viz: bool = False,
+                  grasp_dist_thresh: float = 0.0025,
+                  obj_shapenet_id: 'str | None' = None) -> TrialData:
+        trial_data = TaskData()
+
+        # -- Get and orient object -- #
+        if obj_shapenet_id is None:
+            obj_shapenet_id = random.sample(self.test_object_ids, 1)[0]
+            log_info('Generate random obj id.')
+        else:
+            log_info('Using predefined obj id.')
+        trial_data.obj_shapenet_id = obj_shapenet_id
+
+        # Write at start so id is recorded regardless of any later bugs
+        with open(self.shapenet_id_list_fname, 'a') as f:
+            f.write(f'{trial_data.obj_shapenet_id}\n')
+
+        # -- Home Robot -- #
+        self.robot.arm.go_home(ignore_physics=True)
+        self.robot.arm.move_ee_xyz([0, 0, 0.2])
+
+        # -- load object -- #
+        obj_id, o_cid, pos, ori = self._insert_object(obj_shapenet_id,
+            rand_mesh_scale, any_pose)
+
+        safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=True)
+        p.changeDynamics(obj_id, -1, linearDamping=5, angularDamping=5)
+        time.sleep(1.5)
+
+        # -- Get object point cloud from cameras -- #
+        target_obj_pcd_obs = self._get_pcd(obj_id)
+
+        eval_iter_dir = osp.join(self.eval_save_dir, 'trial_%s' % str(iteration).zfill(3))
+        util.safe_makedirs(eval_iter_dir)
+
+        if target_obj_pcd_obs is None or target_obj_pcd_obs.shape[0] == 0:
+            trial_data.trial_result = TrialResults.GET_PCD_FAILED
+            self.robot.pb_client.remove_body(obj_id)
+            return trial_data
+
+        # -- Get place position -- #
+        opt_viz_path = osp.join(eval_iter_dir, 'visualize')
+        pose_mats, best_opt_idx = self.place_optimizer.optimize_transform_implicit(
+            target_obj_pcd_obs, ee=False, viz_path=opt_viz_path)
+        trial_data.best_opt_idx = best_opt_idx
+        relative_pose = util.transform_pose(
+            util.pose_from_matrix(pose_mats[best_opt_idx]), util.list2pose_stamped(self.shelf_pose))
+
+        # -- Try place teleport -- #
+        obj_pose_world = p.getBasePositionAndOrientation(obj_id)
+        obj_pose_world = util.list2pose_stamped(list(obj_pose_world[0]) + list(obj_pose_world[1]))
+        obj_end_pose = util.transform_pose(obj_pose_world, relative_pose)
+        obj_end_pose = util.pose_stamped2list(obj_end_pose)
+        placement_link_id = 0
+
+        safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=False)
+        safeCollisionFilterPair(obj_id, self.table_id, -1, placement_link_id, enableCollision=False)
+        self.robot.pb_client.set_step_sim(True)
+        safeRemoveConstraint(o_cid)
+        self.robot.pb_client.reset_body(obj_id, obj_end_pose[:3], obj_end_pose[3:])
+
+        # First image suspends object in air, second is when constraints are
+        # removed.
+        time.sleep(1.0)
+        teleport_img_fname = osp.join(self.eval_grasp_imgs_dir,
+            f'{str(iteration).zfill(3)}_teleport_place_1.png')
+        self._take_image(teleport_img_fname)
+        safeCollisionFilterPair(obj_id, self.table_id, -1, placement_link_id, enableCollision=True)
+        self.robot.pb_client.set_step_sim(False)
+        time.sleep(1.0)
+        teleport_img_fname = osp.join(self.eval_grasp_imgs_dir,
+            f'{str(iteration).zfill(3)}_teleport_place_2.png')
+        self._take_image(teleport_img_fname)
+
+        # -- Check teleport was successful -- #
+        obj_surf_contacts = p.getContactPoints(obj_id, self.table_id, -1, placement_link_id)
+        touching_surf = len(obj_surf_contacts) > 0
+        place_success_teleport = touching_surf
+        if place_success_teleport:
+            trial_data.trial_result = TrialResults.SUCCESS
+        else:
+            trial_data.trial_result = TrialResults.BAD_OPT_POS
+
+        self.robot.pb_client.remove_body(obj_id)
+        return trial_data
+
+    def run_experiment(self, rand_mesh_scale: bool = True):
+        """
+        Run experiment for {self.num_trials}
+        """
+        num_success = 0
+
+        obj_shapenet_id_list = random.choices(self.test_object_ids, k=self.num_trials)
+
+        for it in range(self.num_trials):
+            obj_shapenet_id = obj_shapenet_id_list[it]
+            trial_data: TaskData = self.run_trial(iteration=it,
+                rand_mesh_scale=rand_mesh_scale, any_pose=self.any_pose,
+                obj_shapenet_id=obj_shapenet_id)
+
+            trial_result = trial_data.trial_result
+            obj_shapenet_id = trial_data.obj_shapenet_id
+            best_opt_idx = trial_data.best_opt_idx
+
+            if trial_result == TrialResults.SUCCESS:
+                num_success += 1
+
+            log_info(f'Experiment: {self.experiment_type}')
+            log_info(f'Trial result: {trial_result}')
+            log_info(f'Shapenet id: {obj_shapenet_id}')
+            log_str = f'Successes: {num_success} | Trials {it + 1} | ' \
+                + f'Success Rate: {num_success / (it + 1):0.3f}'
+            log_info(log_str)
+
+            with open(self.global_summary_fname, 'a') as f:
+                f.write(f'Trial number: {it}\n')
+                f.write(f'Trial result: {trial_result}\n')
+                f.write(f'Place teleport Success Rate: {num_success / (it + 1): 0.3f}\n')
+                f.write(f'Shapenet id: {obj_shapenet_id}\n')
+                f.write(f'Best Grasp idx: {best_opt_idx}\n')
+                f.write('\n')
+
+
 class EvaluateNetworkSetup():
     """
     Set up experiment from config file
     """
     def __init__(self):
         self.config_dir = osp.join(path_util.get_ndf_eval(), 'eval_configs')
-
-        self.evaluator_dict = None
-        self.model_dict = None
-        self.grasp_optimizer_dict = None
-        self.gripper_query_pts_dict = None
-
+        self.config_dict = None
         self.seed = None
 
-    def load_config(self, fname: str):
-        """
-        Load config from yaml file with following fields:
-            evaluator:
-                ...
-
-            model:
-                model_type: VNN_NDF or CONV_OCC
-                model_args:
-                    ...
-
-            optimizer:
-                optimizer_args:
-                    ...
-
-            query_pts:
-                query_pts_type: SPHERE (later add GRIPPER)
-                query_pts_args:
-                    ...
-
-        Args:
-            fname (str): Name of config file.  Assumes config file is in
-                'eval_configs' in 'eval' folder.  Name does not include any
-                path prefixes (e.g. 'default_config' is fine)
-
-        """
+    def set_up_network(self, fname: str) -> EvaluateNetwork:
         config_path = osp.join(self.config_dir, fname)
         with open(config_path, "r") as stream:
             try:
                 config_dict = yaml.safe_load(stream)
             except yaml.YAMLError as exc:
                 print(exc)
-
         self.config_dict = config_dict
-        self.evaluator_dict = config_dict['evaluator']
-        self.model_dict = config_dict['model']
+        setup_dict = self.config_dict['setup_args']
+        self.seed = setup_dict['seed']
 
-        self.grasp_optimizer_dict = config_dict['grasp_optimizer']
-        self.place_optimizer_dict = config_dict['place_optimizer']
-
-        self.gripper_query_pts_dict = config_dict['gripper_query_pts']
-        self.rack_query_pts_dict = config_dict['rack_query_pts']
-        self.setup_args = config_dict['setup_args']
-
-        self.seed = self.setup_args['seed']
         torch.manual_seed(self.seed)
         random.seed(self.seed)
         np.random.seed(self.seed)
 
         print(config_dict)
 
-    def create_model(self) -> torch.nn.Module:
+        evaluator_type: str = setup_dict['evaluator_type']
+
+        if evaluator_type == 'GRASP':
+            return self._grasp_setup()
+        elif evaluator_type == 'RACK_PLACE_TELEPORT':
+            return self._rack_place_teleport_setup()
+        elif evaluator_type == 'SHELF_PLACE_TELEPORT':
+            return self._shelf_place_teleport_setup()
+        else:
+            raise ValueError('Invalid evaluator type.')
+
+    def _grasp_setup(self) -> EvaluateNetwork:
+        setup_config = self.config_dict['setup_args']
+        obj_class = self.config_dict['evaluator']['obj_class']
+
+        model = self._create_model(self.config_dict['model'])
+        gripper_query_pts = self._create_query_pts(self.config_dict['gripper_query_pts'])
+        eval_save_dir = self._create_eval_dir(setup_config)
+
+        evaluator_config = self.config_dict['evaluator']
+        shapenet_obj_dir = osp.join(path_util.get_ndf_obj_descriptions(),
+            obj_class + '_centered_obj_normalized')
+
+        demo_load_dir = osp.join(path_util.get_ndf_data(), 'demos', obj_class,
+            setup_config['demo_exp'])
+
+        grasp_optimizer = self._create_optimizer(self.config_dict['grasp_optimizer'],
+            model, gripper_query_pts, eval_save_dir)
+
+        experiment = EvaluateGrasp(grasp_optimizer=grasp_optimizer,
+            seed=self.seed, shapenet_obj_dir=shapenet_obj_dir,
+            eval_save_dir=eval_save_dir, demo_load_dir=demo_load_dir,
+            **evaluator_config)
+
+        return experiment
+
+    def _rack_place_teleport_setup(self) -> EvaluateNetwork:
+        setup_config = self.config_dict['setup_args']
+        obj_class = self.config_dict['evaluator']['obj_class']
+
+        model = self._create_model(self.config_dict['model'])
+        rack_query_pts = self._create_query_pts(self.config_dict['rack_query_pts'])
+        eval_save_dir = self._create_eval_dir(setup_config)
+
+        evaluator_config = self.config_dict['evaluator']
+        shapenet_obj_dir = osp.join(path_util.get_ndf_obj_descriptions(),
+            obj_class + '_centered_obj_normalized')
+
+        demo_load_dir = osp.join(path_util.get_ndf_data(), 'demos', obj_class,
+            setup_config['demo_exp'])
+
+        place_optimizer = self._create_optimizer(self.config_dict['place_optimizer'],
+            model, rack_query_pts, eval_save_dir)
+
+        experiment = EvaluateRackPlaceTeleport(place_optimizer=place_optimizer,
+            seed=self.seed, shapenet_obj_dir=shapenet_obj_dir,
+            eval_save_dir=eval_save_dir, demo_load_dir=demo_load_dir,
+            **evaluator_config)
+
+        return experiment
+
+    def _shelf_place_teleport_setup(self) -> EvaluateNetwork:
+        setup_config = self.config_dict['setup_args']
+        obj_class = self.config_dict['evaluator']['obj_class']
+
+        model = self._create_model(self.config_dict['model'])
+        shelf_query_pts = self._create_query_pts(self.config_dict['shelf_query_pts'])
+        eval_save_dir = self._create_eval_dir(setup_config)
+
+        evaluator_config = self.config_dict['evaluator']
+        shapenet_obj_dir = osp.join(path_util.get_ndf_obj_descriptions(),
+            obj_class + '_centered_obj_normalized')
+
+        demo_load_dir = osp.join(path_util.get_ndf_data(), 'demos', obj_class,
+            setup_config['demo_exp'])
+
+        place_optimizer = self._create_optimizer(self.config_dict['place_optimizer'],
+            model, shelf_query_pts, eval_save_dir)
+
+        experiment = EvaluateShelfPlaceTeleport(place_optimizer=place_optimizer,
+            seed=self.seed, shapenet_obj_dir=shapenet_obj_dir,
+            eval_save_dir=eval_save_dir, demo_load_dir=demo_load_dir,
+            **evaluator_config)
+
+        return experiment
+
+    def _create_model(self, model_config) -> torch.nn.Module:
         """
         Create torch model from given configs
 
         Returns:
             torch.nn.Module: Either ConvOccNetwork or VNNOccNet
         """
-        model_type = self.model_dict['type']
-        model_args = self.model_dict['args']
+        model_type = model_config['type']
+        model_args = model_config['args']
         model_checkpoint = osp.join(path_util.get_ndf_model_weights(),
-                                    self.model_dict['checkpoint'])
+                                    model_config['checkpoint'])
 
         assert model_type in ModelTypes, 'Invalid model type'
 
@@ -847,7 +1380,7 @@ class EvaluateNetworkSetup():
         print('---MODEL---\n', model)
         return model
 
-    def create_grasp_optimizer(self, model: torch.nn.Module,
+    def _create_optimizer(self, optimizer_config: dict, model: torch.nn.Module,
             query_pts: np.ndarray, eval_save_dir=None) -> OccNetOptimizer:
         """
         Create OccNetOptimizer from given config
@@ -859,76 +1392,42 @@ class EvaluateNetworkSetup():
         Returns:
             OccNetOptimizer: Optimizer to find best grasp position
         """
-        optimizer_args = self.grasp_optimizer_dict['args']
+        optimizer_config = optimizer_config['args']
         if eval_save_dir is not None:
             opt_viz_path = osp.join(eval_save_dir, 'visualization')
         else:
             opt_viz_path = 'visualization'
 
         optimizer = OccNetOptimizer(model, query_pts, viz_path=opt_viz_path,
-            **optimizer_args)
+            **optimizer_config)
         return optimizer
 
-    def create_place_optimizer(self, model: torch.nn.Module,
-            query_pts: np.ndarray, eval_save_dir=None) -> OccNetOptimizer:
-        """
-        Create OccNetOptimizer from given config
-
-        Args:
-            model (torch.nn.Module): Model to use in the optimizer
-            query_pts (np.ndarray): Query points to use in optimizer
-
-        Returns:
-            OccNetOptimizer: Optimizer to find best grasp position
-        """
-        optimizer_args = self.place_optimizer_dict['args']
-        if eval_save_dir is not None:
-            opt_viz_path = osp.join(eval_save_dir, 'visualization')
-        else:
-            opt_viz_path = 'visualization'
-
-        optimizer = OccNetOptimizer(model, query_pts, viz_path=opt_viz_path,
-            opt_fname_prefix='rack_pose_optimized', **optimizer_args)
-        return optimizer
-
-    def create_gripper_query_pts(self) -> np.ndarray:
+    def _create_query_pts(self, query_pts_config: dict) -> np.ndarray:
         """
         Create query points from given config
+
+        Args:
+            query_pts_config(dict): Configs loaded from yaml file.
 
         Returns:
             np.ndarray: Query point as ndarray
         """
 
-        query_pts_type = self.gripper_query_pts_dict['type']
-        query_pts_args = self.gripper_query_pts_dict['args']
+        query_pts_type = query_pts_config['type']
+        query_pts_args = query_pts_config['args']
 
-        assert query_pts_type in GripperQueryPointTypes, 'Invalid query point type'
+        assert query_pts_type in QueryPointTypes, 'Invalid query point type'
 
         if query_pts_type == 'SPHERE':
             query_pts = QueryPoints.generate_sphere(**query_pts_args)
         elif query_pts_type == 'RECT':
             query_pts = QueryPoints.generate_rect(**query_pts_args)
-
-        return query_pts
-
-    def create_rack_query_pts(self) -> np.ndarray:
-        """
-        Create rack query points from given config
-
-        Returns:
-            np.ndarray: Query point as ndarray
-        """
-        query_pts_type = self.rack_query_pts_dict['type']
-        query_pts_args = self.rack_query_pts_dict['args']
-
-        assert query_pts_type in RackQueryPointTypes, 'Invalid query point type'
-
-        if query_pts_type == 'ARM':
+        elif query_pts_type == 'ARM':
             query_pts = QueryPoints.generate_rack_arm(**query_pts_args)
 
         return query_pts
 
-    def create_eval_dir(self) -> str:
+    def _create_eval_dir(self, setup_config: dict) -> str:
         """
         Create eval save dir as concatenation of current time
         and 'exp_desc'.
@@ -939,8 +1438,8 @@ class EvaluateNetworkSetup():
         Returns:
             str: eval_save_dir.  Gives access to eval save directory
         """
-        if 'exp_dir_suffix' in self.setup_args:
-            exp_desc = self.setup_args['exp_dir_suffix']
+        if 'exp_dir_suffix' in setup_config:
+            exp_desc = setup_config['exp_dir_suffix']
         else:
             exp_desc = ''
         experiment_class = 'eval_grasp'
@@ -967,7 +1466,7 @@ class EvaluateNetworkSetup():
 
         return eval_save_dir
 
-    def get_demo_load_dir(self, obj_class: str='mug',
+    def _get_demo_load_dir(self, obj_class: str='mug',
         demo_exp: str='grasp_rim_hang_handle_gaussian_precise_w_shelf') -> str:
         """
         Get directory of demos
@@ -980,35 +1479,10 @@ class EvaluateNetworkSetup():
         Returns:
             str: Path to demo load dir
         """
-        if 'demo_exp' in self.setup_args:
-            demo_exp = self.setup_args['demo_exp']
         demo_load_dir = osp.join(path_util.get_ndf_data(),
                                  'demos', obj_class, demo_exp)
 
         return demo_load_dir
-
-    def get_shapenet_obj_dir(self) -> str:
-        """
-        Get object dir of obj_class
-
-        Args:
-            obj_class (str, optional): Class of object (mug, bottle, bowl).
-                Defaults to 'mug'.
-
-        Returns:
-            str: path to object dir
-        """
-        obj_class = self.evaluator_dict['obj_class']
-        shapenet_obj_dir = osp.join(path_util.get_ndf_obj_descriptions(),
-                                    obj_class + '_centered_obj_normalized')
-
-        return shapenet_obj_dir
-
-    def get_evaluator_args(self) -> dict:
-        return self.evaluator_dict
-
-    def get_seed(self) -> int:
-        return self.seed
 
 
 if __name__ == '__main__':
@@ -1022,24 +1496,30 @@ if __name__ == '__main__':
     config_fname = args.config_fname
 
     setup = EvaluateNetworkSetup()
-    setup.load_config(config_fname)
-    model = setup.create_model()
-    gripper_query_pts = setup.create_gripper_query_pts()
-    rack_query_pts = setup.create_rack_query_pts()
-
-    shapenet_obj_dir = setup.get_shapenet_obj_dir()
-    eval_save_dir = setup.create_eval_dir()
-    demo_load_dir = setup.get_demo_load_dir(obj_class='mug')
-
-    grasp_optimizer = setup.create_grasp_optimizer(model, gripper_query_pts, eval_save_dir=eval_save_dir)
-
-    evaluator_args = setup.get_evaluator_args()
-
-    experiment = EvaluateGrasp(grasp_optimizer=grasp_optimizer,
-        seed=setup.get_seed(),
-        shapenet_obj_dir=shapenet_obj_dir, eval_save_dir=eval_save_dir,
-        demo_load_dir=demo_load_dir, **evaluator_args)
-
+    experiment = setup.set_up_network(config_fname)
     experiment.load_demos()
     experiment.configure_sim()
     experiment.run_experiment()
+
+    # setup = EvaluateNetworkSetup()
+    # setup.load_config(config_fname)
+    # model = setup.create_model()
+    # gripper_query_pts = setup.create_gripper_query_pts()
+    # rack_query_pts = setup.create_rack_query_pts()
+
+    # shapenet_obj_dir = setup.get_shapenet_obj_dir()
+    # eval_save_dir = setup.create_eval_dir()
+    # demo_load_dir = setup.get_demo_load_dir(obj_class='mug')
+
+    # grasp_optimizer = setup.create_grasp_optimizer(model, gripper_query_pts, eval_save_dir=eval_save_dir)
+
+    # evaluator_args = setup.get_evaluator_args()
+
+    # experiment = EvaluateGrasp(grasp_optimizer=grasp_optimizer,
+    #     seed=setup.get_seed(),
+    #     shapenet_obj_dir=shapenet_obj_dir, eval_save_dir=eval_save_dir,
+    #     demo_load_dir=demo_load_dir, **evaluator_args)
+
+    # experiment.load_demos()
+    # experiment.configure_sim()
+    # experiment.run_experiment()

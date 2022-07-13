@@ -1,12 +1,13 @@
-from ndf_robot.eval.evaluate_general import EvaluateNetwork, \
-    EvaluateGraspSetup, QueryPoints, DemoIO
+from ndf_robot.eval.evaluate_general_v2 import EvaluateNetwork, \
+    EvaluateNetworkSetup, QueryPoints, DemoIO
 from ndf_robot.opt.optimizer_lite import OccNetOptimizer
 import plotly.express as px
 import numpy as np
+from numpy.lib.npyio import NpzFile
 import os
 import os.path as osp
 import trimesh
-from ndf_robot.utils import eval_gen_utils, util
+from ndf_robot.utils import eval_gen_utils, util, path_util
 
 
 def multiplot(point_list: 'list[np.ndarray]', fname='debug.html'):
@@ -43,6 +44,47 @@ def multiplot(point_list: 'list[np.ndarray]', fname='debug.html'):
 
 
 if __name__ == '__main__':
+
+    demo_load_dir = osp.join(path_util.get_ndf_data(), 'demos', 'bowl',
+    'grasp_rim_anywhere_place_shelf_all_methods_multi_instance_converted')
+
+    demo_fnames = os.listdir(demo_load_dir)
+    grasp_demo_filenames = [osp.join(demo_load_dir, fn) for fn in
+        demo_fnames if 'grasp_demo' in fn]
+
+    place_demo_filenames = [osp.join(demo_load_dir, fn) for fn in
+        demo_fnames if 'place_demo' in fn]
+
+    grasp_demo_fname = grasp_demo_filenames[0]
+    place_demo_fname = place_demo_filenames[0]
+
+    grasp_demo: NpzFile = np.load(grasp_demo_fname)
+    place_demo: NpzFile = np.load(place_demo_fname)
+
+    for f in grasp_demo.files:
+        print(f)
+    print('---')
+    for f in place_demo.files:
+        print(f)
+
+    print(grasp_demo['table_urdf'])
+
+    raise ValueError('hi')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     config_fname = 'GENERAL_debug.yml'
 
     setup = EvaluateGraspSetup()

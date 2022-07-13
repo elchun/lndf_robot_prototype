@@ -1,4 +1,5 @@
 import os, os.path as osp
+from cv2 import transform
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -299,8 +300,14 @@ class OccNetOptimizer:
         # -- Run optimization -- #
         for i in range(self.opt_iterations):
             T_mat = torch_util.angle_axis_to_rotation_matrix(rot).squeeze()
-            noise_vec = (torch.randn(X.size()) * (perturb_scale / ((i+1)**(perturb_decay)))).to(dev)
-            X_perturbed = X + noise_vec
+
+            # Generating noise vec takes a lot of cpu!!!
+            if perturb_scale > 0:
+                noise_vec = (torch.randn(X.size()) * (perturb_scale / ((i+1)**(perturb_decay)))).to(dev)
+                X_perturbed = X + noise_vec
+            else:
+                X_perturbed = X
+
             X_new = torch_util.transform_pcd_torch(X_perturbed, T_mat) + trans[:, None, :].repeat((1, X.size(1), 1))
 
             act_hat = self.model.forward_latent(latent, X_new)
@@ -308,7 +315,7 @@ class OccNetOptimizer:
 
             losses = [self.loss_fn(act_hat[ii].view(t_size), target_act_hat) for ii in range(M)]
             loss = torch.mean(torch.stack(losses))
-            if i % 100 == 0:
+            if (i + 1) % 100 == 0:
                 losses_str = ['%f' % val.item() for val in losses]
                 loss_str = ', '.join(losses_str)
                 log_debug(f'i: {i}, losses: {loss_str}')
@@ -325,6 +332,7 @@ class OccNetOptimizer:
         for j in range(M):
             # -- Pose query points -- #
             trans_j, rot_j = trans[j], rot[j]
+
             transform_mat_np = torch_util.angle_axis_to_rotation_matrix(
                 rot_j.view(1, -1)).squeeze().detach().cpu().numpy()
             transform_mat_np[:-1, -1] = trans_j.detach().cpu().numpy()

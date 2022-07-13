@@ -12,11 +12,17 @@ import numpy as np
 
 if __name__ == '__main__':
     # -- Set load and save dirs -- #
-    demo_load_dir = osp.join(path_util.get_ndf_data(), 'demos', 'mug',
-    'grasp_rim_hang_handle_gaussian_precise_w_shelf')
+    # demo_load_dir = osp.join(path_util.get_ndf_data(), 'demos', 'mug',
+    # 'grasp_rim_hang_handle_gaussian_precise_w_shelf')
 
-    demo_save_dir = osp.join(path_util.get_ndf_data(), 'demos', 'mug',
-    'grasp_rim_hang_handle_gaussian_precise_w_shelf_converted')
+    # demo_save_dir = osp.join(path_util.get_ndf_data(), 'demos', 'mug',
+    # 'grasp_rim_hang_handle_gaussian_precise_w_shelf_converted')
+
+    demo_load_dir = osp.join(path_util.get_ndf_data(), 'demos', 'bowl',
+    'grasp_rim_anywhere_place_shelf_all_methods_multi_instance')
+
+    demo_save_dir = osp.join(path_util.get_ndf_data(), 'demos', 'bowl',
+    'grasp_rim_anywhere_place_shelf_all_methods_multi_instance_converted')
 
     # -- Make save directory if it doesn't already exist -- #
     util.safe_makedirs(demo_save_dir)
