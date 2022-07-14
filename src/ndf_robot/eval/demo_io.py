@@ -34,7 +34,7 @@ class DemoIO():
         return demo
 
     @staticmethod
-    def process_place_data(data: NpzFile) -> Demo:
+    def process_rack_place_data(data: NpzFile) -> Demo:
         """
         Construct {Demo} object from {data} representing place demo.
 
@@ -56,6 +56,33 @@ class DemoIO():
             query_pts=data['rack_pointcloud_gt'],
             obj_pose_world=data['obj_pose_world'],
             query_pose_world=data['rack_pose_world'],
+            obj_shapenet_id=data['shapenet_id'].item())
+
+        return demo
+
+    @staticmethod
+    def process_shelf_place_data(data: NpzFile) -> Demo:
+        """
+        Construct {Demo} object from {data} representing place demo.
+
+        Args:
+            data (NpzFile): Imput data produced by simulation demo.
+
+        Returns:
+            Demo: Container for relevant demo information.
+        """
+        # -- Get obj pts -- #
+        demo_obj_pts = data['obj_pcd_ori']
+        demo_pts_mean = np.mean(demo_obj_pts, axis=0)
+        inliers = np.where(
+            np.linalg.norm(demo_obj_pts - demo_pts_mean, 2, 1) < 0.2)[0]
+        demo_obj_pts = demo_obj_pts[inliers]
+
+        demo = Demo(
+            obj_pts=demo_obj_pts,
+            query_pts=data['shelf_pointcloud_gt'],
+            obj_pose_world=data['obj_pose_world'],
+            query_pose_world=data['shelf_pose_world'],
             obj_shapenet_id=data['shapenet_id'].item())
 
         return demo

@@ -380,7 +380,8 @@ def interpolate_pose(pose_initial, pose_final, N, frac=1):
     return pose_interp
 
 
-def transform_pose(pose_source, pose_transform):
+def transform_pose(pose_source: PoseStamped, pose_transform: PoseStamped) \
+    -> PoseStamped:
     T_pose_source = matrix_from_pose(pose_source)
     T_transform_source = matrix_from_pose(pose_transform)
     T_pose_final_source = np.matmul(T_transform_source, T_pose_source)

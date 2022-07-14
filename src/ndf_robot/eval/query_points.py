@@ -148,3 +148,35 @@ class QueryPoints():
         cylinder_pts = np.asarray(cylinder_pcd.vertices)
 
         return cylinder_pts
+
+    @staticmethod
+    def generate_shelf(n_pts: int, radius: float, height: float,
+        y_rot_rad: float = 0, x_trans: float = 0,
+        y_trans: float = 0.07, z_trans: float = 0.10) -> np.ndarray:
+        """
+        Generate points that align with demo shelf.
+
+        Args:
+            n_pts (int): Number of points in pcd.
+
+        Returns:
+            np.ndarray: (n_pts, 3).
+        """
+        # radius: 0.08
+        # height: 0.03
+        # y_rot_rad: 0.0
+        # x_trans: 0.0
+        # y_trans: 0.07
+        # z_trans: 0.22
+
+        cylinder_pts = QueryPoints.generate_cylinder(n_pts, radius, height, 'z')
+        transform = np.eye(4)
+        rot = util.make_rotation_matrix('y', y_rot_rad)
+        trans = np.array([[x_trans, y_trans, z_trans]]).T
+        transform[:3, :3] = rot
+        transform[:3, 3:4] = trans
+        cylinder_pcd = trimesh.PointCloud(cylinder_pts)
+        cylinder_pcd.apply_transform(transform)
+        cylinder_pts = np.asarray(cylinder_pcd.vertices)
+
+        return cylinder_pts

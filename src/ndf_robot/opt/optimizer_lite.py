@@ -59,9 +59,9 @@ class OccNetOptimizer:
         self.query_pts_override = query_pts_override
         if self.query_pts_override:
             assert self.query_pts is not None
-        else:
-            assert self.query_pts is None, 'Query points will be set by demos' \
-                + 'if override not in use'
+        # else:
+            # assert self.query_pts is None, 'Query points will be set by demos' \
+            #     + 'if override not in use'
 
         self.demos: list[Demo] = []
         self.target_act_hat = None

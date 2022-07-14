@@ -1,16 +1,16 @@
-
 setup_args:
-  exp_dir_suffix: GEN_DEBUG_shelf_teleport
-  demo_exp: 'grasp_rim_hang_handle_gaussian_precise_w_shelf_converted'
-  demo_exp: 'grasp_rim_anywhere_place_shelf_all_methods_multi_instance_converted'
+  exp_dir_suffix: GEN_DEBUG_grasp_rack
+  demo_exp: 'mug/grasp_rim_hang_handle_gaussian_precise_w_shelf_converted'
+  # demo_exp: 'grasp_rim_anywhere_place_shelf_all_methods_multi_instance_converted'
   seed: 0
-  evaluator_type: SHELF_PLACE_TELEPORT # Choose from GRASP, RACK_PLACE_TELEPORT, SHELF_PLACE_TELEPORT
-  # evaluator_type: GRASP # Choose from GRASP, PLACE_TELEPORT,
+  # Choose from GRASP, RACK_PLACE_TELEPORT, SHELF_PLACE_TELEPORT, RACK_PLACE_GRASP
+  # evaluator_type: SHELF_PLACE_TELEPORT
+  evaluator_type: RACK_PLACE_GRASP
 
 evaluator:
   pybullet_viz: False
   # obj_class: mug
-  obj_class: bowl
+  test_obj_class: mug
   num_trials: 200
   include_avoid_obj: False
   any_pose: True
@@ -52,6 +52,7 @@ place_optimizer:
     use_tsne: False
     M_override: 20
     opt_fname_prefix: 'place_pose_optimized'
+    query_pts_override: True
 
 
 # With rect query points, z1 is actually pointing up when
@@ -86,12 +87,20 @@ rack_query_pts:
     # z_trans: 0.17
 
 shelf_query_pts:
-  type: ARM
+  type: SHELF
   args:
+    # n_pts: 1000
+    # radius: 0.04
+    # height: 0.02
+    # y_rot_rad: 0.0
+    # x_trans: 0.0
+    # y_trans: 0.07
+    # z_trans: 0.11
+
     n_pts: 1000
-    radius: 0.05
+    radius: 0.08
     height: 0.04
-    y_rot_rad: 0.68
-    x_trans: 0.055
-    y_trans: 0
-    z_trans: 0.19
+    y_rot_rad: 0.0
+    x_trans: 0.0
+    y_trans: 0.07
+    z_trans: 0.11

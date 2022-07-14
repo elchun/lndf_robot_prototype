@@ -11,6 +11,7 @@ QueryPointTypes = {
     'SPHERE',
     'RECT',
     'ARM',
+    'SHELF',
 }
 
 # GripperPointTypes = {
@@ -35,6 +36,9 @@ class TrialResults(Enum):
     POST_PROCESS_FAILED = 8
     GET_PCD_FAILED = 9
     JOINT_PLAN_FAILED = 10
+    GRASP_SUCCESS = 11
+    DEBUG_FAILURE = 12
+    PLACE_JOINT_PLAN_FAILED = 13
 
 
 class RobotIDs:
@@ -49,8 +53,10 @@ class SimConstants:
 
     PREGRASP_OFFSET_TF = [0, 0, 0.25, 0, 0, 0, 1]
 
-    PREPLACE_HORIZONTAL_OFFSET_TF = [0, -0.2, 0, 0, 0, 0, 1]
-    PREPLACE_OFFSET_TF = [0, -0.042, 0.05, 0, 0, 0, 1]
+    # PREPLACE_HORIZONTAL_OFFSET_TF = [0, -0.2, 0, 0, 0, 0, 1]
+    PREPLACE_OFFSET_CLOSE_TF= [0, -0.042, 0.06, 0, 0, 0, 1]
+    PREPLACE_OFFSET_FAR_TF = [0, -0.084, 0.12, 0, 0, 0, 1]
+    # PREPLACE_OFFSET_TF = [0, -0.084, 0.12, 0, 0, 0, 1]
 
     # placement of table
     TABLE_POS = [0.5, 0.0, 0.4]
@@ -81,7 +87,7 @@ class SimConstants:
     # MESH_SCALE_LOW = 0.175
 
     # Avoid Mugs
-    MUG_AVOID_SHAPENET_IDS = [
+    MUG_AVOID_SHAPENET_IDS = {
         '32e197b8118b3ff6a4bd4f46ba404890',
         '7374ea7fee07f94c86032c4825f3450',
         '9196f53a0d4be2806ffeedd41ba624d6',
@@ -223,10 +229,10 @@ class SimConstants:
         'f1866a48c2fc17f85b2ecd212557fda0',
         'ea95f7b57ff1573b9469314c979caef4',
         'b88bcf33f25c6cb15b4f129f868dedb'
-    ]
+    }
 
 
-class TrialData():
+class OLDTrialData():
     """
     Named container class for trial specific information
 
@@ -244,7 +250,7 @@ class TrialData():
     best_place_idx = -1
 
 
-class TaskData():
+class TrialData():
     obj_shapenet_id: str
     trial_result: TrialResults
     best_opt_idx: int
@@ -254,3 +260,4 @@ class ExperimentTypes(Enum):
     GRASP = 0
     RACK_PLACE_TELEPORT = 1
     SHELF_PLACE_TELEPORT = 2
+    RACK_PLACE_GRASP = 3
