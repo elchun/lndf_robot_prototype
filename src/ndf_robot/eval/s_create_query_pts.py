@@ -113,7 +113,6 @@ if __name__ == '__main__':
         # 'y_trans': 0.0,
         # 'z_trans': 0.19,
 
-
         'n_pts': 1000,
         'radius': 0.08,
         'height': 0.03,
@@ -121,7 +120,7 @@ if __name__ == '__main__':
         'x_trans': 0.0,
         'y_trans': 0.07,
         'z_trans': 0.11,
-        }
+    }
 
     def working_pts_generator(**kwargs):
         # return QueryPoints.generate_rack_arm(**kwargs)

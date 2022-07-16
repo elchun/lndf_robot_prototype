@@ -1,4 +1,3 @@
-from audioop import mul
 from ndf_robot.eval.evaluate_general import EvaluateNetwork, \
     EvaluateNetworkSetup, QueryPoints, DemoIO
 from ndf_robot.opt.optimizer_lite import OccNetOptimizer

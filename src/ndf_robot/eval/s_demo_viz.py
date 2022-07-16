@@ -47,8 +47,10 @@ if __name__ == '__main__':
     obj_pcd = util.apply_pose_numpy(place_demo.obj_pts, place_demo.obj_pose_world)
     rack_pcd = util.apply_pose_numpy(rack_pcd_raw, place_demo.query_pose_world)
 
-    PREPLACE_OFFSET_TF = [0, -0.042, 0.06, 0, 0, 0, 1]
+    PREPLACE_OFFSET_TF = [0.012, -0.042, 0.06, 0, 0, 0, 1]
     # PREPLACE_OFFSET_TF = [0, -0.084, 0.12, 0, 0, 0, 1]
+    # PREPLACE_OFFSET_TF = [0, -0.042, 0.08, 0, 0, 0, 1]
+    # PREPLACE_OFFSET_TF = [0, -0.084, 0.15, 0, 0, 0, 1]
     preplace_offset_tf = util.list2pose_stamped(PREPLACE_OFFSET_TF)
 
     obj_place_pose = place_demo.obj_pose_world

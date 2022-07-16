@@ -38,7 +38,7 @@ class TrialResults(Enum):
     JOINT_PLAN_FAILED = 10
     GRASP_SUCCESS = 11
     DEBUG_FAILURE = 12
-    PLACE_JOINT_PLAN_FAILED = 13
+    # PLACE_JOINT_PLAN_FAILED = 13
 
 
 class RobotIDs:
@@ -54,8 +54,10 @@ class SimConstants:
     PREGRASP_OFFSET_TF = [0, 0, 0.25, 0, 0, 0, 1]
 
     # PREPLACE_HORIZONTAL_OFFSET_TF = [0, -0.2, 0, 0, 0, 0, 1]
-    PREPLACE_OFFSET_CLOSE_TF= [0, -0.042, 0.06, 0, 0, 0, 1]
-    PREPLACE_OFFSET_FAR_TF = [0, -0.084, 0.12, 0, 0, 0, 1]
+    # PREPLACE_HORIZONTAL_OFFSET_TF = [0.012, -0.242, 0.06, 0, 0, 0, 1]
+    PREPLACE_HORIZONTAL_OFFSET_TF = [0.012, -0.092, 0.06, 0, 0, 0, 1]
+    PREPLACE_OFFSET_CLOSE_TF = [0.012, -0.042, 0.06, 0, 0, 0, 1]
+    PREPLACE_OFFSET_FAR_TF = [0.012, -0.084, 0.12, 0, 0, 0, 1] # Not currently used
     # PREPLACE_OFFSET_TF = [0, -0.084, 0.12, 0, 0, 0, 1]
 
     # placement of table
@@ -251,9 +253,10 @@ class OLDTrialData():
 
 
 class TrialData():
-    obj_shapenet_id: str
-    trial_result: TrialResults
-    best_opt_idx: int
+    obj_shapenet_id: str  # Shapenet id of object used.
+    trial_result: TrialResults  # Result of each trial.
+    # best_opt_idx: int
+    aux_data: dict  # For experiment specific data.
 
 
 class ExperimentTypes(Enum):

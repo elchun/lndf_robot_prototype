@@ -80,7 +80,7 @@ class DemoIO():
 
         demo = Demo(
             obj_pts=demo_obj_pts,
-            query_pts=data['shelf_pointcloud_gt'],
+            query_pts=data['shelf_pointcloud_uniform'],
             obj_pose_world=data['obj_pose_world'],
             query_pose_world=data['shelf_pose_world'],
             obj_shapenet_id=data['shapenet_id'].item())
