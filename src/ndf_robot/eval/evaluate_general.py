@@ -65,10 +65,14 @@ class EvaluateNetwork():
         util.safe_makedirs(self.eval_grasp_imgs_dir)
 
         self.num_trials = num_trials
-        if include_avoid_obj:
-            self.avoid_shapenet_ids = []
-        else:
-            self.avoid_shapenet_ids = SimConstants.MUG_AVOID_SHAPENET_IDS
+        self.avoid_shapenet_ids = set()
+        if not include_avoid_obj:
+            self.avoid_shapenet_ids.update(SimConstants.MUG_AVOID_SHAPENET_IDS)
+            self.avoid_shapenet_ids.update(SimConstants.BOWL_AVOID_SHAPENET_IDS)
+
+        self.train_shapenet_ids = set()
+        self.train_shapenet_ids.update(SimConstants.MUG_TRAIN_SHAPENET_IDS)
+        self.train_shapenet_ids.update(SimConstants.BOWL_TRAIN_SHAPENET_IDS)
 
         self.any_pose = any_pose
 
@@ -376,6 +380,31 @@ class EvaluateNetwork():
 
         return target_obj_pcd_obs
 
+    def _get_test_object_ids(self, demo_shapenet_ids: 'set[str]') -> 'list[str]':
+        """
+        Find all object that we can test on.
+
+        Args:
+            demo_shapenet_ids (set[str]): Set of ids of objects used in demos
+                (to be excluded from test)
+
+        Returns:
+            list[str]: List of objects to test on.
+        """
+        test_object_ids = []
+        shapenet_id_list = [fn.split('_')[0]
+            for fn in os.listdir(self.shapenet_obj_dir)]
+
+        for s_id in shapenet_id_list:
+            valid = s_id not in demo_shapenet_ids \
+                and s_id not in self.avoid_shapenet_ids \
+                and s_id not in self.train_shapenet_ids
+
+            if valid:
+                test_object_ids.append(s_id)
+
+        return test_object_ids
+
 
 class EvaluateGrasp(EvaluateNetwork):
     def __init__(self, grasp_optimizer: OccNetOptimizer,
@@ -429,16 +458,17 @@ class EvaluateGrasp(EvaluateNetwork):
         self.table_urdf = DemoIO.get_table_urdf(grasp_data)
 
         # -- Get test objects -- #
-        self.test_object_ids = []
-        shapenet_id_list = [fn.split('_')[0]
-            for fn in os.listdir(self.shapenet_obj_dir)]
+        self.test_object_ids = self._get_test_object_ids(demo_shapenet_ids)
+        # self.test_object_ids = []
+        # shapenet_id_list = [fn.split('_')[0]
+        #     for fn in os.listdir(self.shapenet_obj_dir)]
 
-        for s_id in shapenet_id_list:
-            valid = s_id not in demo_shapenet_ids \
-                and s_id not in self.avoid_shapenet_ids
+        # for s_id in shapenet_id_list:
+        #     valid = s_id not in demo_shapenet_ids \
+        #         and s_id not in self.avoid_shapenet_ids
 
-            if valid:
-                self.test_object_ids.append(s_id)
+        #     if valid:
+        #         self.test_object_ids.append(s_id)
 
     def configure_sim(self):
         """
@@ -848,16 +878,17 @@ class EvaluateRackPlaceTeleport(EvaluateNetwork):
         self.rack_pose = DemoIO.get_rack_pose(place_data)
 
         # -- Get test objects -- #
-        self.test_object_ids = []
-        shapenet_id_list = [fn.split('_')[0]
-            for fn in os.listdir(self.shapenet_obj_dir)]
+        self.test_object_ids = self._get_test_object_ids(demo_shapenet_ids)
+        # self.test_object_ids = []
+        # shapenet_id_list = [fn.split('_')[0]
+        #     for fn in os.listdir(self.shapenet_obj_dir)]
 
-        for s_id in shapenet_id_list:
-            valid = s_id not in demo_shapenet_ids \
-                and s_id not in self.avoid_shapenet_ids
+        # for s_id in shapenet_id_list:
+        #     valid = s_id not in demo_shapenet_ids \
+        #         and s_id not in self.avoid_shapenet_ids
 
-            if valid:
-                self.test_object_ids.append(s_id)
+        #     if valid:
+        #         self.test_object_ids.append(s_id)
 
     def configure_sim(self):
         """
@@ -1086,16 +1117,17 @@ class EvaluateShelfPlaceTeleport(EvaluateNetwork):
         self.shelf_pose = DemoIO.get_shelf_pose(place_data)
 
         # -- Get test objects -- #
-        self.test_object_ids = []
-        shapenet_id_list = [fn.split('_')[0]
-            for fn in os.listdir(self.shapenet_obj_dir)]
+        self.test_object_ids = self._get_test_object_ids(demo_shapenet_ids)
+        # self.test_object_ids = []
+        # shapenet_id_list = [fn.split('_')[0]
+        #     for fn in os.listdir(self.shapenet_obj_dir)]
 
-        for s_id in shapenet_id_list:
-            valid = s_id not in demo_shapenet_ids \
-                and s_id not in self.avoid_shapenet_ids
+        # for s_id in shapenet_id_list:
+        #     valid = s_id not in demo_shapenet_ids \
+        #         and s_id not in self.avoid_shapenet_ids
 
-            if valid:
-                self.test_object_ids.append(s_id)
+        #     if valid:
+        #         self.test_object_ids.append(s_id)
 
     def configure_sim(self):
         """
@@ -1336,16 +1368,17 @@ class EvaluateRackPlaceGrasp(EvaluateNetwork):
         self.rack_pose = DemoIO.get_rack_pose(place_data)
 
         # -- Get test objects -- #
-        self.test_object_ids = []
-        shapenet_id_list = [fn.split('_')[0]
-            for fn in os.listdir(self.shapenet_obj_dir)]
+        self.test_object_ids = self._get_test_object_ids(demo_shapenet_ids)
+        # self.test_object_ids = []
+        # shapenet_id_list = [fn.split('_')[0]
+        #     for fn in os.listdir(self.shapenet_obj_dir)]
 
-        for s_id in shapenet_id_list:
-            valid = s_id not in demo_shapenet_ids \
-                and s_id not in self.avoid_shapenet_ids
+        # for s_id in shapenet_id_list:
+        #     valid = s_id not in demo_shapenet_ids \
+        #         and s_id not in self.avoid_shapenet_ids
 
-            if valid:
-                self.test_object_ids.append(s_id)
+        #     if valid:
+        #         self.test_object_ids.append(s_id)
 
     def configure_sim(self):
         """

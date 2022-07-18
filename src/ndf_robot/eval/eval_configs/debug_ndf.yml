@@ -1,18 +1,18 @@
 setup_args:
-  exp_dir_suffix: GEN_DEBUG_ndf_rack_place_grasp_anyrot
+  exp_dir_suffix: GEN_DEBUG_ndf_mug_grasp_new_id_load
   demo_exp: 'mug/grasp_rim_hang_handle_gaussian_precise_w_shelf_converted'
   # demo_exp: 'bowl/grasp_rim_anywhere_place_shelf_all_methods_multi_instance_converted'
   seed: 0
   # Choose from GRASP, RACK_PLACE_TELEPORT, SHELF_PLACE_TELEPORT, RACK_PLACE_GRASP
   # evaluator_type: SHELF_PLACE_TELEPORT
-  evaluator_type: RACK_PLACE_GRASP
+  evaluator_type: GRASP
 
 evaluator:
   pybullet_viz: False
   test_obj_class: mug
   # test_obj_class: bowl
   num_trials: 200
-  include_avoid_obj: False
+  include_avoid_obj: True
   any_pose: True
 
 model:
