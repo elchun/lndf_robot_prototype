@@ -44,7 +44,8 @@ class OccNetOptimizer:
                  noise_scale=0.0, noise_decay=0.5, single_object=False,
                  rand_translate=False, viz_path='visualization', use_tsne=False,
                  M_override: 'bool | int' = None, query_pts_override=True,
-                 opt_fname_prefix: str = 'ee_pose_optimized'):
+                 opt_fname_prefix: str = 'ee_pose_optimized',
+                 save_all_opt: bool = 'False'):
 
         self.n_obj_points = 2000
         self.n_query_points = 1500
@@ -101,6 +102,8 @@ class OccNetOptimizer:
         self.M_override = M_override
 
         self.opt_fname_prefix = opt_fname_prefix
+
+        self.save_all_opt = save_all_opt
 
     def _scene_dict(self):
         self.scene_dict = {}
@@ -346,7 +349,11 @@ class OccNetOptimizer:
 
             final_query_pts = util.transform_pcd(self.query_pts, transform_mat_np)
             opt_fname = f'{self.opt_fname_prefix}_{j}.html'
-            self._visualize_pose(shape_pts_world_np, final_query_pts, viz_path, opt_fname)
+
+            if self.save_all_opt:
+                self._visualize_pose(shape_pts_world_np, final_query_pts, viz_path, opt_fname)
+            elif j == best_idx:
+                self._visualize_pose(shape_pts_world_np, final_query_pts, viz_path, opt_fname)
 
             if ee:
                 T_mat = transform_mat_np

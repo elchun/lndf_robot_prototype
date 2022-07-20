@@ -1,16 +1,16 @@
 setup_args:
-  exp_dir_suffix: GEN_DEBUG_ndf_mug_grasp_new_id_load
-  demo_exp: 'mug/grasp_rim_hang_handle_gaussian_precise_w_shelf_converted'
-  # demo_exp: 'bowl/grasp_rim_anywhere_place_shelf_all_methods_multi_instance_converted'
+  exp_dir_suffix: GEN_DEBUG_bowl_shelf
+  # demo_exp: 'mug/grasp_rim_hang_handle_gaussian_precise_w_shelf_converted'
+  demo_exp: 'bowl/grasp_rim_anywhere_place_shelf_all_methods_multi_instance_converted'
   seed: 0
-  # Choose from GRASP, RACK_PLACE_TELEPORT, SHELF_PLACE_TELEPORT, RACK_PLACE_GRASP
-  # evaluator_type: SHELF_PLACE_TELEPORT
-  evaluator_type: GRASP
+  # Choose from GRASP, RACK_PLACE_TELEPORT, SHELF_PLACE_TELEPORT, RACK_PLACE_GRASP, SHELF_PLACE_GRASP
+  evaluator_type: SHELF_PLACE_GRASP
+  # evaluator_type: GRASP
 
 evaluator:
   pybullet_viz: False
-  test_obj_class: mug
-  # test_obj_class: bowl
+  # test_obj_class: mug
+  test_obj_class: bowl
   num_trials: 200
   include_avoid_obj: True
   any_pose: True
@@ -31,6 +31,7 @@ grasp_optimizer:
     rand_translate: False
     use_tsne: False
     M_override: 10
+    save_all_opt: True
 
 place_optimizer:
   args:
@@ -39,6 +40,7 @@ place_optimizer:
     use_tsne: False
     M_override: 10
     query_pts_override: True
+    save_all_opt: True
 
 
 # With rect query points, z1 is actually pointing up when
@@ -83,11 +85,19 @@ shelf_query_pts:
     # y_trans: 0.07
     # z_trans: 0.11
 
+    # n_pts: 1000
+    # radius: 0.08
+    # # radius: 0.15
+    # height: 0.04
+    # # height: 0.1
+    # y_rot_rad: 0.0
+    # x_trans: 0.0
+    # y_trans: 0.07
+    # z_trans: 0.11
+
     n_pts: 1000
-    radius: 0.08
-    # radius: 0.15
-    height: 0.04
-    # height: 0.1
+    radius: 0.1
+    height: 0.1
     y_rot_rad: 0.0
     x_trans: 0.0
     y_trans: 0.07

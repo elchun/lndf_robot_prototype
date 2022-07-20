@@ -60,6 +60,8 @@ class SimConstants:
     PREPLACE_OFFSET_FAR_TF = [0.012, -0.084, 0.12, 0, 0, 0, 1] # Not currently used
     # PREPLACE_OFFSET_TF = [0, -0.084, 0.12, 0, 0, 0, 1]
 
+    SHELF_PREPLACE_OFFSET = [0, 0, 0.1, 0, 0, 0, 1]
+
     # placement of table
     TABLE_POS = [0.5, 0.0, 0.4]
     TABLE_SCALING = 0.9
@@ -241,7 +243,9 @@ class SimConstants:
         'ea473a79fd2c98e5789eafad9d8a9394',
         'e4c871d1d5e3c49844b2fa2cac0778f5',
         'f6ffca90c543edf9d6438d5cb8c578c6',
-        'f6ffca90c543edf9d6438d5cb8c578c6'
+
+        'fc77ad0828db2caa533e44d90297dd6e',
+        '64d7f5eb886cfa48ce6101c7990e61d4',
     }
 
     # # Test mugs (withheld from training data)
@@ -592,5 +596,4 @@ class ExperimentTypes(Enum):
     RACK_PLACE_TELEPORT = 1
     SHELF_PLACE_TELEPORT = 2
     RACK_PLACE_GRASP = 3
-
-False
+    SHELF_PLACE_GRASP = 4

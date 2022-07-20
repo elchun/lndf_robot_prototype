@@ -1,20 +1,28 @@
 setup_args:
-  # exp_dir_suffix: EVAL_conv_rack_grasp_anyrot_odd
-  exp_dir_suffix: EVAL_ndf_rack_grasp_anyrot_odd
+  # exp_dir_suffix: EVAL_conv_shelf_grasp_upright
+  # exp_dir_suffix: EVAL_conv_shelf_grasp_anyrot
+  # exp_dir_suffix: EVAL_conv_shelf_grasp_upright_odd
+  # exp_dir_suffix: EVAL_conv_shelf_grasp_anyrot_odd
+  # exp_dir_suffix: EVAL_ndf_shelf_grasp_upright
+  # exp_dir_suffix: EVAL_ndf_shelf_grasp_anyrot
+  # exp_dir_suffix: EVAL_ndf_shelf_grasp_upright_odd
+  exp_dir_suffix: EVAL_ndf_shelf_grasp_anyrot_odd
+
   # exp_dir_suffix: EVAL_conv_latent_margin_4_rack_grasp_anyrot
-  demo_exp: 'mug/grasp_rim_hang_handle_gaussian_precise_w_shelf_converted'
-  # demo_exp: 'bowl/grasp_rim_anywhere_place_shelf_all_methods_multi_instance_converted'
+
+  # demo_exp: 'mug/grasp_rim_hang_handle_gaussian_precise_w_shelf_converted'
+  demo_exp: 'bowl/grasp_rim_anywhere_place_shelf_all_methods_multi_instance_converted'
   seed: 0
   # Choose from GRASP, RACK_PLACE_TELEPORT, SHELF_PLACE_TELEPORT, RACK_PLACE_GRASP
   # evaluator_type: SHELF_PLACE_TELEPORT
   # evaluator_type: RACK_PLACE_TELEPORT
-  evaluator_type: RACK_PLACE_GRASP
+  evaluator_type: SHELF_PLACE_GRASP
   # evaluator_type: GRASP
 
 evaluator:
   pybullet_viz: False
-  test_obj_class: mug
-  # test_obj_class: bowl
+  # test_obj_class: mug
+  test_obj_class: bowl
   num_trials: 200
   include_avoid_obj: True
   any_pose: True
@@ -80,6 +88,17 @@ evaluator:
 #     z1: 0.06
 #     z2: 0.02
 
+# shelf_query_pts:
+#   type: SHELF
+#   args:
+#     n_pts: 1000
+#     radius: 0.1
+#     height: 0.1
+#     y_rot_rad: 0.0
+#     x_trans: 0.0
+#     y_trans: 0.07
+#     z_trans: 0.11
+
 
 # -- NDF Config -- #
 model:
@@ -128,3 +147,14 @@ rack_query_pts:
     x_trans: 0.055
     y_trans: 0
     z_trans: 0.19
+
+shelf_query_pts:
+  type: SHELF
+  args:
+    n_pts: 1000
+    radius: 0.1
+    height: 0.1
+    y_rot_rad: 0.0
+    x_trans: 0.0
+    y_trans: 0.07
+    z_trans: 0.11

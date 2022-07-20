@@ -18,11 +18,19 @@ if __name__ == '__main__':
     # demo_save_dir = osp.join(path_util.get_ndf_data(), 'demos', 'mug',
     # 'grasp_rim_hang_handle_gaussian_precise_w_shelf_converted')
 
-    demo_load_dir = osp.join(path_util.get_ndf_data(), 'demos', 'bowl',
-    'grasp_rim_anywhere_place_shelf_all_methods_multi_instance')
+    # demo_load_dir = osp.join(path_util.get_ndf_data(), 'demos', 'bowl',
+    # 'grasp_rim_anywhere_place_shelf_all_methods_multi_instance')
 
-    demo_save_dir = osp.join(path_util.get_ndf_data(), 'demos', 'bowl',
-    'grasp_rim_anywhere_place_shelf_all_methods_multi_instance_converted')
+    # demo_save_dir = osp.join(path_util.get_ndf_data(), 'demos', 'bowl',
+    # 'grasp_rim_anywhere_place_shelf_all_methods_multi_instance_converted')
+
+    demo_load_dir = osp.join(path_util.get_ndf_data(), 'demos', 'bottle',
+    'grasp_side_place_shelf_start_upright_all_methods_multi_instance')
+
+    demo_save_dir = osp.join(path_util.get_ndf_data(), 'demos', 'bottle',
+    'grasp_side_place_shelf_start_upright_all_methods_multi_instance_converted')
+
+    assert demo_load_dir != demo_save_dir, 'Must have different load and save dir'
 
     # -- Make save directory if it doesn't already exist -- #
     util.safe_makedirs(demo_save_dir)
@@ -58,8 +66,6 @@ if __name__ == '__main__':
         obj_pcd_ori = util.apply_pose_numpy(obj_pts, inv_grasp_obj_pose)
 
         # print('two poses: ', util.pose_stamped2list(inv_grasp_obj_pose))
-
-
 
         # obj_pcd_ori = util.apply_pose_numpy(obj_pts, inv_grasp_obj_pose)
 
