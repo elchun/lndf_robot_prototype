@@ -45,7 +45,7 @@ class OccNetOptimizer:
                  rand_translate=False, viz_path='visualization', use_tsne=False,
                  M_override: 'bool | int' = None, query_pts_override=True,
                  opt_fname_prefix: str = 'ee_pose_optimized',
-                 save_all_opt: bool = 'False'):
+                 save_all_opt: bool = False):
 
         self.n_obj_points = 2000
         self.n_query_points = 1500

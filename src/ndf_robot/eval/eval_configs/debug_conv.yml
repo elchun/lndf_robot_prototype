@@ -48,7 +48,7 @@ grasp_optimizer:
     rand_translate: True
     use_tsne: False
     M_override: 20
-    save_all_opt: True
+    save_all_opt: False
 
 place_optimizer:
   args:

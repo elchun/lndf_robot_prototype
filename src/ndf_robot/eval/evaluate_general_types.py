@@ -76,6 +76,7 @@ class SimConstants:
     # +y is right when facing robot
 
     OBJ_SAMPLE_X_LOW_HIGH = [0.4, 0.5]
+    # OBJ_SAMPLE_X_LOW_HIGH = [0.475, 0.5] # Original
     OBJ_SAMPLE_Y_LOW_HIGH = [-0.2, 0.2]
     # OBJ_SAMPLE_Y_LOW_HIGH = [-0.3, 0]
     OBJ_SAMPLE_Z_OFFSET = 0.0  # was 0.1
@@ -85,6 +86,10 @@ class SimConstants:
     MESH_SCALE_DEFAULT = 0.5
     MESH_SCALE_HIGH = 0.6
     MESH_SCALE_LOW = 0.4
+
+    # MESH_SCALE_DEFAULT = 0.6
+    # MESH_SCALE_HIGH = 0.7
+    # MESH_SCALE_LOW = 0.5
 
     # MESH_SCALE_DEFAULT = 0.3
     # MESH_SCALE_HIGH = 0.35

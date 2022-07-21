@@ -24,13 +24,21 @@ if __name__ == '__main__':
     # demo_save_dir = osp.join(path_util.get_ndf_data(), 'demos', 'bowl',
     # 'grasp_rim_anywhere_place_shelf_all_methods_multi_instance_converted')
 
-    demo_load_dir = osp.join(path_util.get_ndf_data(), 'demos', 'bottle',
-    'grasp_side_place_shelf_start_upright_all_methods_multi_instance')
+    # demo_load_dir = osp.join(path_util.get_ndf_data(), 'demos', 'bottle',
+    # 'grasp_side_place_shelf_start_upright_all_methods_multi_instance')
 
-    demo_save_dir = osp.join(path_util.get_ndf_data(), 'demos', 'bottle',
-    'grasp_side_place_shelf_start_upright_all_methods_multi_instance_converted')
+    # demo_save_dir = osp.join(path_util.get_ndf_data(), 'demos', 'bottle',
+    # 'grasp_side_place_shelf_start_upright_all_methods_multi_instance_converted')
+
+    demo_load_dir = osp.join(path_util.get_ndf_data(), 'demos', 'mug',
+    'mug_handle')
+
+    demo_save_dir = osp.join(path_util.get_ndf_data(), 'demos', 'mug',
+    'mug_handle_converted')
 
     assert demo_load_dir != demo_save_dir, 'Must have different load and save dir'
+
+    convert_place_demos = False
 
     # -- Make save directory if it doesn't already exist -- #
     util.safe_makedirs(demo_save_dir)
@@ -53,9 +61,11 @@ if __name__ == '__main__':
     # -- Get obj pcd, then shift to original object location -- #
     for i in range(len(grasp_demo_fnames)):
         grasp_demo_fn = grasp_demo_fnames[i]
-        place_demo_fn = place_demo_fnames[i]
         grasp_data = np.load(grasp_demo_fn, allow_pickle=True)
-        place_data = np.load(place_demo_fn, allow_pickle=True)
+
+        if convert_place_demos:
+            place_demo_fn = place_demo_fnames[i]
+            place_data = np.load(place_demo_fn, allow_pickle=True)
 
         obj_pts = grasp_data['object_pointcloud']
         grasp_obj_pose = grasp_data['obj_pose_world']
@@ -71,17 +81,15 @@ if __name__ == '__main__':
 
         # https://stackoverflow.com/questions/61996146/how-to-append-an-array-to-an-existing-npz-file
         grasp_data = dict(grasp_data)
-        place_data = dict(place_data)
-
         grasp_data['obj_pcd_ori'] = obj_pcd_ori
-        place_data['obj_pcd_ori'] = obj_pcd_ori
-
         grasp_demo_save_fn = osp.join(demo_save_dir, grasp_demo_fn.split('/')[-1])
-        place_demo_save_fn = osp.join(demo_save_dir, place_demo_fn.split('/')[-1])
-
         print(f'Saving {grasp_demo_save_fn}')
-        print(f'Saving {place_demo_save_fn}')
-
         np.savez(grasp_demo_save_fn, **grasp_data)
-        np.savez(place_demo_save_fn, **place_data)
+
+        if convert_place_demos:
+            place_data = dict(place_data)
+            place_data['obj_pcd_ori'] = obj_pcd_ori
+            place_demo_save_fn = osp.join(demo_save_dir, place_demo_fn.split('/')[-1])
+            print(f'Saving {place_demo_save_fn}')
+            np.savez(place_demo_save_fn, **place_data)
 
