@@ -1275,8 +1275,9 @@ class EvaluateRackPlaceGrasp(EvaluateNetwork):
 
         # self.scale_high = 0.35
         # self.scale_low = 0.175
-        # self.obj_sample_x_low_high = [0.475, 0.5]
+        self.obj_sample_x_low_high = [0.475, 0.5]
         # self.obj_sample_y_low_high = [-0.275, 0]
+        self.obj_sample_y_low_high = [-0.2, 0]
 
     def load_demos(self):
         """
