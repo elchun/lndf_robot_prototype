@@ -1,6 +1,6 @@
 
 setup_args:
-  exp_dir_suffix: CONV_OCC_latent_margin_4_upright_odd_mug
+  exp_dir_suffix: DEBUG
   # exp_dir_suffix: DEBUG_CONV_OCC_RECT_QUERY
   seed: 0
 
@@ -8,15 +8,14 @@ evaluator:
   pybullet_viz: False
   obj_class: mug
   num_trials: 200
-  include_avoid_obj: True
-  any_pose: False
+  include_avoid_obj: False
+  any_pose: True
 
 model:
   type: CONV_OCC
-  # checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_final.pth
-  checkpoint: ndf_vnn/conv_occ_hidden64_latent_margin_4/checkpoints/model_epoch_0017_iter_255000.pth
+  checkpoint: ndf_vnn/conv_occ_hidden32_anyrot_part2_1/checkpoints/model_epoch_0007_iter_119000.pth
   args:
-    latent_dim: 64
+    latent_dim: 32
     model_type: pointnet
     return_features: True
     sigmoid: False
@@ -26,8 +25,6 @@ optimizer:
   args:
     opt_iterations: 1000
     rand_translate: True
-    use_tsne: False
-    M_override: 20
 
 # query_pts:
 #   type: SPHERE
@@ -47,11 +44,5 @@ query_pts:
     y: 0.09
     z1: 0.06
     z2: 0.02
-  # args:
-  #   n_pts: 1000
-  #   x: 0.07
-  #   y: 0.07
-  #   z1: 0.06
-  #   z2: 0.02
 
 

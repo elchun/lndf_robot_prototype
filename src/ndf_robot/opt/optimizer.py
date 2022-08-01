@@ -335,6 +335,7 @@ class OccNetOptimizer:
             transform_mat_np = torch_util.angle_axis_to_rotation_matrix(rot_j.view(1, -1)).squeeze().detach().cpu().numpy()
             transform_mat_np[:-1, -1] = trans_j.detach().cpu().numpy()
 
+            # Send query points back to where they came from
             rand_query_pts_tf = np.matmul(rand_mat_init[j].detach().cpu().numpy(), query_pts_tf)
             transform_mat_np = np.matmul(transform_mat_np, rand_query_pts_tf)
             transform_mat_np = np.matmul(shape_mean_trans, transform_mat_np)

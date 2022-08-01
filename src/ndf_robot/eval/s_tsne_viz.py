@@ -1,5 +1,5 @@
 """
-Generate TSNE visualization of mug with given model weights
+Script for TSNE visualization of mug with given model weights
 """
 import os.path as osp
 from cv2 import transform
@@ -317,8 +317,8 @@ if __name__ == '__main__':
         #     'mug_centered_obj_normalized/f1e439307b834015770a0ff1161fa15a//models/model_normalized.obj'),
         # osp.join(path_util.get_ndf_demo_obj_descriptions(),
         #     'mug_centered_obj_normalized/f7d776fd68b126f23b67070c4a034f08/models/model_normalized.obj'),
-        osp.join(path_util.get_ndf_demo_obj_descriptions(),
-            'mug_centered_obj_normalized/eecb13f61a93b4048f58d8b19de93f99/models/model_normalized.obj'),
+        # osp.join(path_util.get_ndf_demo_obj_descriptions(),
+        #     'mug_centered_obj_normalized/eecb13f61a93b4048f58d8b19de93f99/models/model_normalized.obj'),
         # osp.join(path_util.get_ndf_demo_obj_descriptions(),
         #     'mug_centered_obj_normalized/e9bd4ee553eb35c1d5ccc40b510e4bd/models/model_normalized.obj'),
 
@@ -333,6 +333,9 @@ if __name__ == '__main__':
         #     'bowl_centered_obj_normalized/1f910faf81555f8e664b3b9b23ddfcbc/models/model_normalized.obj'),
         # osp.join(path_util.get_ndf_obj_descriptions(),
         #     'bowl_centered_obj_normalized/2c1df84ec01cea4e525b133235812833/models/model_normalized.obj'),
+
+        # Rack
+        osp.join(path_util.get_ndf_descriptions(), 'hanging/table/simple_rack.obj')
     ]
     base_output_fn = 'tsne_viz/tsne_viz'
     # output_fn = 'tsne_viz_latent_32.html'

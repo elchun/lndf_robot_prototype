@@ -82,23 +82,24 @@
       </geometry>
     </visual>
   </link>
-  <joint name="table2rack" type="fixed">
+  <joint name="table2shelf" type="fixed">
     <parent link="baseLink"/>
-    <child link="rack"/>
-    <origin rpy="0 0 3.1415" xyz="0.3 -0.1 0.635"/> 
+    <child link="shelf"/>
+    <origin rpy="0 0 -1.57" xyz="-0.5 0.125 0.625"/>
   </joint>
-  <link concave="yes" name="rack">
+  <link name="shelf">
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="simple_rack.obj" scale="1.0 1.0 1.0"/>
+        <mesh filename="shelf_back.stl" scale="0.75 0.75 0.5"/>
       </geometry>
       <material name="Ivory"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="simple_rack.obj" scale="1.0 1.0 1.0"/>
+        <mesh filename="shelf_back.stl" scale="1.0 0.75 0.5"/>
+	<!-- <mesh filename="shelf_back.stl" scale="0.75 0.75 0.5"/> -->
       </geometry>
     </collision>
     <contact>

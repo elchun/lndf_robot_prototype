@@ -6,6 +6,7 @@ from yacs.config import CfgNode
 from scipy.spatial.transform import Rotation as R
 from scipy.spatial.transform import Slerp
 import math
+import trimesh
 
 class AttrDict(dict):
   __getattr__ = dict.__getitem__
@@ -358,11 +359,11 @@ def interpolate_pose(pose_initial, pose_final, N, frac=1):
     trans_interp_total = [np.linspace(trans_initial[0], trans_final[0], num=N),
                           np.linspace(trans_initial[1], trans_final[1], num=N),
                           np.linspace(trans_initial[2], trans_final[2], num=N)]
-    
+
     key_rots = R.from_quat([quat_initial, quat_final])
     slerp = Slerp(np.arange(2), key_rots)
     interp_rots = slerp(np.linspace(0, 1, N))
-    quat_interp_total = interp_rots.as_quat()    
+    quat_interp_total = interp_rots.as_quat()
 
     pose_interp = []
     for counter in range(int(frac * N)):
@@ -379,7 +380,8 @@ def interpolate_pose(pose_initial, pose_final, N, frac=1):
     return pose_interp
 
 
-def transform_pose(pose_source, pose_transform):
+def transform_pose(pose_source: PoseStamped, pose_transform: PoseStamped) \
+    -> PoseStamped:
     T_pose_source = matrix_from_pose(pose_source)
     T_transform_source = matrix_from_pose(pose_transform)
     T_pose_final_source = np.matmul(T_transform_source, T_pose_source)
@@ -511,7 +513,7 @@ def pose_difference_np(pose, pose_ref, rs=False):
     angle_diff1 = np.arccos(2*dot_prod1**2 - 1)
 
     dot_prod2 = np.clip(np.dot(ori_1, -ori_2), 0, 1)
-    angle_diff2 = np.arccos(2*dot_prod2**2 - 1)    
+    angle_diff2 = np.arccos(2*dot_prod2**2 - 1)
 
     if rs:
         angle_diff1 = 1 - rot_similarity
@@ -524,7 +526,7 @@ def ori_difference(ori_1, ori_2):
     angle_diff1 = np.arccos(2*dot_prod1**2 - 1)
 
     dot_prod2 = np.clip(np.dot(ori_1, -ori_2), 0, 1)
-    angle_diff2 = np.arccos(2*dot_prod2**2 - 1)    
+    angle_diff2 = np.arccos(2*dot_prod2**2 - 1)
     return min(angle_diff1, angle_diff2)
 
 
@@ -644,7 +646,7 @@ def rand_body_yaw_transform(pos, min_theta=0.0, max_theta=2*np.pi):
     the origin at the current pose position
 
     Args:
-        pos (np.ndarray): Current position in the world frame 
+        pos (np.ndarray): Current position in the world frame
         min (float, optional): Minimum boundary for sample
         max (float, optional): Maximum boundary for sample
 
@@ -652,7 +654,7 @@ def rand_body_yaw_transform(pos, min_theta=0.0, max_theta=2*np.pi):
         np.ndarray: Transformation matrix
     """
     if isinstance(pos, list):
-        pos = np.asarray(pos)    
+        pos = np.asarray(pos)
     trans_to_origin = pos
     theta = np.random.random() * (max_theta - min_theta) + min_theta
     yaw = R.from_euler('xyz', [0, 0, theta]).as_matrix()[:3, :3]
@@ -748,3 +750,71 @@ def generate_healpix_grid(recursion_level=None, size=None):
 
   grid_rots_mats = np.concatenate(grid_rots_mats, 0)
   return grid_rots_mats
+
+
+def apply_pose_numpy(pts: np.ndarray, pose: list) -> np.ndarray:
+    """
+    Apply pose in the form of to pts of shape (n x 3)
+
+    Args:
+        pts (np.ndarray): pts to transform.  Must be (n x 3)
+        pose (list): Pose in the form of [p_x, p_y, p_z, o_x, o_y, o_z, o_w]
+            where p is position and o is orientation
+
+    Returns:
+        np.ndarray: transformed pts.
+    """
+    pcd = trimesh.PointCloud(pts)
+    pose = matrix_from_pose(list2pose_stamped(pose))
+    pcd.apply_transform(pose)
+    return np.asarray(pcd.vertices)
+
+
+def get_inverse_pose(pose: list) -> list:
+    """
+    Get inverse of pose in list form
+
+    Args:
+        pose (list): Pose in list form: [x, y, z, o_x, o_y, o_z, o_w].
+
+    Returns:
+        list: inverse of {pose} in list form: [x, y, z, o_x, o_y, o_z, o_w]
+    """
+    pose_mat = matrix_from_pose(
+        list2pose_stamped(pose))
+    inv_pose_mat = np.linalg.inv(pose_mat)
+    inv_pose = pose_stamped2list(pose_from_matrix(inv_pose_mat))
+    return inv_pose
+
+
+def make_rotation_matrix(axis: str, theta: float):
+    """
+    Make rotation matrix about {axis} with angle {theta}
+
+    Args:
+        axis (str): {'x', 'y', 'z'}
+        theta (float): angle in radians
+    """
+
+    s = np.sin(theta)
+    c = np.cos(theta)
+
+    if axis == 'x':
+        r = [[1, 0, 0],
+             [0, c, -s],
+             [0, s, c]]
+
+    elif axis == 'y':
+        r = [[c, 0, s],
+             [0, 1, 0],
+             [-s, 0, c]]
+
+    elif axis == 'z':
+        r = [[c, -s, 0],
+             [s, c, 0],
+             [0, 0, 1]]
+
+    else:
+        raise ValueError('Unexpected axis')
+
+    return r

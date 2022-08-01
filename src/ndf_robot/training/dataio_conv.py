@@ -19,9 +19,13 @@ class JointOccTrainDataset(Dataset):
         mug_path = osp.join(path_util.get_ndf_data(),
             'training_data/mug_table_all_pose_4_cam_half_occ_full_rand_scale')
         bottle_path = osp.join(path_util.get_ndf_data(),
-            'training/bottle_table_all_pose_4_cam_half_occ_full_rand_scale')
+            'training_data/bottle_table_all_pose_4_cam_half_occ_full_rand_scale')
         bowl_path = osp.join(path_util.get_ndf_data(),
-            'training/bowl_table_all_pose_4_cam_half_occ_full_rand_scale')
+            'training_data/bowl_table_all_pose_4_cam_half_occ_full_rand_scale')
+        # bottle_path = osp.join(path_util.get_ndf_data(),
+        #     'training/bottle_table_all_pose_4_cam_half_occ_full_rand_scale')
+        # bowl_path = osp.join(path_util.get_ndf_data(),
+        #     'training/bowl_table_all_pose_4_cam_half_occ_full_rand_scale')
 
         # these are the names of the mini-dataset folders, to ensure everything
         #   is up and running

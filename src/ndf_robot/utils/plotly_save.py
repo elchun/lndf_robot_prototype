@@ -3,6 +3,7 @@ import plotly.graph_objects as go
 import plotly.io as pio
 from PIL import Image
 from io import BytesIO
+import plotly.express as px
 
 msz = 1.5
 op = 1.0
@@ -164,3 +165,35 @@ def plot3d(pts_list, colors=['black'], fname='default_3d.html',
             fig.write_image(fname)
     return fig
 
+
+def multiplot(point_list: 'list[np.ndarray]', fname='debug.html'):
+    """
+    Plot each group of points in {point_list} in a different color on the same
+    graph and saves to {fname}.
+
+    Args:
+        point_list (list[np.ndarray]): List of pointclouds in the form
+            of (n_i x 3)
+        fname (str, optional): Name of file to save result to.
+            Defaults to 'debug.html'.
+
+    Returns:
+        plotly plot: Plot that is produced.
+    """
+
+    plot_pts = np.vstack(point_list)
+
+    color = np.ones(plot_pts.shape[0])
+
+    idx = 0
+    for i, pts in enumerate(point_list):
+        next_idx = idx + pts.shape[0]
+        color[idx:next_idx] *= i
+        idx = next_idx
+
+    fig = px.scatter_3d(
+        x=plot_pts[:, 0], y=plot_pts[:, 1], z=plot_pts[:, 2], color=color)
+
+    fig.write_html(fname)
+
+    return fig

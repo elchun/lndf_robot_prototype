@@ -1,13 +1,15 @@
 
 setup_args:
-  exp_dir_suffix: CONV_OCC_latent_margin_4_odd_mug
+  exp_dir_suffix: DEBUG
+  demo_exp: 'mug_handle'
+  demo_exp: 'grasp_rim_hang_handle_gaussian_precise_w_shelf'
   seed: 0
 
 evaluator:
   pybullet_viz: False
   obj_class: mug
   num_trials: 200
-  include_avoid_obj: True
+  include_avoid_obj: False
   any_pose: True
 
 model:
@@ -23,8 +25,8 @@ model:
   # checkpoint: ndf_vnn/conv_occ_hidden64_latent_margin_2/checkpoints/model_epoch_0022_iter_333000.pth
   # checkpoint: ndf_vnn/conv_occ_hidden64_latent_margin_4/checkpoints/model_epoch_0015_iter_228000.pth
   # checkpoint: ndf_vnn/conv_occ_hidden64_latent_margin_0/checkpoints/model_epoch_0018_iter_271000.pth
-  # checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_final.pth
-  checkpoint: ndf_vnn/conv_occ_hidden64_latent_margin_4/checkpoints/model_epoch_0017_iter_255000.pth
+  checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_final.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden64_latent_margin_4/checkpoints/model_epoch_0017_iter_255000.pth
 
   args:
     latent_dim: 64

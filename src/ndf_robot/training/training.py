@@ -581,6 +581,7 @@ def train_conv_triplet(model, train_dataloader, epochs, lr, steps_til_summary, e
     """
 
     old_summary_fn = summary_fn
+
     def summary_fn_wrapper(model, model_input, ground_truth, model_output, writer, iter, prefix=""):
         standard_input = {key: model_input[key] for key in
             ['point_cloud', 'coords', 'intrinsics']}

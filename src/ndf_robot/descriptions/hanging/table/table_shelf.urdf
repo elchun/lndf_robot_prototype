@@ -59,7 +59,7 @@
       <geometry>
 	    <mesh filename="table.obj" scale="0.1 0.1 0.58"/>
       </geometry>
-	  <material name="framemat0"/>	 
+	  <material name="framemat0"/>
     </visual>
     <visual>
       <origin rpy="0 0 0" xyz="-0.65 0.4 0.29"/>
@@ -91,14 +91,16 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="shelf_back.stl" scale="0.75 0.75 0.5"/>
+        <!-- <mesh filename="shelf_back.stl" scale="0.75 0.75 0.5"/> -->
+        <mesh filename="shelf_back.stl" scale="1.0 1.0 1.0"/>
       </geometry>
       <material name="Ivory"/>
     </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="shelf_back.stl" scale="1.0 0.75 0.5"/>
+        <mesh filename="shelf_back.stl" scale="1.0 1.0 1.0"/>
+        <!-- <mesh filename="shelf_back.stl" scale="1.0 0.75 0.5"/> -->
 	<!-- <mesh filename="shelf_back.stl" scale="0.75 0.75 0.5"/> -->
       </geometry>
     </collision>
