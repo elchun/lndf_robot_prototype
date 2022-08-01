@@ -148,8 +148,10 @@ class OccNetOptimizer:
             obj_pts = util.apply_pose_numpy(obj_pts, demo.obj_pose_world)
             query_pts = util.apply_pose_numpy(query_pts, demo.query_pose_world)
             # DEBUG PLOTS
-            multiplot([demo.query_pts, self.query_pts], osp.join(self.debug_viz_path, 'query_compare.html'))
-            multiplot([obj_pts, query_pts], osp.join(self.debug_viz_path, f'demo_{i}.html'))
+            multiplot([demo.query_pts, self.query_pts], osp.join(self.debug_viz_path,
+                f'{self.opt_fname_prefix}_query_compare.html'))
+            multiplot([obj_pts, query_pts], osp.join(self.debug_viz_path,
+                f'{self.opt_fname_prefix}_demo_{i}.html'))
 
             # -- Keep relative orientation, but center points on obj mean -- #
             obj_pts = torch.from_numpy(obj_pts).float().to(self.dev)

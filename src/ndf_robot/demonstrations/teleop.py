@@ -214,7 +214,8 @@ def worker_robot(child_conn, work_queue, result_queue, global_dict, worker_flag_
         if msg == "CLOSE":
             if obj_id is not None:
                 for i in range(p.getNumJoints(robot.arm.robot_id)):
-                    p.setCollisionFilterPair(bodyUniqueIdA=robot.arm.robot_id, bodyUniqueIdB=obj_id, linkIndexA=i, linkIndexB=-1, enableCollision=False)
+                    # p.setCollisionFilterPair(bodyUniqueIdA=robot.arm.robot_id, bodyUniqueIdB=obj_id, linkIndexA=i, linkIndexB=-1, enableCollision=False)
+                    p.setCollisionFilterPair(bodyUniqueIdA=robot.arm.robot_id, bodyUniqueIdB=obj_id, linkIndexA=i, linkIndexB=-1, enableCollision=True)
 
             p.setJointMotorControl2(robot.arm.robot_id, finger_joint_id, p.VELOCITY_CONTROL, targetVelocity=-1, force=finger_force)
             p.setJointMotorControl2(robot.arm.robot_id, finger_joint_id+1, p.VELOCITY_CONTROL, targetVelocity=-1, force=finger_force)

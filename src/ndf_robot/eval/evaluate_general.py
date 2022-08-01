@@ -46,7 +46,7 @@ class EvaluateNetwork():
     Parent class for running evaluations on robot arm
     """
     def __init__(self, seed: int, shapenet_obj_dir: str, eval_save_dir: str,
-        demo_load_dir: str, pybullet_viz: bool = False, num_trials: int = 200,
+        demo_load_dir: str, test_obj_class: str, pybullet_viz: bool = False, num_trials: int = 200,
         include_avoid_obj: bool = True, any_pose: bool = True):
 
         self.robot = Robot('franka',
@@ -69,10 +69,18 @@ class EvaluateNetwork():
         if not include_avoid_obj:
             self.avoid_shapenet_ids.update(SimConstants.MUG_AVOID_SHAPENET_IDS)
             self.avoid_shapenet_ids.update(SimConstants.BOWL_AVOID_SHAPENET_IDS)
+            self.avoid_shapenet_ids.update(SimConstants.BOTTLE_AVOID_SHAPENET_IDS)
 
         self.train_shapenet_ids = set()
         self.train_shapenet_ids.update(SimConstants.MUG_TRAIN_SHAPENET_IDS)
         self.train_shapenet_ids.update(SimConstants.BOWL_TRAIN_SHAPENET_IDS)
+        self.train_shapenet_ids.update(SimConstants.BOTTLE_TRAIN_SHAPENET_IDS)
+
+        self.test_shapenet_ids_all = set()
+        self.test_shapenet_ids_all.update(SimConstants.MUG_TEST_SHAPENET_IDS)
+        self.test_shapenet_ids_all.update(SimConstants.BOWL_TEST_SHAPENET_IDS)
+        self.test_shapenet_ids_all.update(SimConstants.BOTTLE_TEST_SHAPENET_IDS)
+        self.test_shapenet_ids_all.update(self.avoid_shapenet_ids)
 
         self.any_pose = any_pose
 
@@ -84,6 +92,8 @@ class EvaluateNetwork():
         self.scale_low = SimConstants.MESH_SCALE_LOW
         self.scale_high = SimConstants.MESH_SCALE_HIGH
         self.scale_default = SimConstants.MESH_SCALE_DEFAULT
+
+        self.test_obj_class = test_obj_class
 
     def load_demos(self):
         """
@@ -399,7 +409,8 @@ class EvaluateNetwork():
         for s_id in shapenet_id_list:
             valid = s_id not in demo_shapenet_ids \
                 and s_id not in self.avoid_shapenet_ids \
-                and s_id not in self.train_shapenet_ids
+                and s_id not in self.train_shapenet_ids \
+                and s_id in self.test_shapenet_ids_all
 
             if valid:
                 test_object_ids.append(s_id)
@@ -436,8 +447,8 @@ class EvaluateGrasp(EvaluateNetwork):
                  include_avoid_obj: bool = True, any_pose: bool = True):
 
         super().__init__(seed, shapenet_obj_dir, eval_save_dir,
-            demo_load_dir, pybullet_viz, num_trials, include_avoid_obj,
-            any_pose)
+            demo_load_dir, test_obj_class, pybullet_viz, num_trials,
+            include_avoid_obj, any_pose)
 
         print(f'avoid obj: {include_avoid_obj}')
         self.grasp_optimizer = grasp_optimizer
@@ -787,6 +798,11 @@ class EvaluateGrasp(EvaluateNetwork):
 
         obj_shapenet_id_list = random.choices(self.test_object_ids, k=self.num_trials)
 
+        if self.test_obj_class == 'bottle':
+            thin_feature = False
+        else:
+            thin_feature = True
+
         if rand_mesh_scale:
             obj_scale_list = np.random.random(self.num_trials).tolist()
         else:
@@ -798,7 +814,7 @@ class EvaluateGrasp(EvaluateNetwork):
             obj_scale = obj_scale_list[it]
             trial_data: TrialData = self.run_trial(iteration=it,
                 obj_scale=obj_scale, any_pose=self.any_pose,
-                obj_shapenet_id=obj_shapenet_id)
+                obj_shapenet_id=obj_shapenet_id, thin_feature=thin_feature)
 
             trial_result = trial_data.trial_result
             obj_shapenet_id = trial_data.obj_shapenet_id
@@ -831,8 +847,8 @@ class EvaluateRackPlaceTeleport(EvaluateNetwork):
                  include_avoid_obj: bool = True, any_pose: bool = True):
 
         super().__init__(seed, shapenet_obj_dir, eval_save_dir,
-            demo_load_dir, pybullet_viz, num_trials, include_avoid_obj,
-            any_pose)
+            demo_load_dir, test_obj_class, pybullet_viz, num_trials,
+            include_avoid_obj, any_pose)
 
         self.place_optimizer = place_optimizer
         self.experiment_type = ExperimentTypes.RACK_PLACE_TELEPORT
@@ -1046,8 +1062,8 @@ class EvaluateShelfPlaceTeleport(EvaluateNetwork):
                  include_avoid_obj: bool = True, any_pose: bool = True):
 
         super().__init__(seed, shapenet_obj_dir, eval_save_dir,
-            demo_load_dir, pybullet_viz, num_trials, include_avoid_obj,
-            any_pose)
+            demo_load_dir, test_obj_class, pybullet_viz, num_trials,
+            include_avoid_obj, any_pose)
 
         self.place_optimizer = place_optimizer
         self.experiment_type = ExperimentTypes.SHELF_PLACE_TELEPORT
@@ -1151,6 +1167,10 @@ class EvaluateShelfPlaceTeleport(EvaluateNetwork):
         safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=True)
         p.changeDynamics(obj_id, -1, linearDamping=5, angularDamping=5)
         time.sleep(1.5)
+
+        img_fname = osp.join(self.eval_grasp_imgs_dir,
+            f'{str(iteration).zfill(3)}_00ori.png')
+        self._take_image(img_fname)
 
         # -- Get object point cloud from cameras -- #
         target_obj_pcd_obs = self._get_pcd(obj_id)
@@ -1262,8 +1282,8 @@ class EvaluateRackPlaceGrasp(EvaluateNetwork):
                  include_avoid_obj: bool = True, any_pose: bool = True):
 
         super().__init__(seed, shapenet_obj_dir, eval_save_dir,
-            demo_load_dir, pybullet_viz, num_trials, include_avoid_obj,
-            any_pose)
+            demo_load_dir, test_obj_class, pybullet_viz, num_trials,
+            include_avoid_obj, any_pose)
 
         self.grasp_optimizer = grasp_optimizer
         self.place_optimizer = place_optimizer
@@ -1742,6 +1762,11 @@ class EvaluateRackPlaceGrasp(EvaluateNetwork):
 
         obj_shapenet_id_list = random.choices(self.test_object_ids, k=self.num_trials)
 
+        if self.test_obj_class == 'bottle':
+            thin_feature = False
+        else:
+            thin_feature = True
+
         if rand_mesh_scale:
             obj_scale_list = np.random.random(self.num_trials).tolist()
         else:
@@ -1753,7 +1778,7 @@ class EvaluateRackPlaceGrasp(EvaluateNetwork):
             obj_scale = obj_scale_list[it]
             trial_data: TrialData = self.run_trial(iteration=it,
                 obj_scale=obj_scale, any_pose=self.any_pose,
-                obj_shapenet_id=obj_shapenet_id)
+                obj_shapenet_id=obj_shapenet_id, thin_feature=thin_feature)
 
             trial_result = trial_data.trial_result
             obj_shapenet_id = trial_data.obj_shapenet_id
@@ -1792,13 +1817,14 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
                  include_avoid_obj: bool = True, any_pose: bool = True):
 
         super().__init__(seed, shapenet_obj_dir, eval_save_dir,
-            demo_load_dir, pybullet_viz, num_trials, include_avoid_obj,
-            any_pose)
+            demo_load_dir, test_obj_class, pybullet_viz, num_trials,
+            include_avoid_obj, any_pose)
 
         self.grasp_optimizer = grasp_optimizer
         self.place_optimizer = place_optimizer
         self.experiment_type = ExperimentTypes.SHELF_PLACE_GRASP
-        self.obj_sample_x_low_high = SimConstants.OBJ_SAMPLE_X_LOW_HIGH
+        # self.obj_sample_x_low_high = SimConstants.OBJ_SAMPLE_X_LOW_HIGH
+        self.obj_sample_x_low_high = [0.3, 0.4]
         self.obj_sample_y_low_high = [-0.1, 0.1]
 
     def load_demos(self):
@@ -1978,6 +2004,11 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
                 pose_source=util.list2pose_stamped(grasp_ee_pose),
                 pose_transform=util.list2pose_stamped(pregrasp_offset_tf)))
 
+        post_grasp_offset_tf = util.list2pose_stamped(SimConstants.SHELF_GRASP_CLEARANCE_OFFSET)
+        post_grasp_pos = util.pose_stamped2list(
+            util.transform_pose(util.list2pose_stamped(grasp_ee_pose), post_grasp_offset_tf)
+        )
+
         # -- Get place position -- #
         opt_viz_path = osp.join(eval_iter_dir, 'visualize')
         rack_pose_mats, best_place_idx = self.place_optimizer.optimize_transform_implicit(
@@ -2006,6 +2037,8 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
         pre_grasp_jnt_pos, ik_res = self._compute_ik_cascade(pre_grasp_ee_pose)
         ik_status.append(ik_res)
         grasp_jnt_pos, ik_res = self._compute_ik_cascade(grasp_ee_pose)
+        ik_status.append(ik_res)
+        post_grasp_pos, ik_res = self._compute_ik_cascade(post_grasp_pos)
         ik_status.append(ik_res)
         place_jnt_pose, ik_res = self._compute_ik_cascade(place_ee_pose)
         ik_status.append(ik_res)
@@ -2062,8 +2095,11 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
         # Get to grasp location
         plan2 = self.ik_helper.plan_joint_motion(pre_grasp_jnt_pos, grasp_jnt_pos)
 
-        # Return to home location (for checking if grasp was valid)
-        plan3 = self.ik_helper.plan_joint_motion(grasp_jnt_pos, home_jnt_pos)
+        # Move upwards to check if grasp was valid
+        plan3 = self.ik_helper.plan_joint_motion(grasp_jnt_pos, post_grasp_pos)
+
+        # Return to home location (in preparation to place)
+        # plan4 = self.ik_helper.plan_joint_motion(post_grasp_pos, home_jnt_pos)
 
         if None in [plan1, plan2, plan3]:
             trial_data.trial_result = TrialResults.JOINT_PLAN_FAILED
@@ -2143,6 +2179,12 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
             self.robot.pb_client.remove_body(obj_id)
             return trial_data
 
+        # for jnt in plan4:
+        #     self.robot.arm.set_jpos(jnt, wait=False)
+        #     time.sleep(0.025)
+        # self.robot.arm.set_jpos(plan3[-1], wait=False)
+        time.sleep(1)
+
         # -- Set up for place -- #
         placement_link_id = 0
 
@@ -2193,7 +2235,10 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
             f'{str(iteration).zfill(3)}_06place.png')
         self._take_image(img_fname)
 
+        p.changeDynamics(obj_id, -1, linearDamping=5, angularDamping=5)
+        constraint_grasp_open(grasp_cid)
         self.robot.arm.eetool.open()
+
         time.sleep(0.3)
         img_fname = osp.join(self.eval_grasp_imgs_dir,
             f'{str(iteration).zfill(3)}_07place_release.png')
@@ -2202,15 +2247,13 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
         self.robot.arm.go_home(ignore_physics=True)
         time.sleep(0.3)
 
+        safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=False)
         img_fname = osp.join(self.eval_grasp_imgs_dir,
             f'{str(iteration).zfill(3)}_08place_release_home.png')
         self._take_image(img_fname)
 
-        p.changeDynamics(obj_id, -1, linearDamping=5, angularDamping=5)
-        constraint_grasp_open(grasp_cid)
-        self.robot.arm.eetool.open()
-
         # -- Check place was successful -- #
+
         placement_link_id = 0
         obj_surf_contacts = p.getContactPoints(obj_id, self.table_id, -1, placement_link_id)
         touching_surf = len(obj_surf_contacts) > 0
@@ -2230,6 +2273,11 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
 
         obj_shapenet_id_list = random.choices(self.test_object_ids, k=self.num_trials)
 
+        if self.test_obj_class == 'bottle':
+            thin_feature = False
+        else:
+            thin_feature = True
+
         if rand_mesh_scale:
             obj_scale_list = np.random.random(self.num_trials).tolist()
         else:
@@ -2241,7 +2289,7 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
             obj_scale = obj_scale_list[it]
             trial_data: TrialData = self.run_trial(iteration=it,
                 obj_scale=obj_scale, any_pose=self.any_pose,
-                obj_shapenet_id=obj_shapenet_id)
+                obj_shapenet_id=obj_shapenet_id, thin_feature=thin_feature)
 
             trial_result = trial_data.trial_result
             obj_shapenet_id = trial_data.obj_shapenet_id
