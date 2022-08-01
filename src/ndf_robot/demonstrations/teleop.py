@@ -30,7 +30,7 @@ def show_link(obj_id, link_id, color):
         p.changeVisualShape(obj_id, link_id, rgbaColor=color)
 
 
-KEY_MSG_MAP = {
+OLD_KEY_MSG_MAP = {
     'a': 'Y+',
     'd': 'Y-',
     's': 'X+',
@@ -47,6 +47,32 @@ KEY_MSG_MAP = {
     'l': 'rZ-',
     'z': 'OPEN',
     'c': 'CLOSE',
+    '0': 'END',
+    '9': 'RESET',
+    '1': 'DEMO_PICK',
+    '2': 'DEMO_PLACE',
+    '3': 'SKIP',
+    '4': 'ON_RACK',
+    '5': 'OFF_RACK',
+}
+
+KEY_MSG_MAP = {
+    'd': 'Y+',
+    'a': 'Y-',
+    's': 'X+',
+    'w': 'X-',
+    'e': 'Z+',
+    'q': 'Z-',
+    'r': 'G+',
+    'f': 'G-',
+    'u': 'rX+',
+    'j': 'rX-',
+    'i': 'rY+',
+    'k': 'rY-',
+    'o': 'rZ+',
+    'l': 'rZ-',
+    'z': 'OPEN',
+    'x': 'CLOSE',
     '0': 'END',
     '9': 'RESET',
     '1': 'DEMO_PICK',
@@ -105,7 +131,8 @@ def worker_robot(child_conn, work_queue, result_queue, global_dict, worker_flag_
             finger_force = 20
 
             delta = 0.01
-            delta_angle = np.pi/24
+            # delta_angle = np.pi/24
+            delta_angle = np.pi/180
             angle_N = 10
 
             # set up possible gripper query points that are used in optimization
