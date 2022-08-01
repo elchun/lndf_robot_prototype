@@ -117,11 +117,11 @@ if __name__ == '__main__':
     #     'similar_occ_only': True,
     # }
 
-    # no_similarity = {
-    #     'occ_margin': 0,
-    #     'positive_loss_scale': 0,
-    #     'negative_loss_scale': 0
-    # }
+    no_similarity = {
+        'occ_margin': 0,
+        'positive_loss_scale': 0,
+        'negative_loss_scale': 0
+    }
 
     # aggressive_similar = {
     #     'occ_margin': 0,
@@ -169,20 +169,21 @@ if __name__ == '__main__':
     #     'similar_occ_only': False,
     # }
 
-    latent_margin = {
-        'occ_margin': 0,
-        'positive_loss_scale': 10 ** 3,
-        'negative_loss_scale': 1,
-        'positive_margin': 10 ** (-6),
-        'negative_margin': 0.001,
-        'similar_occ_only': False,
-    }
+    # latent_margin = {
+    #     'occ_margin': 0,
+    #     'positive_loss_scale': 10 ** 3,
+    #     'negative_loss_scale': 1,
+    #     'positive_margin': 10 ** (-6),
+    #     'negative_margin': 0.001,
+    #     'similar_occ_only': False,
+    # }
 
 
 
     # loss_fn_args = super_super_aggressive_similar
     # loss_fn_args = similar_occ_only
-    loss_fn_args = latent_margin
+    # loss_fn_args = latent_margin
+    loss_fn_args = no_similarity
     # loss_fn_args = similar_occ_no_neg_latent_weight
 
     # -- DATALOADER ARGS -- #
