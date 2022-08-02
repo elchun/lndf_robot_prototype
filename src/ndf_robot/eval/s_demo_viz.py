@@ -38,29 +38,46 @@ def get_demo(demo_load_dir: str, demoio_fn: 'Callable[NpzFile, Demo]',
 
 if __name__ == '__main__':
     # -- Plot rack and object to find preplace offset -- #
-    demo_load_dir = 'mug/grasp_rim_hang_handle_gaussian_precise_w_shelf_converted'
-    demoio_fn = DemoIO.process_rack_place_data
-    demo_prefix = 'place_demo'
-    place_data, place_demo = get_demo(demo_load_dir, demoio_fn, demo_prefix)
+    # demo_load_dir = 'mug/grasp_rim_hang_handle_gaussian_precise_w_shelf_converted'
+    # demoio_fn = DemoIO.process_rack_place_data
+    # demo_prefix = 'place_demo'
+    # place_data, place_demo = get_demo(demo_load_dir, demoio_fn, demo_prefix)
 
-    rack_pcd_raw = place_data['rack_pointcloud_gt']
-    obj_pcd = util.apply_pose_numpy(place_demo.obj_pts, place_demo.obj_pose_world)
-    rack_pcd = util.apply_pose_numpy(rack_pcd_raw, place_demo.query_pose_world)
+    # rack_pcd_raw = place_data['rack_pointcloud_gt']
+    # obj_pcd = util.apply_pose_numpy(place_demo.obj_pts, place_demo.obj_pose_world)
+    # rack_pcd = util.apply_pose_numpy(rack_pcd_raw, place_demo.query_pose_world)
 
-    PREPLACE_OFFSET_TF = [0.012, -0.042, 0.06, 0, 0, 0, 1]
-    # PREPLACE_OFFSET_TF = [0, -0.084, 0.12, 0, 0, 0, 1]
-    # PREPLACE_OFFSET_TF = [0, -0.042, 0.08, 0, 0, 0, 1]
-    # PREPLACE_OFFSET_TF = [0, -0.084, 0.15, 0, 0, 0, 1]
-    preplace_offset_tf = util.list2pose_stamped(PREPLACE_OFFSET_TF)
+    # PREPLACE_OFFSET_TF = [0.012, -0.042, 0.06, 0, 0, 0, 1]
+    # # PREPLACE_OFFSET_TF = [0, -0.084, 0.12, 0, 0, 0, 1]
+    # # PREPLACE_OFFSET_TF = [0, -0.042, 0.08, 0, 0, 0, 1]
+    # # PREPLACE_OFFSET_TF = [0, -0.084, 0.15, 0, 0, 0, 1]
+    # preplace_offset_tf = util.list2pose_stamped(PREPLACE_OFFSET_TF)
 
-    obj_place_pose = place_demo.obj_pose_world
+    # obj_place_pose = place_demo.obj_pose_world
 
-    pre_place_ee_pose = util.transform_pose(pose_source=util.list2pose_stamped(obj_place_pose),
-        pose_transform=preplace_offset_tf)
+    # pre_place_ee_pose = util.transform_pose(pose_source=util.list2pose_stamped(obj_place_pose),
+    #     pose_transform=preplace_offset_tf)
 
-    obj_pre_place = util.apply_pose_numpy(place_demo.obj_pts, util.pose_stamped2list(pre_place_ee_pose))
+    # obj_pre_place = util.apply_pose_numpy(place_demo.obj_pts, util.pose_stamped2list(pre_place_ee_pose))
 
-    plotly_save.multiplot([obj_pcd, obj_pre_place, rack_pcd], 'rack_and_object.html')
+    # plotly_save.multiplot([obj_pcd, obj_pre_place, rack_pcd], 'rack_and_object.html')
 
+    # -- Plot bottle to figure out offset -- #
 
+    demo_load_dir = 'bottle/grasp_side_place_shelf'
+    demoio_fn = DemoIO.process_grasp_data
+    demo_prefix = 'grasp_demo'
+    grasp_data, grasp_demo = get_demo(demo_load_dir, demoio_fn, demo_prefix, demo_idx=2)
+
+    # rack_pcd_raw = grasp_data['rack_pointcloud_gt']
+    obj_pcd = util.apply_pose_numpy(grasp_demo.obj_pts, grasp_demo.obj_pose_world)
+    gripper_pcd = util.apply_pose_numpy(grasp_demo.query_pts, grasp_demo.query_pose_world)
+
+    # PREPLACE_OFFSET_TF = [0.012, -0.042, 0.06, 0, 0, 0, 1]
+    # # PREPLACE_OFFSET_TF = [0, -0.084, 0.12, 0, 0, 0, 1]
+    # # PREPLACE_OFFSET_TF = [0, -0.042, 0.08, 0, 0, 0, 1]
+    # # PREPLACE_OFFSET_TF = [0, -0.084, 0.15, 0, 0, 0, 1]
+    # preplace_offset_tf = util.list2pose_stamped(PREPLACE_OFFSET_TF)
+
+    plotly_save.multiplot([obj_pcd, gripper_pcd], 'obj_and_gripper.html')
 

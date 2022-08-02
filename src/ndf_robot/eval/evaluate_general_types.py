@@ -57,12 +57,12 @@ class SimConstants:
     # PREPLACE_HORIZONTAL_OFFSET_TF = [0.012, -0.242, 0.06, 0, 0, 0, 1]
     PREPLACE_HORIZONTAL_OFFSET_TF = [0.012, -0.092, 0.06, 0, 0, 0, 1]
     PREPLACE_OFFSET_CLOSE_TF = [0.012, -0.042, 0.06, 0, 0, 0, 1]
-    PREPLACE_OFFSET_FAR_TF = [0.012, -0.084, 0.12, 0, 0, 0, 1] # Not currently used
+    PREPLACE_OFFSET_FAR_TF = [0.012, -0.084, 0.12, 0, 0, 0, 1]  # Not currently used
     # PREPLACE_OFFSET_TF = [0, -0.084, 0.12, 0, 0, 0, 1]
 
     SHELF_PREPLACE_OFFSET = [0, 0, 0.1, 0, 0, 0, 1]
 
-    SHELF_GRASP_CLEARANCE_OFFSET = [0, 0, 0.3, 0, 0, 0, 1]
+    SHELF_GRASP_CLEARANCE_OFFSET = [0, 0, 0.1, 0, 0, 0, 1]
 
     # placement of table
     TABLE_POS = [0.5, 0.0, 0.4]
@@ -273,6 +273,9 @@ class SimConstants:
         'b71afc7791d18eabc573899ac6ab82e4',
         '632a0bd7869cb763780bbc8616cb15f8',
         '77ad88568cb55237e01d7dc978602402',
+
+        'f68e99b57596b33d197a35146ee825cd',
+        'fa44223c6f785c60e71da2487cb2ee5b',
     }
 
     # Test mugs (withheld from training data)
@@ -358,12 +361,12 @@ class SimConstants:
         'f47cbefc9aa5b6a918431871c8e05789',
         'f4851a2835228377e101b7546e3ee8a7',
         'f49d6c4b75f695c44d34bdc365023cf4',
-        'f68e99b57596b33d197a35146ee825cd',
+        # 'f68e99b57596b33d197a35146ee825cd',
         'f6ffca90c543edf9d6438d5cb8c578c6',
         'f83c3b75f637241aebe67d9b32c3ddf8',
         'f853ac62bc288e48e56a63d21fb60ae9',
         'f9f67fe61dcf46d7e19818797f240d91',
-        'fa44223c6f785c60e71da2487cb2ee5b',
+        # 'fa44223c6f785c60e71da2487cb2ee5b',
         'fca70766d88fc7b9e5054d95cb6a63e2',
         'fd0ccd09330865277602de57eab5e08f',
         'fda8d8820e4d166bd7134844380eaeb0',

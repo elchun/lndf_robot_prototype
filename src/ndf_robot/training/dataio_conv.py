@@ -113,7 +113,7 @@ class JointOccTrainDataset(Dataset):
 
             # legacy naming, used to use pose expressed in camera frame.
             # global reference frame doesn't matter though
-            posecam =  data['object_pose_cam_frame']
+            posecam = data['object_pose_cam_frame']
 
             # What is the numbers of transforms
 

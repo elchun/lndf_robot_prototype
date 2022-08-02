@@ -11,6 +11,8 @@ from ndf_robot.utils import util, trimesh_util
 # some helpers
 def soft_grasp_close(robot, joint_id2, force=100):
     p.setJointMotorControl2(robot.arm.robot_id, joint_id2, p.VELOCITY_CONTROL, targetVelocity=-1, force=force)
+    # NEW
+    # p.setJointMotorControl2(robot.arm.robot_id, joint_id2 + 1, p.VELOCITY_CONTROL, targetVelocity=-1, force=force)
     # p.setJointMotorControl2(robot.arm.robot_id, joint_id2, p.VELOCITY_CONTROL, targetVelocity=-1, force=100)
     time.sleep(0.2)
 
@@ -371,6 +373,7 @@ def post_process_grasp_point(pre_grasp_ee_pose, target_obj_pcd, thin_feature=Tru
     # local_grasp_normal = np.mean(np.asarray(close_o3d.normals), axis=0)
     local_grasp_normal = util.vec_from_pose(util.list2pose_stamped(pre_grasp_ee_pose))[1]
 
+    # TODO DEBUG
     if not thin_feature:
         # sample along this direction to find an antipodal point
         search_vec = -1.0 * local_grasp_normal

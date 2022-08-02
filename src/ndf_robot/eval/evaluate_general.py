@@ -122,7 +122,7 @@ class EvaluateNetwork():
         """
         raise NotImplementedError
 
-    def run_experiment(self):
+    def run_experiment(self, start_idx=0):
         """
         Run experiment of length specified in config.
 
@@ -336,7 +336,8 @@ class EvaluateNetwork():
             base_ori=ori
         )
 
-        p.changeDynamics(obj_id, -1, lateralFriction=0.5)
+        # p.changeDynamics(obj_id, -1, lateralFriction=0.5)
+        p.changeDynamics(obj_id, -1, lateralFriction=1.0, linearDamping=5, angularDamping=5)
 
         o_cid = None
         if any_pose:
@@ -1824,8 +1825,14 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
         self.place_optimizer = place_optimizer
         self.experiment_type = ExperimentTypes.SHELF_PLACE_GRASP
         # self.obj_sample_x_low_high = SimConstants.OBJ_SAMPLE_X_LOW_HIGH
-        self.obj_sample_x_low_high = [0.3, 0.4]
-        self.obj_sample_y_low_high = [-0.1, 0.1]
+        self.obj_sample_x_low_high = [0.4, 0.45]
+        # self.obj_sample_y_low_high = [-0.1, 0.1]
+        self.obj_sample_y_low_high = [-0.3, -0.1]
+
+        # # NEW
+        # self.scale_low = 0.35
+        # self.scale_high = 0.5
+        # self.scale_default = 0.45
 
     def load_demos(self):
         """
@@ -2096,6 +2103,8 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
         plan2 = self.ik_helper.plan_joint_motion(pre_grasp_jnt_pos, grasp_jnt_pos)
 
         # Move upwards to check if grasp was valid
+        #TODO
+        # plan3 = self.ik_helper.plan_joint_motion(grasp_jnt_pos, home_jnt_pos)
         plan3 = self.ik_helper.plan_joint_motion(grasp_jnt_pos, post_grasp_pos)
 
         # Return to home location (in preparation to place)
@@ -2108,11 +2117,27 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
 
         # -- Move for grasp -- #
         self.robot.arm.eetool.open()
+        time.sleep(0.5)
         # Go to pre grasp location (linearly away from grasp area)
         for jnt in plan1:
             self.robot.arm.set_jpos(jnt, wait=False)
             time.sleep(0.025)
         self.robot.arm.set_jpos(plan1[-1], wait=False)
+
+        # # turn ON collisions between robot and object
+        # for i in range(p.getNumJoints(self.robot.arm.robot_id)):
+        #     safeCollisionFilterPair(bodyUniqueIdA=self.robot.arm.robot_id,
+        #         bodyUniqueIdB=obj_id,
+        #         linkIndexA=i,
+        #         linkIndexB=-1,
+        #         enableCollision=True,
+        #         physicsClientId=self.robot.pb_client.get_client_id())
+
+        # Go to grasp location
+        for jnt in plan2:
+            self.robot.arm.set_jpos(jnt, wait=False)
+            time.sleep(0.04)
+        self.robot.arm.set_jpos(plan2[-1], wait=False)
 
         # turn ON collisions between robot and object
         for i in range(p.getNumJoints(self.robot.arm.robot_id)):
@@ -2123,21 +2148,21 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
                 enableCollision=True,
                 physicsClientId=self.robot.pb_client.get_client_id())
 
-        # Go to grasp location
-        for jnt in plan2:
-            self.robot.arm.set_jpos(jnt, wait=False)
-            time.sleep(0.04)
-        self.robot.arm.set_jpos(plan2[-1], wait=False)
+        time.sleep(0.8)
 
+        obj_pos_before_grasp = p.getBasePositionAndOrientation(obj_id)[0]
+        jnt_pos_before_grasp = self.robot.arm.get_jpos()
+
+        # Testing with different close methods.
+        self.robot.arm.eetool.close()
+        # soft_grasp_close(self.robot, RobotIDs.finger_joint_id, force=80)
         time.sleep(0.8)
 
         grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
             f'{str(iteration).zfill(3)}_02grasp.png')
         self._take_image(grasp_img_fname)
 
-        soft_grasp_close(self.robot, RobotIDs.finger_joint_id, force=50)
         safeRemoveConstraint(o_cid)
-        time.sleep(0.8)
         safeCollisionFilterPair(obj_id, self.table_id, -1, -1,
             enableCollision=False)
         time.sleep(0.8)
@@ -2168,12 +2193,27 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
             '%s_03clearance.png' % str(iteration).zfill(3))
         self._take_image(grasp_img_fname)
 
-        # Override drop test because it causes object to slip
-
         if grasp_success:
             trial_data.trial_result = TrialResults.GRASP_SUCCESS
             trial_data.aux_data['grasp_success'] = True
+
+            # Get firm grasp on object, then move back to clearance
+            safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=True)
+            self.robot.arm.eetool.open()
+            p.resetBasePositionAndOrientation(obj_id, obj_pos_before_grasp, ori)
+            self.robot.arm.set_jpos(jnt_pos_before_grasp, ignore_physics=True)
+            soft_grasp_close(self.robot, RobotIDs.finger_joint_id, force=40)
             grasp_cid = constraint_grasp_close(self.robot, obj_id)
+
+            for jnt in plan3:
+                self.robot.arm.set_jpos(jnt, wait=False)
+                time.sleep(0.025)
+            self.robot.arm.set_jpos(plan3[-1], wait=False)
+            time.sleep(1)
+
+            safeCollisionFilterPair(obj_id, self.table_id, -1, -1,
+                enableCollision=False)
+
         else:
             trial_data.trial_result = TrialResults.BAD_OPT_POS
             self.robot.pb_client.remove_body(obj_id)
@@ -2198,16 +2238,20 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
         self._take_image(img_fname)
 
         # Go to far approach position
-        plan1 = self.ik_helper.plan_joint_motion(home_jnt_pos, preplace_jnt_pose)
+        #TODO
+        plan1 = self.ik_helper.plan_joint_motion(post_grasp_pos, home_jnt_pos)
+
+        plan2 = self.ik_helper.plan_joint_motion(home_jnt_pos, preplace_jnt_pose)
+        # plan2 = self.ik_helper.plan_joint_motion(post_grasp_pos, preplace_jnt_pose)
 
         # Go to close approach position
-        plan2 = self.ik_helper.plan_joint_motion(preplace_jnt_pose, place_jnt_pose)
+        plan3 = self.ik_helper.plan_joint_motion(preplace_jnt_pose, place_jnt_pose)
 
         # Return to home position
         # plan4 = self.ik_helper.plan_joint_motion(place_jnt_pose, place_far_jnt_pose)
         # plan5 = self.ik_helper.plan_joint_motion(place_far_jnt_pose, home_jnt_pos)
 
-        if None in [plan1, plan2]:
+        if None in [plan1, plan2, plan3]:
             trial_data.trial_result = TrialResults.JOINT_PLAN_FAILED
             self.robot.pb_client.remove_body(obj_id)
             return trial_data
@@ -2221,6 +2265,11 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
             self.robot.arm.set_jpos(jnt, wait=False)
             time.sleep(0.04)
         self.robot.arm.set_jpos(plan2[-1], wait=False)
+
+        for jnt in plan3:
+            self.robot.arm.set_jpos(jnt, wait=False)
+            time.sleep(0.04)
+        self.robot.arm.set_jpos(plan3[-1], wait=False)
 
         img_fname = osp.join(self.eval_grasp_imgs_dir,
             f'{str(iteration).zfill(3)}_05pre_place.png')
@@ -2646,6 +2695,7 @@ if __name__ == '__main__':
     experiment.load_demos()
     experiment.configure_sim()
     experiment.run_experiment()
+    # experiment.run_experiment(start_idx=10)
 
     # setup = EvaluateNetworkSetup()
     # setup.load_config(config_fname)
