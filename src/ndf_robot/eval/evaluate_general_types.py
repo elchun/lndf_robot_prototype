@@ -361,17 +361,58 @@ class SimConstants:
         'f47cbefc9aa5b6a918431871c8e05789',
         'f4851a2835228377e101b7546e3ee8a7',
         'f49d6c4b75f695c44d34bdc365023cf4',
-        # 'f68e99b57596b33d197a35146ee825cd',
+
+        'f68e99b57596b33d197a35146ee825cd',
+
         'f6ffca90c543edf9d6438d5cb8c578c6',
         'f83c3b75f637241aebe67d9b32c3ddf8',
         'f853ac62bc288e48e56a63d21fb60ae9',
         'f9f67fe61dcf46d7e19818797f240d91',
-        # 'fa44223c6f785c60e71da2487cb2ee5b',
+
+        'fa44223c6f785c60e71da2487cb2ee5b',
+
         'fca70766d88fc7b9e5054d95cb6a63e2',
         'fd0ccd09330865277602de57eab5e08f',
         'fda8d8820e4d166bd7134844380eaeb0',
         'fec05c85454edafc4310636931b68fdb',
         'ff13595434879bba557ef92e2fa0ccb2'
+    }
+
+    BOWL_HANDLE_TEST_SHAPENET_IDS = {
+        # '2c1df84ec01cea4e525b133235812833-h',
+        # '2d2c419136447fe667964ba700cd97f5-h',
+        # '2e545ccae1cdc69d879b85bd5ada6e71-h',
+
+        '188281000adddc9977981b941eb4f5d1-h',
+        '2c1df84ec01cea4e525b133235812833-h',
+        '2d2c419136447fe667964ba700cd97f5-h',
+        '2e545ccae1cdc69d879b85bd5ada6e71-h',
+        '32f9c710e264388e2150a45ec52bcbd7-h',
+        '34875f8448f98813a2c59a4d90e63212-h',
+        # '64d7f5eb886cfa48ce6101c7990e61d4-h',
+        '7995c6a5838e12ed447eea2e92abe28f-h',
+        # 'a0b34a720dd364d9ccdca257be791a55-h',
+        'a1d26a16a0caa78243f1c519d66bb167-h',
+        # 'bd2ba805bf1739cdedd852e9640b8d4-h',
+        # 'e30e5cbc54a62b023c143af07c12991a-h',
+        'e3d4d57aea714a88669ff09d7001bab6-h',
+        'e3e57a94be495771f54e1b6f41fdd78a-h',
+        # 'e4c871d1d5e3c49844b2fa2cac0778f5-h',
+        'e816066ac8281e2ecf70f9641eb97702-h',
+        'ea473a79fd2c98e5789eafad9d8a9394-h',
+        # 'ed220bdfa852f00ba2c59a4d90e63212-h',
+        'ee3b4a98683feab4633d74df68189e22-h',
+        # 'eff9864bfb9920b521374fbf1ea544c-h',
+        'f09d5d7ed64b6585eb6db0b349a2b804-h',
+        'f0fdca5f5c7a06252dbdfbe028032489-h',
+        'f2cb15fb793e7fa244057c222118625-h',
+        'f2ef5e5b49f2bb8340dfb1e6c8f5a333-h',
+        'f44387d8cb8d2e4ebaedc225f2279ecf-h',
+        'fa23aa60ec51c8e4c40fe5637f0a27e1-h',
+        'fa61e604661d4aa66658ecd96794a1cd-h',
+        'faa200741fa93abb47ec7417da5d353d-h',
+        'fc77ad0828db2caa533e44d90297dd6e-h',
+        'ff7c33db3598df342d88c45db31bc366-h',
     }
 
     # Train mugs:

@@ -7,7 +7,7 @@ setup_args:
   # exp_dir_suffix: EVAL_ndf_rack_grasp_anyrot
   # exp_dir_suffix: EVAL_ndf_rack_grasp_upright_odd
   # exp_dir_suffix: EVAL_ndf_rack_grasp_anyrot_odd
-  exp_dir_suffix: DEBUG_shelf_bottle_grasp_grasp_ndf_fric_anyrot
+  exp_dir_suffix: DEBUG_shelf_bottle_grasp_grasp_ndf_slow_grasp
 
   # exp_dir_suffix: EVAL_conv_latent_margin_4_rack_grasp_anyrot
   # demo_exp: 'mug/grasp_rim_hang_handle_gaussian_precise_w_shelf_converted'
@@ -30,8 +30,8 @@ evaluator:
   num_trials: 200
   include_avoid_obj: False
   # include_avoid_obj: False
-  any_pose: True
-  # any_pose: False
+  # any_pose: True
+  any_pose: False
 
 # # -- Conv config -- #
 # model:

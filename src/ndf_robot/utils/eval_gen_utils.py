@@ -9,8 +9,13 @@ import copy
 from ndf_robot.utils import util, trimesh_util
 
 # some helpers
-def soft_grasp_close(robot, joint_id2, force=100):
-    p.setJointMotorControl2(robot.arm.robot_id, joint_id2, p.VELOCITY_CONTROL, targetVelocity=-1, force=force)
+# def soft_grasp_close(robot, joint_id2, force=100):
+def soft_grasp_close(robot, joint_id2, force=40):
+    # p.setJointMotorControl2(robot.arm.robot_id, joint_id2, p.VELOCITY_CONTROL, targetVelocity=-1, force=force)
+
+    # Slower velocity may help with collision detection
+    # p.setJointMotorControl2(robot.arm.robot_id, joint_id2, p.VELOCITY_CONTROL, targetVelocity=-0.5, force=force)
+    p.setJointMotorControl2(robot.arm.robot_id, joint_id2, p.VELOCITY_CONTROL, targetVelocity=-0.1, force=force)
     # NEW
     # p.setJointMotorControl2(robot.arm.robot_id, joint_id2 + 1, p.VELOCITY_CONTROL, targetVelocity=-1, force=force)
     # p.setJointMotorControl2(robot.arm.robot_id, joint_id2, p.VELOCITY_CONTROL, targetVelocity=-1, force=100)

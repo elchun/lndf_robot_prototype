@@ -80,6 +80,7 @@ class EvaluateNetwork():
         self.test_shapenet_ids_all.update(SimConstants.MUG_TEST_SHAPENET_IDS)
         self.test_shapenet_ids_all.update(SimConstants.BOWL_TEST_SHAPENET_IDS)
         self.test_shapenet_ids_all.update(SimConstants.BOTTLE_TEST_SHAPENET_IDS)
+        self.test_shapenet_ids_all.update(SimConstants.BOWL_HANDLE_TEST_SHAPENET_IDS)
         self.test_shapenet_ids_all.update(self.avoid_shapenet_ids)
 
         self.any_pose = any_pose
@@ -338,6 +339,7 @@ class EvaluateNetwork():
 
         # p.changeDynamics(obj_id, -1, lateralFriction=0.5)
         p.changeDynamics(obj_id, -1, lateralFriction=1.0, linearDamping=5, angularDamping=5)
+        # p.changeDynamics(obj_id, -1, lateralFriction=4.0, linearDamping=5, angularDamping=5)
 
         o_cid = None
         if any_pose:
@@ -438,6 +440,9 @@ class EvaluateNetwork():
         for cam in self.cams.cams:
             cam_info['pose_world'].append(util.pose_from_matrix(cam.cam_ext_mat))
         return cam_info
+
+    def _get_xyz_transform(self, x: float, y: float, z: float):
+        return [x, y, z, 0, 0, 0, 1]
 
 
 class EvaluateGrasp(EvaluateNetwork):
@@ -1360,9 +1365,9 @@ class EvaluateRackPlaceGrasp(EvaluateNetwork):
         """
         set_log_level('debug')
         p.changeDynamics(self.robot.arm.robot_id, RobotIDs.left_pad_id,
-            lateralFriction=1.0)
+            lateralFriction=3.0)
         p.changeDynamics(self.robot.arm.robot_id, RobotIDs.right_pad_id,
-            lateralFriction=1.0)
+            lateralFriction=3.0)
 
         self.robot.arm.reset(force_reset=True)
 
@@ -1608,16 +1613,19 @@ class EvaluateRackPlaceGrasp(EvaluateNetwork):
 
         time.sleep(0.8)
 
-        grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
-            f'{str(iteration).zfill(3)}_02grasp.png')
-        self._take_image(grasp_img_fname)
+        obj_pos_before_grasp = p.getBasePositionAndOrientation(obj_id)[0]
+        jnt_pos_before_grasp = self.robot.arm.get_jpos()
 
         soft_grasp_close(self.robot, RobotIDs.finger_joint_id, force=50)
-        safeRemoveConstraint(o_cid)
         time.sleep(0.8)
+        safeRemoveConstraint(o_cid)
         safeCollisionFilterPair(obj_id, self.table_id, -1, -1,
             enableCollision=False)
         time.sleep(0.8)
+
+        grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
+            f'{str(iteration).zfill(3)}_02grasp.png')
+        self._take_image(grasp_img_fname)
 
         # Move to clearance location
         for jnt in plan3:
@@ -1650,7 +1658,26 @@ class EvaluateRackPlaceGrasp(EvaluateNetwork):
         if grasp_success:
             trial_data.trial_result = TrialResults.GRASP_SUCCESS
             trial_data.aux_data['grasp_success'] = True
+            # grasp_cid = constraint_grasp_close(self.robot, obj_id)
+
+
+            # Get firm grasp on object, then move back to clearance
+
+            self.robot.arm.eetool.open()
+            p.resetBasePositionAndOrientation(obj_id, obj_pos_before_grasp, ori)
+            o_cid = constraint_obj_world(obj_id, pos, ori) # Lock object in pose
+            self.robot.arm.set_jpos(jnt_pos_before_grasp, ignore_physics=True)
             grasp_cid = constraint_grasp_close(self.robot, obj_id)
+            soft_grasp_close(self.robot, RobotIDs.finger_joint_id, force=40)
+            time.sleep(0.5)
+            safeRemoveConstraint(o_cid)
+
+
+            for jnt in plan3:
+                self.robot.arm.set_jpos(jnt, wait=False)
+                time.sleep(0.025)
+            self.robot.arm.set_jpos(plan3[-1], wait=False)
+            time.sleep(1)
         else:
             trial_data.trial_result = TrialResults.BAD_OPT_POS
             self.robot.pb_client.remove_body(obj_id)
@@ -1704,7 +1731,7 @@ class EvaluateRackPlaceGrasp(EvaluateNetwork):
 
         # NEW
         # turn ON collisions between object and rack, and open fingers
-        safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=True)
+        # safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=True)
         safeCollisionFilterPair(obj_id, self.table_id, -1, placement_link_id, enableCollision=True)
 
         time.sleep(0.5)
@@ -1727,6 +1754,15 @@ class EvaluateRackPlaceGrasp(EvaluateNetwork):
         img_fname = osp.join(self.eval_grasp_imgs_dir,
             f'{str(iteration).zfill(3)}_07place_release.png')
         self._take_image(img_fname)
+
+        # turn off collisions between robot and object
+        for i in range(p.getNumJoints(self.robot.arm.robot_id)):
+            safeCollisionFilterPair(bodyUniqueIdA=self.robot.arm.robot_id,
+                bodyUniqueIdB=obj_id,
+                linkIndexA=i,
+                linkIndexB=-1,
+                enableCollision=False,
+                physicsClientId=self.robot.pb_client.get_client_id())
 
         self.robot.arm.go_home(ignore_physics=True)
         time.sleep(0.3)
@@ -1761,6 +1797,7 @@ class EvaluateRackPlaceGrasp(EvaluateNetwork):
         """
         num_success = 0
 
+        # obj_shapenet_id_list = ['2c1df84ec01cea4e525b133235812833-h'] + random.choices(self.test_object_ids, k=self.num_trials)
         obj_shapenet_id_list = random.choices(self.test_object_ids, k=self.num_trials)
 
         if self.test_obj_class == 'bottle':
@@ -1883,10 +1920,15 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
         Run after demos are loaded
         """
         set_log_level('debug')
+        # p.changeDynamics(self.robot.arm.robot_id, RobotIDs.left_pad_id,
+        #     lateralFriction=1.0)
+        # p.changeDynamics(self.robot.arm.robot_id, RobotIDs.right_pad_id,
+        #     lateralFriction=1.0)
+
         p.changeDynamics(self.robot.arm.robot_id, RobotIDs.left_pad_id,
-            lateralFriction=1.0)
+            lateralFriction=3.0)
         p.changeDynamics(self.robot.arm.robot_id, RobotIDs.right_pad_id,
-            lateralFriction=1.0)
+            lateralFriction=3.0)
 
         self.robot.arm.reset(force_reset=True)
 
@@ -2154,8 +2196,8 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
         jnt_pos_before_grasp = self.robot.arm.get_jpos()
 
         # Testing with different close methods.
-        self.robot.arm.eetool.close()
-        # soft_grasp_close(self.robot, RobotIDs.finger_joint_id, force=80)
+        # self.robot.arm.eetool.close()
+        soft_grasp_close(self.robot, RobotIDs.finger_joint_id, force=40)
         time.sleep(0.8)
 
         grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
@@ -2200,6 +2242,7 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
             # Get firm grasp on object, then move back to clearance
             safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=True)
             self.robot.arm.eetool.open()
+            time.sleep(0.5)
             p.resetBasePositionAndOrientation(obj_id, obj_pos_before_grasp, ori)
             self.robot.arm.set_jpos(jnt_pos_before_grasp, ignore_physics=True)
             soft_grasp_close(self.robot, RobotIDs.finger_joint_id, force=40)
@@ -2284,9 +2327,14 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
             f'{str(iteration).zfill(3)}_06place.png')
         self._take_image(img_fname)
 
+        # p.changeDynamics(self.robot.arm.robot_id, RobotIDs.left_pad_id,
+        #     lateralFriction=4.0)
+        # p.changeDynamics(self.robot.arm.robot_id, RobotIDs.right_pad_id,
+        #     lateralFriction=4.0)
+
         p.changeDynamics(obj_id, -1, linearDamping=5, angularDamping=5)
-        constraint_grasp_open(grasp_cid)
         self.robot.arm.eetool.open()
+        constraint_grasp_open(grasp_cid)
 
         time.sleep(0.3)
         img_fname = osp.join(self.eval_grasp_imgs_dir,
@@ -2321,6 +2369,9 @@ class EvaluateShelfPlaceGrasp(EvaluateNetwork):
         num_success = 0
 
         obj_shapenet_id_list = random.choices(self.test_object_ids, k=self.num_trials)
+
+        # # TODO
+        # obj_shapenet_id_list = ['2c1df84ec01cea4e525b133235812833-h']
 
         if self.test_obj_class == 'bottle':
             thin_feature = False
@@ -2525,6 +2576,10 @@ class EvaluateNetworkSetup():
         evaluator_config = self.config_dict['evaluator']
         shapenet_obj_dir = osp.join(path_util.get_ndf_obj_descriptions(),
             obj_class + '_centered_obj_normalized')
+
+        # TODO Mod
+        # shapenet_obj_dir = osp.join(path_util.get_ndf_obj_descriptions(),
+        #     obj_class + '_handle_centered_obj_normalized_res1')
 
         demo_load_dir = osp.join(path_util.get_ndf_data(), 'demos',
             setup_config['demo_exp'])
