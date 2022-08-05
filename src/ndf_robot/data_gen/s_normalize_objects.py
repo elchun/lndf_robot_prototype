@@ -34,7 +34,7 @@ def get_ref_extents_sum(fname: str) -> float:
 
 
 if __name__ == '__main__':
-    obj_class = 'bowl'
+    obj_class = 'bottle'
     shapenet_obj_dir = osp.join(path_util.get_ndf_obj_descriptions(),
         obj_class + '_handle_centered_obj_normalized')
     shapenet_id_list = [fn.split('_')[0] for fn in os.listdir(shapenet_obj_dir)]
@@ -54,10 +54,10 @@ if __name__ == '__main__':
     average_extents_sum = sum(extents_list) / len(extents_list)
     print('Average extents sum: ', average_extents_sum)
 
-    # target_extents_sum = average_extents_sum
+    target_extents_sum = average_extents_sum
 
     # -- Apply scale -- #
-    target_extents_sum = 2
+    # target_extents_sum = 2.2
 
     for obj_shapenet_id in shapenet_id_list:
         obj_input_fname = osp.join(shapenet_obj_dir, obj_shapenet_id,

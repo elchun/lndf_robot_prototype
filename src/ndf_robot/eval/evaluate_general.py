@@ -81,6 +81,7 @@ class EvaluateNetwork():
         self.test_shapenet_ids_all.update(SimConstants.BOWL_TEST_SHAPENET_IDS)
         self.test_shapenet_ids_all.update(SimConstants.BOTTLE_TEST_SHAPENET_IDS)
         self.test_shapenet_ids_all.update(SimConstants.BOWL_HANDLE_TEST_SHAPENET_IDS)
+        self.test_shapenet_ids_all.update(SimConstants.BOTTLE_HANDLE_TEST_SHAPENET_IDS)
         self.test_shapenet_ids_all.update(self.avoid_shapenet_ids)
 
         self.any_pose = any_pose
@@ -687,7 +688,7 @@ class EvaluateGrasp(EvaluateNetwork):
         time.sleep(0.2)
         # grasp_rgb = self.robot.cam.get_images(get_rgb=True)[0]
         grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
-            '%s_pose.png' % str(iteration).zfill(3))
+            '%s_00pose.png' % str(iteration).zfill(3))
         # util.np2img(grasp_rgb.astype(np.uint8), grasp_img_fname)
         self._take_image(grasp_img_fname)
         self.robot.arm.eetool.open(ignore_physics=True)
@@ -737,7 +738,7 @@ class EvaluateGrasp(EvaluateNetwork):
 
         # grasp_rgb = self.robot.cam.get_images(get_rgb=True)[0]
         grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
-            f'{str(iteration).zfill(3)}_grasp.png')
+            f'{str(iteration).zfill(3)}_01grasp.png')
         self._take_image(grasp_img_fname)
         # util.np2img(grasp_rgb.astype(np.uint8), grasp_img_fname)
 
@@ -770,7 +771,7 @@ class EvaluateGrasp(EvaluateNetwork):
         # grasp_rgb = self.robot.cam.get_images(get_rgb=True)[0]
         # util.np2img(grasp_rgb.astype(np.uint8), grasp_img_fname)
         grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
-            '%s_clearance.png' % str(iteration).zfill(3))
+            '%s_02clearance.png' % str(iteration).zfill(3))
         self._take_image(grasp_img_fname)
 
         self.robot.arm.eetool.open()
