@@ -17,14 +17,14 @@ setup_args:
   # Choose from GRASP, RACK_PLACE_TELEPORT, SHELF_PLACE_TELEPORT, RACK_PLACE_GRASP
   # evaluator_type: SHELF_PLACE_TELEPORT
   # evaluator_type: RACK_PLACE_TELEPORT
-  evaluator_type: RACK_PLACE_GRASP
+  evaluator_type: RACK_PLACE_GRASP_IDEAL
   # evaluator_type: GRASP
 
 evaluator:
   pybullet_viz: False
-  # test_obj_class: mug
+  test_obj_class: mug
   # test_obj_class: bowl_handle
-  test_obj_class: bottle_handle
+  # test_obj_class: bottle_handle
   num_trials: 200
   # include_avoid_obj: True
   include_avoid_obj: False
