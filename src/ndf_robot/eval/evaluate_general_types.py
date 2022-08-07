@@ -38,6 +38,7 @@ class TrialResults(Enum):
     JOINT_PLAN_FAILED = 10
     GRASP_SUCCESS = 11
     DEBUG_FAILURE = 12
+    INTERSECTING_OBJ = 13
     # PLACE_JOINT_PLAN_FAILED = 13
 
 
@@ -282,7 +283,7 @@ class SimConstants:
     MUG_TEST_SHAPENET_IDS = {
         'd46b98f63a017578ea456f4bbbc96af9',
         'd75af64aa166c24eacbe2257d0988c9c',
-        'd7ba704184d424dfd56d9106430c3fe',
+        # 'd7ba704184d424dfd56d9106430c3fe',
         'daee5cf285b8d210eeb8d422649e5f2b',
         'dcec634f18e12427c2c72e575af174cd',
         'df026976dc03197213ac44947b92716e',
