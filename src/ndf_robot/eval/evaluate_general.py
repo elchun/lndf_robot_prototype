@@ -256,7 +256,8 @@ class EvaluateNetwork():
         return pos, ori
 
     def _insert_object(self, obj_shapenet_id: str, obj_scale: float,
-        any_pose: bool, run_decomp_override=False) -> tuple:
+        any_pose: bool, run_decomp_override: bool =False,
+        no_gravity: bool = False) -> tuple:
         """
         Insert object described by {obj_shapenet_id} at calculated pose.
         Scales input mesh by amount defined in SimConstants.  This amount is
@@ -277,7 +278,8 @@ class EvaluateNetwork():
         """
 
         # So that any_pose object doesn't immediately fall
-        if any_pose:
+        no_gravity = any_pose or no_gravity
+        if no_gravity:
             self.robot.pb_client.set_step_sim(True)
 
         upright_orientation = common.euler2quat([np.pi / 2, 0, 0]).tolist()
@@ -339,7 +341,7 @@ class EvaluateNetwork():
                 convexhullApproximation=1
             )
 
-        if any_pose:
+        if no_gravity:
             self.robot.pb_client.set_step_sim(True)
 
         # load object
@@ -358,7 +360,7 @@ class EvaluateNetwork():
         # p.changeDynamics(obj_id, -1, lateralFriction=4.0, linearDamping=5, angularDamping=5)
 
         o_cid = None
-        if any_pose:
+        if no_gravity:
             o_cid = constraint_obj_world(obj_id, pos, ori)
             self.robot.pb_client.set_step_sim(False)
 
@@ -468,12 +470,17 @@ class EvaluateNetwork():
             p.stepSimulation()
 
     def reset_sim(self):
-
-        assert self.table_urdf_fname is not None, 'Set self.table_urdf_fname in '\
-            + 'child class.'
+        """
+        Reset the arm, then set up cameras and place table.  Increases the
+        chance that pybullet will detect collisions correctly.  Call at the start
+        of each trial.
+        """
+        assert self.table_urdf_fname is not None, 'Define self.table_urdf_fname' \
+            + 'Before running sim.'
 
         self.robot.arm.reset(force_reset=True)
         self._set_up_cameras()
+
 
         table_ori = euler2quat([0, 0, np.pi / 2])
         # Get raw table urdf
@@ -505,6 +512,8 @@ class EvaluateGrasp(EvaluateNetwork):
         print(f'avoid obj: {include_avoid_obj}')
         self.grasp_optimizer = grasp_optimizer
         self.experiment_type = ExperimentTypes.GRASP
+        self.table_urdf_fname = osp.join(path_util.get_ndf_descriptions(),
+            'hanging/table/table.urdf')
 
     def load_demos(self):
         """
@@ -553,41 +562,24 @@ class EvaluateGrasp(EvaluateNetwork):
         p.changeDynamics(self.robot.arm.robot_id, RobotIDs.right_pad_id,
             lateralFriction=1.0)
 
-        self.robot.arm.reset(force_reset=True)
-        self.robot.cam.setup_camera(
-            focus_pt=[0.4, 0.0, SimConstants.CAMERA_FOCAL_Z],
-            dist=0.9,
-            yaw=45,
-            pitch=-25,
-            roll=0)
+        self.reset_sim()
 
-        # Set up cameras
-        self._set_up_cameras()
-        # cam_cfg = get_default_cam_cfg()
+        # # put table at right spot
+        # table_ori = euler2quat([0, 0, np.pi / 2])
 
-        # self.cams = MultiCams(cam_cfg, self.robot.pb_client,
-        #                  n_cams=SimConstants.N_CAMERAS)
-        # cam_info = {}
-        # cam_info['pose_world'] = []
-        # for cam in self.cams.cams:
-        #     cam_info['pose_world'].append(util.pose_from_matrix(cam.cam_ext_mat))
+        # # Get raw table urdf
+        # table_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table.urdf')
+        # # table_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table_rack.urdf')
+        # with open(table_urdf_fname, 'r', encoding='utf-8') as f:
+        #     self.table_urdf = f.read()
 
-        # put table at right spot
-        table_ori = euler2quat([0, 0, np.pi / 2])
-
-        # Get raw table urdf
-        table_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table.urdf')
-        # table_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table_rack.urdf')
-        with open(table_urdf_fname, 'r', encoding='utf-8') as f:
-            self.table_urdf = f.read()
-
-        # this is the URDF that was used in the demos -- make sure we load an identical one
-        tmp_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table_rack_tmp.urdf')
-        open(tmp_urdf_fname, 'w').write(self.table_urdf)
-        self.table_id = self.robot.pb_client.load_urdf(tmp_urdf_fname,
-            SimConstants.TABLE_POS,
-            table_ori,
-            scaling=SimConstants.TABLE_SCALING)
+        # # this is the URDF that was used in the demos -- make sure we load an identical one
+        # tmp_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table_rack_tmp.urdf')
+        # open(tmp_urdf_fname, 'w').write(self.table_urdf)
+        # self.table_id = self.robot.pb_client.load_urdf(tmp_urdf_fname,
+        #     SimConstants.TABLE_POS,
+        #     table_ori,
+        #     scaling=SimConstants.TABLE_SCALING)
 
     def run_trial(self, iteration: int = 0, obj_scale: float = -1,
                   any_pose: bool = True, thin_feature: bool = True,
@@ -633,14 +625,15 @@ class EvaluateGrasp(EvaluateNetwork):
             f.write(f'{trial_data.obj_shapenet_id}\n')
 
         # -- Home Robot -- #
+        self.reset_sim()
         self.robot.arm.go_home(ignore_physics=True)
         self.robot.arm.move_ee_xyz([0, 0, 0.2])
 
         # -- load object -- #
         obj_id, o_cid, pos, ori = self._insert_object(obj_shapenet_id,
-            obj_scale, any_pose)
+            obj_scale, any_pose, no_gravity=True)
 
-        safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=True)
+        # safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=True)
         p.changeDynamics(obj_id, -1, linearDamping=5, angularDamping=5)
         time.sleep(1.5)
 
@@ -732,10 +725,10 @@ class EvaluateGrasp(EvaluateNetwork):
         self.robot.arm.eetool.close(ignore_physics=True)
         time.sleep(0.2)
         # grasp_rgb = self.robot.cam.get_images(get_rgb=True)[0]
-        grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
+        img_fname = osp.join(self.eval_grasp_imgs_dir,
             '%s_00pose.png' % str(iteration).zfill(3))
         # util.np2img(grasp_rgb.astype(np.uint8), grasp_img_fname)
-        self._take_image(grasp_img_fname)
+        self._take_image(img_fname)
         self.robot.arm.eetool.open(ignore_physics=True)
         self.robot.arm.go_home(ignore_physics=True)
         time.sleep(0.5)
@@ -755,12 +748,16 @@ class EvaluateGrasp(EvaluateNetwork):
             self.robot.pb_client.remove_body(obj_id)
             return trial_data
 
+        # -- Move for grasp -- #
+        self.robot.pb_client.set_step_sim(True)
         self.robot.arm.eetool.open()
         # Go to clearance location (linearly away from grasp area)
         for jnt in plan1:
             self.robot.arm.set_jpos(jnt, wait=False)
-            time.sleep(0.025)
+            self._step_n_steps(10)
         self.robot.arm.set_jpos(plan1[-1], wait=False)
+
+        self._step_n_steps(10)
 
         # Used to be below plan2 part
 
@@ -776,35 +773,45 @@ class EvaluateGrasp(EvaluateNetwork):
         # Go to grasp location
         for jnt in plan2:
             self.robot.arm.set_jpos(jnt, wait=False)
-            time.sleep(0.04)
+            self._step_n_steps(10)
         self.robot.arm.set_jpos(plan2[-1], wait=False)
+        self._step_n_steps(100)
 
-        time.sleep(0.8)
+        n_grasp_trials = 5
+        obj_pos_before_grasp = p.getBasePositionAndOrientation(obj_id)[0]
+        jnt_pos_before_grasp = self.robot.arm.get_jpos()
+        for i in range(n_grasp_trials):
+            img_fname = osp.join(self.eval_grasp_imgs_dir,
+                f'{str(iteration).zfill(3)}_01{i}grasp.png')
+            self._take_image(img_fname)
 
-        # grasp_rgb = self.robot.cam.get_images(get_rgb=True)[0]
-        grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
-            f'{str(iteration).zfill(3)}_01grasp.png')
-        self._take_image(grasp_img_fname)
-        # util.np2img(grasp_rgb.astype(np.uint8), grasp_img_fname)
+            soft_grasp_close(self.robot, RobotIDs.finger_joint_id, force=50)
+            safeRemoveConstraint(o_cid)
+            self._step_n_steps(100)
+            # safeCollisionFilterPair(obj_id, self.table_id, -1, -1,
+            #     enableCollision=False)
+            self._step_n_steps(100)
+            time.sleep(0.8)
 
-        soft_grasp_close(self.robot, RobotIDs.finger_joint_id, force=50)
-        safeRemoveConstraint(o_cid)
-        time.sleep(0.8)
-        safeCollisionFilterPair(obj_id, self.table_id, -1, -1,
-            enableCollision=False)
-        time.sleep(0.8)
+            for jnt in plan3:
+                self.robot.arm.set_jpos(jnt, wait=False)
+                self._step_n_steps(10)
+            self.robot.arm.set_jpos(plan3[-1], wait=False)
+            self._step_n_steps(240)
 
-        for jnt in plan3:
-            self.robot.arm.set_jpos(jnt, wait=False)
-            time.sleep(0.025)
-        self.robot.arm.set_jpos(plan3[-1], wait=False)
-        time.sleep(1)
+            # -- Determine if grasp was successful -- #
+            contact_grasp_success = object_is_still_grasped(self.robot,
+                obj_id, RobotIDs.right_pad_id, RobotIDs.left_pad_id)
 
-        # -- Determine if grasp was successful -- #
-        original_grasp_success = object_is_still_grasped(self.robot,
-            obj_id, RobotIDs.right_pad_id, RobotIDs.left_pad_id)
-
-        time.sleep(0.5)
+            if contact_grasp_success:
+                break
+            elif i != n_grasp_trials - 1:
+                p.resetBasePositionAndOrientation(obj_id, obj_pos_before_grasp, ori)
+                o_cid = constraint_obj_world(obj_id, obj_pos_before_grasp, ori) # Lock object in pose
+                self.robot.arm.set_jpos(jnt_pos_before_grasp, ignore_physics=True)
+                # safeCollisionFilterPair(obj_id, self.table_id, -1, -1,
+                #     enableCollision=True)
+                self._step_n_steps(240)
 
         # If the ee was intersecting the mug, original_grasp_success
         # would be true after the table disappears.  However, an
@@ -815,17 +822,21 @@ class EvaluateGrasp(EvaluateNetwork):
         # -- Take image of grasp at clearance height -- #
         # grasp_rgb = self.robot.cam.get_images(get_rgb=True)[0]
         # util.np2img(grasp_rgb.astype(np.uint8), grasp_img_fname)
-        grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
+        img_fname = osp.join(self.eval_grasp_imgs_dir,
             '%s_02clearance.png' % str(iteration).zfill(3))
-        self._take_image(grasp_img_fname)
+        self._take_image(img_fname)
 
         self.robot.arm.eetool.open()
-        time.sleep(1)
+        self._step_n_steps(240)
         ee_intersecting_mug = object_is_still_grasped(
             self.robot, obj_id, RobotIDs.right_pad_id,
             RobotIDs.left_pad_id)
 
-        grasp_success = original_grasp_success and not ee_intersecting_mug
+        img_fname = osp.join(self.eval_grasp_imgs_dir,
+            '%s_03release.png' % str(iteration).zfill(3))
+        self._take_image(img_fname)
+
+        grasp_success = contact_grasp_success and not ee_intersecting_mug
 
         if ee_intersecting_mug:
             print('Intersecting grasp detected')
@@ -840,6 +851,8 @@ class EvaluateGrasp(EvaluateNetwork):
             trial_data.trial_result = TrialResults.SUCCESS
 
         self.robot.pb_client.remove_body(obj_id)
+        self._step_n_steps(1)
+        self.robot.pb_client.set_step_sim(False)
         return trial_data
 
     def run_experiment(self, rand_mesh_scale: bool = True, start_idx: bool = 0):
@@ -847,6 +860,8 @@ class EvaluateGrasp(EvaluateNetwork):
         Run experiment for {self.num_trials}
         """
         num_success = 0
+
+        start_time = time.time()
 
         obj_shapenet_id_list = random.choices(self.test_object_ids, k=self.num_trials)
 
@@ -888,6 +903,7 @@ class EvaluateGrasp(EvaluateNetwork):
                 f.write(f'Grasp Success Rate: {num_success / (it + 1): 0.3f}\n')
                 f.write(f'Shapenet id: {obj_shapenet_id}\n')
                 f.write(f'Best Grasp idx: {best_opt_idx}\n')
+                f.write(f'Time elapsed: {time.time() - start_time}\n')
                 f.write('\n')
 
 

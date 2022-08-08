@@ -95,7 +95,7 @@ def object_is_still_grasped(robot, obj_id, right_pad_id, left_pad_id):
     return obj_still_in_grasp
 
 def object_is_intersecting(obj1_id, obj2_id, obj1_link_index, obj2_link_index,
-    max_force_threshold=40):
+    max_force_threshold=20):
     """
     During intersection, normal force is much higher than during contact.  If
     we use a threshold, we can determine if a teleport is in intersection or

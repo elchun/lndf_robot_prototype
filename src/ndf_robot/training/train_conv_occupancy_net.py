@@ -107,7 +107,8 @@ if __name__ == '__main__':
     # conv_occ_args = default_args
     # conv_occ_args = latent_dim_16
     # conv_occ_args = latent_dim_32
-    conv_occ_args = latent_dim_64
+    # conv_occ_args = latent_dim_64
+    conv_occ_args = latent_dim_128
 
     # -- LOSS FUNCTION ARGS -- #
     # default_args = {
