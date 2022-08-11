@@ -1,29 +1,18 @@
 setup_args:
-  # exp_dir_suffix: EVAL_conv_rack_grasp_upright
-  # exp_dir_suffix: EVAL_conv_rack_grasp_anyrot
-  # exp_dir_suffix: EVAL_conv_rack_grasp_upright_odd
-  # exp_dir_suffix: EVAL_conv_rack_grasp_anyrot_odd
-  # exp_dir_suffix: EVAL_ndf_rack_grasp_upright
-  # exp_dir_suffix: EVAL_ndf_rack_grasp_anyrot
-  # exp_dir_suffix: EVAL_ndf_rack_grasp_upright_odd
-  # exp_dir_suffix: EVAL_ndf_rack_grasp_anyrot_odd
+  # exp_dir_suffix: EVAL_ndf_rack_grasp_ori_q_upright_mug
+  # exp_dir_suffix: EVAL_ndf_rack_grasp_ori_q_upright_bowl_handle
 
-
-  # exp_dir_suffix: EVAL_ndf_rack_grasp_upright_mug
-  # exp_dir_suffix: EVAL_ndf_rack_grasp_upright_bowl_handle
+  # exp_dir_suffix: EVAL_ndf_rack_grasp_ori_q_anyrot_mug
+  exp_dir_suffix: EVAL_ndf_rack_grasp_ori_q_anyrot_bowl_handle
 
   # exp_dir_suffix: EVAL_conv_rack_grasp_upright_mug
   # exp_dir_suffix: EVAL_conv_rack_grasp_upright_bowl_handle
 
-  # exp_dir_suffix: EVAL_ndf_rack_grasp_anyrot_mug
-  exp_dir_suffix: EVAL_ndf_rack_grasp_anyrot_bowl_handle
-
   # exp_dir_suffix: EVAL_conv_rack_grasp_anyrot_mug
   # exp_dir_suffix: EVAL_conv_rack_grasp_anyrot_bowl_handle
 
-  # exp_dir_suffix: DEBUG_conv_multicategory_rack_grasp_ideal_bottle_handle_notanyrot
+  # exp_dir_suffix: DEBUG_ndf_rack_grasp_ideal_ori_query
 
-  # exp_dir_suffix: EVAL_conv_latent_margin_4_rack_grasp_anyrot
   demo_exp: 'mug/grasp_rim_hang_handle_gaussian_precise_w_shelf_converted'
   # demo_exp: 'bowl/grasp_rim_anywhere_place_shelf_all_methods_multi_instance_converted'
   seed: 0
@@ -51,7 +40,8 @@ evaluator:
 #   # checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_final.pth
 #   # checkpoint: ndf_vnn/conv_occ_hidden64_latent_margin_4/checkpoints/model_epoch_0017_iter_255000.pth
 #   # checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_multicategory_0/checkpoints/model_epoch_0007_iter_331000.pth
-#   checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_multicategory_part2_0/checkpoints/model_epoch_0001_iter_057000.pth
+#   # checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_multicategory_part2_0/checkpoints/model_epoch_0001_iter_057000.pth
+#   checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_multicategory_part2_0/checkpoints/model_final.pth
 
 #   args:
 #     latent_dim: 64
@@ -108,6 +98,18 @@ evaluator:
 #     z1: 0.06
 #     z2: 0.02
 
+# # Original ndf
+# gripper_query_pts:
+#   type: NDF_GRIPPER
+#   args:
+#     n_pts: 1000
+
+# # Original ndf
+# rack_query_pts:
+#   type: NDF_RACK
+#   args:
+#     n_pts: 1000
+
 
 # -- NDF Config -- #
 model:
@@ -138,22 +140,33 @@ place_optimizer:
 # With rect query points, z1 is actually pointing up when
 # used as a query point
 # y is along the gripper movement direction
-gripper_query_pts:
-  type: RECT
-  args:
-    n_pts: 1000
-    x: 0.06
-    y: 0.09
-    z1: 0.06
-    z2: 0.02
+# gripper_query_pts:
+#   type: RECT
+#   args:
+#     n_pts: 1000
+#     x: 0.06
+#     y: 0.09
+#     z1: 0.06
+#     z2: 0.02
 
-rack_query_pts:
-  type: ARM
+# Original ndf
+gripper_query_pts:
+  type: NDF_GRIPPER
   args:
     n_pts: 1000
-    radius: 0.05
-    height: 0.04
-    y_rot_rad: 0.68
-    x_trans: 0.055
-    y_trans: 0
-    z_trans: 0.19
+# rack_query_pts:
+#   type: ARM
+#   args:
+#     n_pts: 1000
+#     radius: 0.05
+#     height: 0.04
+#     y_rot_rad: 0.68
+#     x_trans: 0.055
+#     y_trans: 0
+#     z_trans: 0.19
+
+# Original ndf
+rack_query_pts:
+  type: NDF_RACK
+  args:
+    n_pts: 1000

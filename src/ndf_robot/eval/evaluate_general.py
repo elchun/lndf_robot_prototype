@@ -3109,6 +3109,7 @@ class EvaluateRackPlaceGraspIdealStep(EvaluateNetwork):
             if contact_grasp_success:
                 break
             elif i != n_grasp_trials - 1:
+                self.robot.arm.eetool.open()  # NEW
                 p.resetBasePositionAndOrientation(obj_id, obj_pos_before_grasp, ori)
                 o_cid = constraint_obj_world(obj_id, obj_pos_before_grasp, ori) # Lock object in pose
                 self.robot.arm.set_jpos(jnt_pos_before_grasp, ignore_physics=True)
@@ -3845,11 +3846,14 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
 
         self.grasp_optimizer = grasp_optimizer
         self.place_optimizer = place_optimizer
-        self.experiment_type = ExperimentTypes.SHELF_PLACE_GRASP
+        self.experiment_type = ExperimentTypes.SHELF_PLACE_GRASP_IDEAL
         # self.obj_sample_x_low_high = SimConstants.OBJ_SAMPLE_X_LOW_HIGH
         self.obj_sample_x_low_high = [0.4, 0.45]
         # self.obj_sample_y_low_high = [-0.1, 0.1]
-        self.obj_sample_y_low_high = [-0.3, -0.1]
+        self.obj_sample_y_low_high = [-0.1, 0.1]
+
+        self.table_urdf_fname = osp.join(path_util.get_ndf_descriptions(),
+            'hanging/table/table_shelf.urdf')
 
         # # NEW
         # self.scale_low = 0.35
@@ -3915,25 +3919,26 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
         p.changeDynamics(self.robot.arm.robot_id, RobotIDs.right_pad_id,
             lateralFriction=3.0)
 
-        self.robot.arm.reset(force_reset=True)
+        self.reset_sim()
+        # self.robot.arm.reset(force_reset=True)
 
-        self._set_up_cameras()
+        # self._set_up_cameras()
 
-        # put table at right spot
-        table_ori = euler2quat([0, 0, np.pi / 2])
+        # # put table at right spot
+        # table_ori = euler2quat([0, 0, np.pi / 2])
 
-        # Get raw table urdf
-        # table_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table_shelf.urdf')
-        # with open(table_urdf_fname, 'r', encoding='utf-8') as f:
-        #     self.table_urdf = f.read()
+        # # Get raw table urdf
+        # # table_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table_shelf.urdf')
+        # # with open(table_urdf_fname, 'r', encoding='utf-8') as f:
+        # #     self.table_urdf = f.read()
 
-        # this is the URDF that was used in the demos -- make sure we load an identical one
-        tmp_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table_rack_tmp.urdf')
-        open(tmp_urdf_fname, 'w').write(self.table_urdf)
-        self.table_id = self.robot.pb_client.load_urdf(tmp_urdf_fname,
-            SimConstants.TABLE_POS,
-            table_ori,
-            scaling=SimConstants.TABLE_SCALING)
+        # # this is the URDF that was used in the demos -- make sure we load an identical one
+        # tmp_urdf_fname = osp.join(path_util.get_ndf_descriptions(), 'hanging/table/table_rack_tmp.urdf')
+        # open(tmp_urdf_fname, 'w').write(self.table_urdf)
+        # self.table_id = self.robot.pb_client.load_urdf(tmp_urdf_fname,
+        #     SimConstants.TABLE_POS,
+        #     table_ori,
+        #     scaling=SimConstants.TABLE_SCALING)
 
     def run_trial(self, iteration: int = 0, obj_scale: float = -1,
                   any_pose: bool = True, thin_feature: bool = True,
@@ -3983,6 +3988,7 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
             f.write(f'{trial_data.obj_shapenet_id}\n')
 
         # -- Home Robot -- #
+        self.reset_sim()
         self.robot.arm.go_home(ignore_physics=True)
         self.robot.arm.move_ee_xyz([0, 0, 0.2])
 
@@ -4051,19 +4057,24 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
         rack_relative_pose = util.transform_pose(
             util.pose_from_matrix(rack_pose_mats[best_place_idx]), util.list2pose_stamped(self.shelf_pose))
 
-        place_ee_pose = util.transform_pose(util.list2pose_stamped(grasp_ee_pose),
-            pose_transform=rack_relative_pose)
+        obj_pose_world = p.getBasePositionAndOrientation(obj_id)
+        obj_pose_world = util.list2pose_stamped(list(obj_pose_world[0]) + list(obj_pose_world[1]))
+        obj_end_pose = util.transform_pose(obj_pose_world, rack_relative_pose)
+        obj_end_pose = util.pose_stamped2list(obj_end_pose)
+
+        # place_ee_pose = util.transform_pose(util.list2pose_stamped(grasp_ee_pose),
+        #     pose_transform=rack_relative_pose)
 
         # preplace_offset_far_tf = util.list2pose_stamped(SimConstants.PREPLACE_OFFSET_FAR_TF)
         # preplace_offset_far_tf = util.list2pose_stamped(SimConstants.PREPLACE_HORIZONTAL_OFFSET_TF)
         # preplace_offset_close_tf = util.list2pose_stamped(SimConstants.PREPLACE_OFFSET_CLOSE_TF)
-        preplace_offset_tf = util.list2pose_stamped(SimConstants.SHELF_PREPLACE_OFFSET)
-        preplace_pose = util.transform_pose(place_ee_pose, preplace_offset_tf)
+        # preplace_offset_tf = util.list2pose_stamped(SimConstants.SHELF_PREPLACE_OFFSET)
+        # preplace_pose = util.transform_pose(place_ee_pose, preplace_offset_tf)
 
-        place_ee_pose = util.pose_stamped2list(place_ee_pose)
-        preplace_pose = util.pose_stamped2list(preplace_pose)
+        # place_ee_pose = util.pose_stamped2list(place_ee_pose)
+        # preplace_pose = util.pose_stamped2list(preplace_pose)
 
-        # -- Get ik -- #
+        # -- Get ik for grasp -- #
         log_debug('Getting ik.')
         pre_grasp_jnt_pos = grasp_jnt_pos = None
 
@@ -4074,10 +4085,11 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
         ik_status.append(ik_res)
         post_grasp_pos, ik_res = self._compute_ik_cascade(post_grasp_pos)
         ik_status.append(ik_res)
-        place_jnt_pose, ik_res = self._compute_ik_cascade(place_ee_pose)
-        ik_status.append(ik_res)
-        preplace_jnt_pose, ik_res = self._compute_ik_cascade(preplace_pose)
-        ik_status.append(ik_res)
+
+        # place_jnt_pose, ik_res = self._compute_ik_cascade(place_ee_pose)
+        # ik_status.append(ik_res)
+        # preplace_jnt_pose, ik_res = self._compute_ik_cascade(preplace_pose)
+        # ik_status.append(ik_res)
 
         for ik_res in ik_status:
             if ik_res is not None:
@@ -4107,6 +4119,8 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
         home_jnt_pos = self.robot.arm.get_jpos()
         self.robot.arm.eetool.open()
 
+        obj_pos_before_grasp, obj_ori_before_grasp = p.getBasePositionAndOrientation(obj_id)
+
         # -- Get grasp image -- #
         self.robot.pb_client.set_step_sim(True)
         self.robot.arm.set_jpos(grasp_jnt_pos, ignore_physics=True)
@@ -4134,37 +4148,21 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
         # plan3 = self.ik_helper.plan_joint_motion(grasp_jnt_pos, home_jnt_pos)
         plan3 = self.ik_helper.plan_joint_motion(grasp_jnt_pos, post_grasp_pos)
 
-        # Return to home location (in preparation to place)
-        # plan4 = self.ik_helper.plan_joint_motion(post_grasp_pos, home_jnt_pos)
-
         if None in [plan1, plan2, plan3]:
             trial_data.trial_result = TrialResults.JOINT_PLAN_FAILED
             self.robot.pb_client.remove_body(obj_id)
             return trial_data
 
         # -- Move for grasp -- #
+        self.robot.pb_client.set_step_sim(True)
         self.robot.arm.eetool.open()
-        time.sleep(0.5)
         # Go to pre grasp location (linearly away from grasp area)
         for jnt in plan1:
             self.robot.arm.set_jpos(jnt, wait=False)
-            time.sleep(0.025)
+            self._step_n_steps(1)  # TODO
         self.robot.arm.set_jpos(plan1[-1], wait=False)
 
-        # # turn ON collisions between robot and object
-        # for i in range(p.getNumJoints(self.robot.arm.robot_id)):
-        #     safeCollisionFilterPair(bodyUniqueIdA=self.robot.arm.robot_id,
-        #         bodyUniqueIdB=obj_id,
-        #         linkIndexA=i,
-        #         linkIndexB=-1,
-        #         enableCollision=True,
-        #         physicsClientId=self.robot.pb_client.get_client_id())
-
-        # Go to grasp location
-        for jnt in plan2:
-            self.robot.arm.set_jpos(jnt, wait=False)
-            time.sleep(0.04)
-        self.robot.arm.set_jpos(plan2[-1], wait=False)
+        self._step_n_steps(100)
 
         # turn ON collisions between robot and object
         for i in range(p.getNumJoints(self.robot.arm.robot_id)):
@@ -4174,36 +4172,62 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
                 linkIndexB=-1,
                 enableCollision=True,
                 physicsClientId=self.robot.pb_client.get_client_id())
+        self._step_n_steps(1)
 
-        time.sleep(0.8)
+        # Go to grasp location
+        for jnt in plan2:
+            self.robot.arm.set_jpos(jnt, wait=False)
+            self._step_n_steps(1)
+        self.robot.arm.set_jpos(plan2[-1], wait=False)
 
-        obj_pos_before_grasp = p.getBasePositionAndOrientation(obj_id)[0]
+        self._step_n_steps(100)
+
         jnt_pos_before_grasp = self.robot.arm.get_jpos()
+        n_grasp_trials = 5
+        for i in range(n_grasp_trials):
+            print(f'Grasp iter: {i}')
 
-        # Testing with different close methods.
-        # self.robot.arm.eetool.close()
-        soft_grasp_close(self.robot, RobotIDs.finger_joint_id, force=40)
-        time.sleep(0.8)
+            # Testing with different close methods.
+            # self.robot.arm.eetool.close()
+            soft_grasp_close(self.robot, RobotIDs.finger_joint_id, force=40)
+            self._step_n_steps(200)
 
+            grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
+                f'{str(iteration).zfill(3)}_02{i}grasp.png')
+            self._take_image(grasp_img_fname)
+
+            safeRemoveConstraint(o_cid)
+            safeCollisionFilterPair(obj_id, self.table_id, -1, -1,
+                enableCollision=False)
+            self._step_n_steps(200)
+
+            for jnt in plan3:
+                self.robot.arm.set_jpos(jnt, wait=False)
+                self._step_n_steps(1)
+            self.robot.arm.set_jpos(plan3[-1], wait=False)
+            self._step_n_steps(240)
+
+            contact_grasp_success = object_is_still_grasped(self.robot,
+                obj_id, RobotIDs.right_pad_id, RobotIDs.left_pad_id)
+
+            if contact_grasp_success:
+                break
+            elif i != n_grasp_trials - 1:
+                self.robot.arm.eetool.open()
+                p.resetBasePositionAndOrientation(obj_id, obj_pos_before_grasp, obj_ori_before_grasp)
+                o_cid = constraint_obj_world(obj_id, obj_pos_before_grasp, obj_ori_before_grasp) # Lock object in pose
+                self.robot.arm.set_jpos(jnt_pos_before_grasp, ignore_physics=True)
+                safeCollisionFilterPair(obj_id, self.table_id, -1, -1,
+                    enableCollision=True)
+                self._step_n_steps(240)
+
+        # -- Take image of grasp at clearance height -- #
         grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
-            f'{str(iteration).zfill(3)}_02grasp.png')
+            '%s_03clearance.png' % str(iteration).zfill(3))
         self._take_image(grasp_img_fname)
 
-        safeRemoveConstraint(o_cid)
-        safeCollisionFilterPair(obj_id, self.table_id, -1, -1,
-            enableCollision=False)
-        time.sleep(0.8)
-
-        # Move to clearance location
-        for jnt in plan3:
-            self.robot.arm.set_jpos(jnt, wait=False)
-            time.sleep(0.025)
-        self.robot.arm.set_jpos(plan3[-1], wait=False)
-        time.sleep(1)
-
-        grasp_success = object_is_still_grasped(self.robot,
-            obj_id, RobotIDs.right_pad_id, RobotIDs.left_pad_id)
-        time.sleep(0.5)
+        self.robot.arm.eetool.open()
+        self._step_n_steps(120)
 
         # If the ee was intersecting the mug, original_grasp_success
         # would be true after the table disappears.  However, an
@@ -4211,140 +4235,73 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
         # opened again, a good grasp should fall down while an
         # intersecting grasp would stay in contact.
 
-        # ^ This is not currently implemented cuz I don't wanna debug the mug moving
-        # when its reset to that position.  If this error occurs, the place will
-        # be false so its fine...
+        intersecting_grasp = object_is_still_grasped(self.robot, obj_id,
+            RobotIDs.right_pad_id, RobotIDs.left_pad_id)
 
-        # -- Take image of grasp at clearance height -- #
-        grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
-            '%s_03clearance.png' % str(iteration).zfill(3))
-        self._take_image(grasp_img_fname)
+        grasp_success = contact_grasp_success and not intersecting_grasp
 
         if grasp_success:
             trial_data.trial_result = TrialResults.GRASP_SUCCESS
             trial_data.aux_data['grasp_success'] = True
 
-            # Get firm grasp on object, then move back to clearance
-            safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=True)
-            self.robot.arm.eetool.open()
-            time.sleep(0.5)
-            p.resetBasePositionAndOrientation(obj_id, obj_pos_before_grasp, ori)
-            self.robot.arm.set_jpos(jnt_pos_before_grasp, ignore_physics=True)
-            soft_grasp_close(self.robot, RobotIDs.finger_joint_id, force=40)
-            grasp_cid = constraint_grasp_close(self.robot, obj_id)
-
-            for jnt in plan3:
-                self.robot.arm.set_jpos(jnt, wait=False)
-                time.sleep(0.025)
-            self.robot.arm.set_jpos(plan3[-1], wait=False)
-            time.sleep(1)
-
-            safeCollisionFilterPair(obj_id, self.table_id, -1, -1,
-                enableCollision=False)
-
         else:
             trial_data.trial_result = TrialResults.BAD_OPT_POS
-            self.robot.pb_client.remove_body(obj_id)
-            return trial_data
+            # self.robot.pb_client.remove_body(obj_id)
+            # return trial_data
 
         # for jnt in plan4:
         #     self.robot.arm.set_jpos(jnt, wait=False)
         #     time.sleep(0.025)
         # self.robot.arm.set_jpos(plan3[-1], wait=False)
-        time.sleep(1)
 
         # -- Set up for place -- #
+        log_debug('Attempting Place')
+        self.robot.arm.go_home(ignore_physics=True)
         placement_link_id = 0
 
         # turn OFF collisions between object / table and object / rack, and move to pre-place pose
         safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=False)
-        safeCollisionFilterPair(obj_id, self.table_id, -1, placement_link_id, enableCollision=False)
-        time.sleep(1.0)
+        # safeCollisionFilterPair(obj_id, self.table_id, -1, placement_link_id, enableCollision=False)
+        self._step_n_steps(1)
 
-        img_fname = osp.join(self.eval_grasp_imgs_dir,
-            '%s_04clearance_place.png' % str(iteration).zfill(3))
-        self._take_image(img_fname)
+        n_place_trials = 5
+        for i in range(n_place_trials):
+            print(f'Place iter: {i}')
+            safeRemoveConstraint(o_cid)
+            self.robot.pb_client.reset_body(obj_id, obj_end_pose[:3], obj_end_pose[3:])
+            self._step_n_steps(1)
+            img_fname = osp.join(self.eval_grasp_imgs_dir,
+                '%s_04teleport_place.png' % str(iteration).zfill(3))
+            self._take_image(img_fname)
 
-        # Go to far approach position
-        #TODO
-        plan1 = self.ik_helper.plan_joint_motion(post_grasp_pos, home_jnt_pos)
+            safeCollisionFilterPair(obj_id, self.table_id, -1, placement_link_id, enableCollision=True)
+            self._step_n_steps(240)
 
-        plan2 = self.ik_helper.plan_joint_motion(home_jnt_pos, preplace_jnt_pose)
-        # plan2 = self.ik_helper.plan_joint_motion(post_grasp_pos, preplace_jnt_pose)
+            img_fname = osp.join(self.eval_grasp_imgs_dir,
+                f'{str(iteration).zfill(3)}_05teleport_place_release.png')
+            self._take_image(img_fname)
 
-        # Go to close approach position
-        plan3 = self.ik_helper.plan_joint_motion(preplace_jnt_pose, place_jnt_pose)
+            obj_surf_contacts = p.getContactPoints(obj_id, self.table_id, -1, placement_link_id)
+            intersecting = object_is_intersecting(obj_id, self.table_id, -1, placement_link_id)
 
-        # Return to home position
-        # plan4 = self.ik_helper.plan_joint_motion(place_jnt_pose, place_far_jnt_pose)
-        # plan5 = self.ik_helper.plan_joint_motion(place_far_jnt_pose, home_jnt_pos)
+            touching_surf = len(obj_surf_contacts) > 0
+            place_success = touching_surf and not intersecting
 
-        if None in [plan1, plan2, plan3]:
-            trial_data.trial_result = TrialResults.JOINT_PLAN_FAILED
-            self.robot.pb_client.remove_body(obj_id)
-            return trial_data
+            if place_success:
+                trial_data.aux_data['place_success'] = True
+                break
 
-        for jnt in plan1:
-            self.robot.arm.set_jpos(jnt, wait=False)
-            time.sleep(0.04)
-        self.robot.arm.set_jpos(plan1[-1], wait=False)
-
-        for jnt in plan2:
-            self.robot.arm.set_jpos(jnt, wait=False)
-            time.sleep(0.04)
-        self.robot.arm.set_jpos(plan2[-1], wait=False)
-
-        for jnt in plan3:
-            self.robot.arm.set_jpos(jnt, wait=False)
-            time.sleep(0.04)
-        self.robot.arm.set_jpos(plan3[-1], wait=False)
-
-        img_fname = osp.join(self.eval_grasp_imgs_dir,
-            f'{str(iteration).zfill(3)}_05pre_place.png')
-        self._take_image(img_fname)
-
-        # turn ON collisions between object and rack, and open fingers
-        safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=True)
-        safeCollisionFilterPair(obj_id, self.table_id, -1, placement_link_id, enableCollision=True)
-        time.sleep(0.5)
-
-        img_fname = osp.join(self.eval_grasp_imgs_dir,
-            f'{str(iteration).zfill(3)}_06place.png')
-        self._take_image(img_fname)
-
-        # p.changeDynamics(self.robot.arm.robot_id, RobotIDs.left_pad_id,
-        #     lateralFriction=4.0)
-        # p.changeDynamics(self.robot.arm.robot_id, RobotIDs.right_pad_id,
-        #     lateralFriction=4.0)
-
-        p.changeDynamics(obj_id, -1, linearDamping=5, angularDamping=5)
-        self.robot.arm.eetool.open()
-        constraint_grasp_open(grasp_cid)
-
-        time.sleep(0.3)
-        img_fname = osp.join(self.eval_grasp_imgs_dir,
-            f'{str(iteration).zfill(3)}_07place_release.png')
-        self._take_image(img_fname)
-
-        self.robot.arm.go_home(ignore_physics=True)
-        time.sleep(0.3)
-
-        safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=False)
-        img_fname = osp.join(self.eval_grasp_imgs_dir,
-            f'{str(iteration).zfill(3)}_08place_release_home.png')
-        self._take_image(img_fname)
-
-        # -- Check place was successful -- #
-
-        placement_link_id = 0
-        obj_surf_contacts = p.getContactPoints(obj_id, self.table_id, -1, placement_link_id)
-        touching_surf = len(obj_surf_contacts) > 0
-        place_success = touching_surf
-        if place_success:
+        if grasp_success and place_success:
             trial_data.trial_result = TrialResults.SUCCESS
             trial_data.aux_data['place_success'] = True
+        elif intersecting:
+            trial_data.trial_result = TrialResults.INTERSECTING_OBJ
+        else:
+            trial_data.trial_result = TrialResults.BAD_OPT_POS
 
         self.robot.pb_client.remove_body(obj_id)
+        self._step_n_steps(1)
+        self.robot.pb_client.set_step_sim(False)
         return trial_data
 
     def run_experiment(self, rand_mesh_scale: bool = True, start_idx: int = 0):
@@ -4352,6 +4309,8 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
         Run experiment for {self.num_trials}
         """
         num_success = 0
+
+        start_time = time.time()
 
         obj_shapenet_id_list = random.choices(self.test_object_ids, k=self.num_trials)
 
@@ -4399,8 +4358,10 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
                 f.write(f'Trial result: {trial_result}\n')
                 f.write(f'Grasp Success Rate: {num_success / (it + 1): 0.3f}\n')
                 f.write(f'Shapenet id: {obj_shapenet_id}\n')
+                f.write(f'Grasp Success: {grasp_success} | Place Success: {place_success}\n')
                 f.write(f'Best Grasp idx: {best_grasp_idx}\n')
                 f.write(f'Best Place idx: {best_place_idx}\n')
+                f.write(f'Time elapsed: {time.time() - start_time}\n')
                 f.write('\n')
 
 
@@ -4444,6 +4405,8 @@ class EvaluateNetworkSetup():
             return self._shelf_place_grasp_setup()
         elif evaluator_type == 'RACK_PLACE_GRASP_IDEAL':
             return self._rack_place_grasp_ideal_setup()
+        elif evaluator_type == 'SHELF_PLACE_GRASP_IDEAL':
+            return self._shelf_place_grasp_ideal_setup()
         else:
             raise ValueError('Invalid evaluator type.')
 
@@ -4624,6 +4587,35 @@ class EvaluateNetworkSetup():
 
         return experiment
 
+    def _shelf_place_grasp_ideal_setup(self) -> EvaluateNetwork:
+        setup_config = self.config_dict['setup_args']
+        obj_class = self.config_dict['evaluator']['test_obj_class']
+
+        model = self._create_model(self.config_dict['model'])
+        gripper_query_pts = self._create_query_pts(self.config_dict['gripper_query_pts'])
+        shelf_query_pts = self._create_query_pts(self.config_dict['shelf_query_pts'])
+        eval_save_dir = self._create_eval_dir(setup_config)
+
+        evaluator_config = self.config_dict['evaluator']
+        shapenet_obj_dir = osp.join(path_util.get_ndf_obj_descriptions(),
+            obj_class + '_centered_obj_normalized')
+
+        demo_load_dir = osp.join(path_util.get_ndf_data(), 'demos',
+            setup_config['demo_exp'])
+
+        grasp_optimizer = self._create_optimizer(self.config_dict['grasp_optimizer'],
+            model, gripper_query_pts, eval_save_dir)
+        place_optimizer = self._create_optimizer(self.config_dict['place_optimizer'],
+            model, shelf_query_pts, eval_save_dir)
+
+        experiment = EvaluateShelfPlaceGraspIdeal(grasp_optimizer=grasp_optimizer,
+            place_optimizer=place_optimizer,
+            seed=self.seed, shapenet_obj_dir=shapenet_obj_dir,
+            eval_save_dir=eval_save_dir, demo_load_dir=demo_load_dir,
+            **evaluator_config)
+
+        return experiment
+
     def _create_model(self, model_config) -> torch.nn.Module:
         """
         Create torch model from given configs
@@ -4698,6 +4690,12 @@ class EvaluateNetworkSetup():
             query_pts = QueryPoints.generate_rack_arm(**query_pts_args)
         elif query_pts_type == 'SHELF':
             query_pts = QueryPoints.generate_shelf(**query_pts_args)
+        elif query_pts_type == 'NDF_GRIPPER':
+            query_pts = QueryPoints.generate_ndf_gripper(**query_pts_args)
+        elif query_pts_type == 'NDF_RACK':
+            query_pts = QueryPoints.generate_ndf_rack(**query_pts_args)
+        elif query_pts_type == 'NDF_SHELF':
+            query_pts = QueryPoints.generate_ndf_shelf(**query_pts_args)
 
         return query_pts
 

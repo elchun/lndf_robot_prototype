@@ -180,3 +180,45 @@ class QueryPoints():
         cylinder_pts = np.asarray(cylinder_pcd.vertices)
 
         return cylinder_pts
+
+    def generate_ndf_gripper(n_pts: int):
+        """
+        Get gripper used in original ndf paper (loaded from demo)
+
+        Args:
+            n_pts (int): Number of pts in pcd, will be capped at 500.
+
+        Returns:
+            np.ndarray: (n_pts, 3)
+        """
+        ref_fname = 'reference_query_points.npz'
+        ref_query_pts = np.load(ref_fname, allow_pickle=True)
+        return ref_query_pts['gripper'][:n_pts]
+
+    def generate_ndf_rack(n_pts: int):
+        """
+        Get gripper used in original ndf paper (loaded from demo)
+
+        Args:
+            n_pts (int): Number of pts in pcd, will be capped at 500.
+
+        Returns:
+            np.ndarray: (n_pts, 3)
+        """
+        ref_fname = 'reference_query_points.npz'
+        ref_query_pts = np.load(ref_fname, allow_pickle=True)
+        return ref_query_pts['rack']
+
+    def generate_ndf_shelf(n_pts: int):
+        """
+        Get gripper used in original ndf paper (loaded from demo)
+
+        Args:
+            n_pts (int): Number of pts in pcd, will be capped at 500.
+
+        Returns:
+            np.ndarray: (n_pts, 3)
+        """
+        ref_fname = 'reference_query_points.npz'
+        ref_query_pts = np.load(ref_fname, allow_pickle=True)
+        return ref_query_pts['shelf']

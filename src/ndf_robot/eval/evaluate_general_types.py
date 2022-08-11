@@ -12,6 +12,9 @@ QueryPointTypes = {
     'RECT',
     'ARM',
     'SHELF',
+    'NDF_GRIPPER',
+    'NDF_RACK',
+    'NDF_SHELF',
 }
 
 # GripperPointTypes = {
@@ -1064,5 +1067,6 @@ class ExperimentTypes(Enum):
     RACK_PLACE_GRASP = 3
     SHELF_PLACE_GRASP = 4
     RACK_PLACE_GRASP_IDEAL = 5
+    SHELF_PLACE_GRASP_IDEAL = 6
     # BOTTLE_SHELF_PLACE_GRASP = 5
     # BOTTLE_SHELF_PLACE_TELEPORT = 6
