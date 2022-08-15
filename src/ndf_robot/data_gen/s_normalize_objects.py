@@ -22,6 +22,10 @@ def apply_scale(input_fname: str, output_fname: str, ref_sum: float,
     print('res: ', sum(mesh.extents))
 
     res = trimesh.exchange.obj.export_obj(mesh)
+    if not osp.exists(output_fname):
+        dir_to_make = '/' + osp.join(*output_fname.split('/')[:-1])
+        os.makedirs(dir_to_make)
+
     with open(output_fname, 'w') as f:
         # print(output_fname)
         f.write(res)
@@ -34,9 +38,12 @@ def get_ref_extents_sum(fname: str) -> float:
 
 
 if __name__ == '__main__':
-    obj_class = 'bottle'
+    obj_class = 'bowl'
     shapenet_obj_dir = osp.join(path_util.get_ndf_obj_descriptions(),
-        obj_class + '_handle_centered_obj_normalized')
+        obj_class + '_centered_obj_normalized')
+    output_shapenet_obj_dir = osp.join(path_util.get_ndf_obj_descriptions(),
+        obj_class + '_centered_obj_normalized_v2')
+
     shapenet_id_list = [fn.split('_')[0] for fn in os.listdir(shapenet_obj_dir)]
 
     ref_shapenet_obj_dir = osp.join(path_util.get_ndf_obj_descriptions(),
@@ -55,6 +62,7 @@ if __name__ == '__main__':
     print('Average extents sum: ', average_extents_sum)
 
     target_extents_sum = average_extents_sum
+    # target_extents_sum = average_extents_sum
 
     # -- Apply scale -- #
     # target_extents_sum = 2.2
@@ -66,7 +74,7 @@ if __name__ == '__main__':
         # obj_final_fname = osp.join(shapenet_obj_dir, obj_shapenet_id,
         #     'models/model_normalized_scaled.obj')
 
-        obj_final_fname = osp.join(shapenet_obj_dir, obj_shapenet_id,
+        obj_final_fname = osp.join(output_shapenet_obj_dir, obj_shapenet_id,
             'models/model_normalized.obj')
 
         # apply_scale(obj_fname, obj_fname, 1.6)

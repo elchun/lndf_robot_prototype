@@ -256,8 +256,8 @@ class EvaluateNetwork():
         return pos, ori
 
     def _insert_object(self, obj_shapenet_id: str, obj_scale: float,
-        any_pose: bool, run_decomp_override: bool =False,
-        no_gravity: bool = False) -> tuple:
+        any_pose: bool, run_decomp_override: bool = False,
+        no_gravity: bool = False, spherical_place: bool = True) -> tuple:
         """
         Insert object described by {obj_shapenet_id} at calculated pose.
         Scales input mesh by amount defined in SimConstants.  This amount is
@@ -271,6 +271,12 @@ class EvaluateNetwork():
             rand_mesh_scale (bool): True to use random scale for object
             any_pose (bool): True to pose at random orientation and somewhat
                 random position.
+            run_decomp_override (bool): Force insertion to run vhacd decomposition
+                on all objects. (For debugging mostly)
+            no_gravity (bool): Prevent objects from falling when inserted.
+            spherical_place (bool): True to place anyrot object on exterior of
+                sphere, False otherwise. This can help with grasping the rim
+                of mugs with the arm.
 
         Returns:
             tuple: (obj simulation id, object constraint id,
@@ -300,7 +306,8 @@ class EvaluateNetwork():
 
         x_low, x_high = self.obj_sample_x_low_high
         y_low, y_high = self.obj_sample_y_low_high
-        r = SimConstants.OBJ_SAMPLE_R
+
+        r = SimConstants.OBJ_SAMPLE_R if spherical_place else 0
 
         if any_pose:
             pos, ori = self._compute_anyrot_pose(x_low, x_high, y_low, y_high, r)
@@ -3856,9 +3863,12 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
             'hanging/table/table_shelf.urdf')
 
         # # NEW
-        # self.scale_low = 0.35
-        # self.scale_high = 0.5
-        # self.scale_default = 0.45
+        # Tuned for bowl
+
+        # When using default scale, conv does better?
+        self.scale_low = 0.30
+        self.scale_high = 0.4
+        self.scale_default = 0.35
 
     def load_demos(self):
         """
@@ -3994,7 +4004,7 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
 
         # -- load object -- #
         obj_id, o_cid, pos, ori = self._insert_object(obj_shapenet_id,
-            obj_scale, any_pose)
+            obj_scale, any_pose, spherical_place=False)
 
         safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=True)
         p.changeDynamics(obj_id, -1, linearDamping=5, angularDamping=5)
@@ -4275,7 +4285,7 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
             self._take_image(img_fname)
 
             safeCollisionFilterPair(obj_id, self.table_id, -1, placement_link_id, enableCollision=True)
-            self._step_n_steps(240)
+            self._step_n_steps(480)
 
             img_fname = osp.join(self.eval_grasp_imgs_dir,
                 f'{str(iteration).zfill(3)}_05teleport_place_release.png')
