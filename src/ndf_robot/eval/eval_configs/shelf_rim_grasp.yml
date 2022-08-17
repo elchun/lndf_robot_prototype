@@ -14,15 +14,23 @@ setup_args:
   # exp_dir_suffix: EVAL_ndf_q_ori_shelf_anyrot_bowl_handle
   # exp_dir_suffix: EVAL_ndf_q_ori_shelf_anyrot_mug
 
+  # exp_dir_suffix: EVAL_ndf_q_ori_shelf_upright_bowl_large
+  # exp_dir_suffix: EVAL_conv_shelf_upright_bowl_large
+
+  # exp_dir_suffix: EVAL_ndf_q_ori_shelf_anyrot_bowl_large
+  # exp_dir_suffix: EVAL_conv_shelf_anyrot_bowl_large
+
   # exp_dir_suffix: EVAL_ndf_q_new_shelf_upright_bowl
   # exp_dir_suffix: EVAL_ndf_q_new_shelf_upright_bowl_handle
   # exp_dir_suffix: EVAL_ndf_q_new_shelf_upright_mug
+  # exp_dir_suffix: EVAL_ndf_q_new_shelf_upright_bowl_large
   # exp_dir_suffix: EVAL_ndf_q_new_shelf_anyrot_bowl
   # exp_dir_suffix: EVAL_ndf_q_new_shelf_anyrot_bowl_handle
   # exp_dir_suffix: EVAL_ndf_q_new_shelf_anyrot_mug
+  exp_dir_suffix: EVAL_ndf_q_new_shelf_anyrot_bowl_large
 
 
-  exp_dir_suffix: DEBUG_ndf_shelf_smaller_bowl
+  # exp_dir_suffix: DEBUG_shelf
 
 
   # demo_exp: 'mug/grasp_rim_hang_handle_gaussian_precise_w_shelf_converted'
@@ -38,13 +46,13 @@ setup_args:
 evaluator:
   pybullet_viz: False
   test_obj_class: bowlv2
-  # test_obj_class: bowl_handle
+  # test_obj_class: bowl_handlev2
   # test_obj_class: mug
 
   num_trials: 200
   include_avoid_obj: False
-  any_pose: False
-  # any_pose: True
+  # any_pose: False
+  any_pose: True
 
 # # -- Conv config -- #
 # model:
@@ -76,7 +84,7 @@ evaluator:
 #     use_tsne: False
 #     M_override: 20
 #     opt_fname_prefix: 'place_pose_optimized'
-#     query_pts_override: True
+    # # query_pts_override: True
 
 # rack_query_pts:
 #   type: ARM
@@ -174,19 +182,19 @@ place_optimizer:
 # With rect query points, z1 is actually pointing up when
 # used as a query point
 # y is along the gripper movement direction
-# gripper_query_pts:
-#   type: RECT
-#   args:
-#     n_pts: 1000
-#     x: 0.06
-#     y: 0.09
-#     z1: 0.06
-#     z2: 0.02
-
 gripper_query_pts:
-  type: NDF_GRIPPER
+  type: RECT
   args:
     n_pts: 1000
+    x: 0.06
+    y: 0.09
+    z1: 0.06
+    z2: 0.02
+
+# gripper_query_pts:
+#   type: NDF_GRIPPER
+#   args:
+#     n_pts: 1000
 
 # gripper_query_pts:
 #   type: RECT

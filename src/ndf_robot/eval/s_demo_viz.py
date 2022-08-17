@@ -29,7 +29,7 @@ def get_demo(demo_load_dir: str, demoio_fn: 'Callable[NpzFile, Demo]',
     demo_fnames = [osp.join(demo_load_dir, fn) for fn in
         raw_demo_fnames if demo_prefix in fn]
 
-    demo_fname = demo_fnames[0]
+    demo_fname = demo_fnames[demo_idx]
     data = np.load(demo_fname, allow_pickle=True)
     demo = demoio_fn(data)
 
@@ -62,22 +62,41 @@ if __name__ == '__main__':
 
     # plotly_save.multiplot([obj_pcd, obj_pre_place, rack_pcd], 'rack_and_object.html')
 
-    # -- Plot bottle to figure out offset -- #
+    # # -- Plot bottle to figure out offset -- #
+    # demo_load_dir = 'bottle/grasp_side_place_shelf'
+    # demoio_fn = DemoIO.process_grasp_data
+    # demo_prefix = 'grasp_demo'
+    # grasp_data, grasp_demo = get_demo(demo_load_dir, demoio_fn, demo_prefix, demo_idx=2)
 
-    demo_load_dir = 'bottle/grasp_side_place_shelf'
+    # # rack_pcd_raw = grasp_data['rack_pointcloud_gt']
+    # obj_pcd = util.apply_pose_numpy(grasp_demo.obj_pts, grasp_demo.obj_pose_world)
+    # gripper_pcd = util.apply_pose_numpy(grasp_demo.query_pts, grasp_demo.query_pose_world)
+
+    # # PREPLACE_OFFSET_TF = [0.012, -0.042, 0.06, 0, 0, 0, 1]
+    # # # PREPLACE_OFFSET_TF = [0, -0.084, 0.12, 0, 0, 0, 1]
+    # # # PREPLACE_OFFSET_TF = [0, -0.042, 0.08, 0, 0, 0, 1]
+    # # # PREPLACE_OFFSET_TF = [0, -0.084, 0.15, 0, 0, 0, 1]
+    # # preplace_offset_tf = util.list2pose_stamped(PREPLACE_OFFSET_TF)
+
+    # plotly_save.multiplot([obj_pcd, gripper_pcd], 'obj_and_gripper.html')
+
+
+    # -- Plot bottle to figure out offset -- #
+    demo_load_dir = 'mug/grasp_rim_hang_handle_gaussian_precise_w_shelf_converted'
     demoio_fn = DemoIO.process_grasp_data
     demo_prefix = 'grasp_demo'
-    grasp_data, grasp_demo = get_demo(demo_load_dir, demoio_fn, demo_prefix, demo_idx=2)
+    extents_list = []
+    for i in range(5):
+        grasp_data, grasp_demo = get_demo(demo_load_dir, demoio_fn, demo_prefix, demo_idx=i)
 
-    # rack_pcd_raw = grasp_data['rack_pointcloud_gt']
-    obj_pcd = util.apply_pose_numpy(grasp_demo.obj_pts, grasp_demo.obj_pose_world)
-    gripper_pcd = util.apply_pose_numpy(grasp_demo.query_pts, grasp_demo.query_pose_world)
+        pts = grasp_demo.obj_pts
+        max_extents = np.max(pts, axis=0)
+        min_extents = np.min(pts, axis=0)
 
-    # PREPLACE_OFFSET_TF = [0.012, -0.042, 0.06, 0, 0, 0, 1]
-    # # PREPLACE_OFFSET_TF = [0, -0.084, 0.12, 0, 0, 0, 1]
-    # # PREPLACE_OFFSET_TF = [0, -0.042, 0.08, 0, 0, 0, 1]
-    # # PREPLACE_OFFSET_TF = [0, -0.084, 0.15, 0, 0, 0, 1]
-    # preplace_offset_tf = util.list2pose_stamped(PREPLACE_OFFSET_TF)
+        extents = max_extents - min_extents
+        extents_list.append(extents)
 
-    plotly_save.multiplot([obj_pcd, gripper_pcd], 'obj_and_gripper.html')
+    print('Extents: ', np.mean(np.vstack(extents_list), axis=0))
+
+
 

@@ -42,6 +42,7 @@ class TrialResults(Enum):
     GRASP_SUCCESS = 11
     DEBUG_FAILURE = 12
     INTERSECTING_OBJ = 13
+    WRONG_ORI = 14
     # PLACE_JOINT_PLAN_FAILED = 13
 
 

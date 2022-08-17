@@ -38,16 +38,17 @@ def get_ref_extents_sum(fname: str) -> float:
 
 
 if __name__ == '__main__':
-    obj_class = 'bowl'
+    obj_class = 'bowl_handle'
+    ref_obj_class = 'mug'
     shapenet_obj_dir = osp.join(path_util.get_ndf_obj_descriptions(),
         obj_class + '_centered_obj_normalized')
     output_shapenet_obj_dir = osp.join(path_util.get_ndf_obj_descriptions(),
-        obj_class + '_centered_obj_normalized_v2')
+        obj_class + '_small_centered_obj_normalized')
 
     shapenet_id_list = [fn.split('_')[0] for fn in os.listdir(shapenet_obj_dir)]
 
     ref_shapenet_obj_dir = osp.join(path_util.get_ndf_obj_descriptions(),
-        obj_class + '_centered_obj_normalized')
+        ref_obj_class + '_centered_obj_normalized')
     ref_shapenet_id_list = [fn.split('_')[0] for fn in os.listdir(ref_shapenet_obj_dir)]
 
     # -- Get target scale if desired -- #

@@ -1,7 +1,8 @@
 import os, os.path as osp
+from re import X
 import numpy as np
 import trimesh
-from scipy.spatial import KDTree
+from scipy.spatial import KDTree, distance
 import time
 import pybullet as p
 import copy
@@ -122,6 +123,37 @@ def object_is_intersecting(obj1_id, obj2_id, obj1_link_index, obj2_link_index,
 
     print('Max normal force: ', max_normal_force)
     return max_normal_force > max_force_threshold
+
+def object_is_upright(obj_id, thresh: float = 0.1) -> bool:
+    """
+    True if object is roughly pointing upright.
+
+    Args:
+        obj_id (int): Pybullet object id of object to check
+        thresh (float, optional): Max allowable difference from upright.
+            Defaults to 0.1.
+
+    Returns:
+        bool: True if object is mostly pointing up.
+    """
+    ori = list(p.getBasePositionAndOrientation(obj_id)[1])
+    pos = [0, 0, 0]
+    list_pos = pos + ori
+    pose = util.list2pose_stamped(list_pos)
+    T = util.matrix_from_pose(pose)
+
+    # x_vec = T[0:3, 0]
+    y_vec = T[0:3, 1]
+    # z_vec = T[0:3, 2]
+
+    ground_truth_upright = np.array([0, 0, 1])
+    current_upright = np.array(y_vec)  # Objects are inserted into simulation with positive y vec
+
+    similarity = distance.cosine(ground_truth_upright, current_upright)
+    print('y vec: ', y_vec)
+    print('Similarity: ', similarity)
+    return similarity < thresh
+
 
 def get_ee_offset(ee_pose):
     """
