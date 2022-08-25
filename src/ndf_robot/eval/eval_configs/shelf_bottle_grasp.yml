@@ -10,7 +10,7 @@ setup_args:
   # exp_dir_suffix: EVAL_ndf_q_ori_shelf_anyrot_bottle_handle
 
 
-  exp_dir_suffix: DEBUG_shelf_smaller_bottle
+  exp_dir_suffix: DEBUG_shelf_bottle_anyrot_baseline
 
   demo_exp: 'bottle/grasp_side_place_shelf_with_collision'
   seed: 0
