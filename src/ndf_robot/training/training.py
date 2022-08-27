@@ -677,7 +677,6 @@ def train_conv_triplet(model, train_dataloader, epochs, lr, steps_til_summary, e
                 rot_negative_latent = model.extract_latent(rot_negative_input)
                 rot_negative_act_hat = model.forward_latent(rot_negative_latent, rot_negative_input['coords'])
 
-
                 model_output = {
                     'standard': standard_output,
                     'rot': rot_output,

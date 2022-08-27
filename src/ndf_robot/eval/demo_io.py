@@ -28,7 +28,8 @@ class DemoIO():
             obj_pts=demo_obj_pts,
             query_pts=data['gripper_pts_uniform'],
             obj_pose_world=data['obj_pose_world'],
-            query_pose_world=data['gripper_contact_pose'],
+            # query_pose_world=data['gripper_contact_pose'],
+            query_pose_world=data['ee_pose_world'],
             obj_shapenet_id=data['shapenet_id'].item())
 
         return demo

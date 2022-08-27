@@ -170,22 +170,26 @@ if __name__ == '__main__':
     #     'similar_occ_only': False,
     # }
 
-    # latent_margin = {
-    #     'occ_margin': 0,
-    #     'positive_loss_scale': 10 ** 3,
-    #     'negative_loss_scale': 1,
-    #     'positive_margin': 10 ** (-6),
-    #     'negative_margin': 0.001,
-    #     'similar_occ_only': False,
-    # }
+    latent_margin = {
+        'occ_margin': 0.10,
+        'positive_loss_scale': 10,
+        'negative_loss_scale': .5,
+        # 'positive_margin': 10 ** (-3),
+        'positive_margin': 10 ** (-6),
+        'negative_margin': 0.8,
+        'similar_occ_only': False,
+    }
+
+    l2_args = {
+        'positive_loss_scale': 10,
+        'negative_loss_scale': 1,
+        'num_negative_samples': 1000
+    }
 
 
 
-    # loss_fn_args = super_super_aggressive_similar
-    # loss_fn_args = similar_occ_only
     # loss_fn_args = latent_margin
-    loss_fn_args = no_similarity
-    # loss_fn_args = similar_occ_no_neg_latent_weight
+    loss_fn_args = l2_args
 
     # -- DATALOADER ARGS -- #
     sidelength = 128
@@ -246,7 +250,8 @@ if __name__ == '__main__':
     config['val_dataloader_args'] = val_dataloader_args
 
     # -- RUN TRAIN FUNCTION -- #
-    loss_fn = val_loss_fn = losses.triplet(**loss_fn_args)
+    # loss_fn = val_loss_fn = losses.triplet(**loss_fn_args)
+    loss_fn = val_loss_fn = losses.simple_l2(**loss_fn_args)
     # loss_fn = val_loss_fn = losses.rotated_triplet_log
     training.train_conv_triplet(model=model_parallel, train_dataloader=train_dataloader,
         val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr,

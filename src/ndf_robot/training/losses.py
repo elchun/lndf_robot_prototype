@@ -2,6 +2,8 @@ from sympy import Q
 import torch
 from torch.nn import functional as F
 
+from ndf_robot.model.conv_occupancy_net.encoder.pointnet import LocalPoolPointnet
+
 
 def occupancy(model_outputs, ground_truth, val=False):
     """
@@ -212,6 +214,94 @@ def triplet(occ_margin=0, positive_loss_scale=0.3, negative_loss_scale=0.3,
         print('occ loss: ', occ_loss)
         print('latent pos loss: ', latent_positive_loss)
         print('latent neg loss: ', latent_negative_loss)
+
+        return loss_dict
+
+    return loss_fn
+
+
+def simple_l2(positive_loss_scale: int = 1, negative_loss_scale: int = 1,
+    num_negative_samples: int=100):
+    def loss_fn(model_outputs, ground_truth, val=False, **kwargs):
+        """
+        L2 loss enforcing similarity between rotated activations and
+        difference between random coords
+
+        Args:
+            model_outputs (dict): Dictionary containing 'standard', 'rot',
+                'standard_act_hat', 'rot_act_hat'
+            ground_truth (dict): Dictionary containing 'occ'
+            occ_margin (float, optional): Lower value makes occupancy
+                prediction better
+
+        Returns:
+            dict: dict containing 'occ'
+        """
+
+        similar_occ_only = True
+
+        loss_dict = dict()
+        label = ground_truth['occ'].squeeze()
+        label = (label + 1) / 2.
+
+        standard_outputs = model_outputs['standard']
+        rot_outputs = model_outputs['rot']
+
+        standard_act_hat = model_outputs['standard_act_hat']
+        rot_act_hat = model_outputs['rot_act_hat']
+
+        rot_negative_act_hat = model_outputs['rot_negative_act_hat']
+
+        if similar_occ_only:
+            non_zero_label = label.unsqueeze(-1)
+            # print('nz_label: ', non_zero_label)
+            # print('Shape: ', non_zero_label.size())  # [5, 1500, 1]
+            # print('Sum:', non_zero_label.sum())
+            standard_act_hat *= non_zero_label
+            rot_act_hat *= non_zero_label
+            rot_negative_act_hat *= non_zero_label
+
+        # print('Standard shape: ', standard_act_hat.size())  # [6, 1500, 32]
+
+        # print('Flattened standard size: ', standard_act_hat.size())  # Was [6, 48000]
+        # print('Flattened rot size: ', rot_act_hat.size())  # Was [6, 48000]
+
+        # Calculate loss of occupancy
+        standard_loss_occ = -1 * (label * torch.log(standard_outputs['occ'] + 1e-5)
+            + (1 - label) * torch.log(1 - standard_outputs['occ'] + 1e-5)).mean()
+        rot_loss_occ = -1 * (label * torch.log(rot_outputs['occ'] + 1e-5)
+            + (1 - label) * torch.log(1 - rot_outputs['occ'] + 1e-5)).mean()
+
+        occ_loss = (standard_loss_occ + rot_loss_occ) / 2
+
+        # latent_positive_loss = F.mse_loss(standard_act_hat, rot_act_hat, reduction='mean')
+        latent_positive_loss = F.l1_loss(standard_act_hat, rot_act_hat, reduction='mean')
+
+        latent_negative_loss = F.l1_loss(rot_act_hat[:num_negative_samples, :],
+            rot_negative_act_hat[:num_negative_samples, :], reduction='mean')
+
+        # latent_positive_loss = F.cosine_similarity(standard_act_hat, rot_act_hat, dim=2)
+        # print('Loss size: ', latent_positive_loss.size())
+        # latent_positive_loss = latent_positive_loss.mean()
+
+        # latent_negative_loss = 1 - F.cosine_similarity(rot_act_hat[:num_negative_samples, :],
+        #     rot_negative_act_hat[:num_negative_samples, :], dim=2)
+        # latent_negative_loss = latent_negative_loss.mean()
+
+        # latent_negative_loss = F.mse_loss(rot_act_hat[:num_negative_samples, :],
+        #     rot_negative_act_hat[:num_negative_samples, :], reduction='mean')
+
+        overall_loss = occ_loss \
+            + positive_loss_scale * latent_positive_loss \
+            - negative_loss_scale * latent_negative_loss
+
+        loss_dict['occ'] = overall_loss
+
+
+        print('occ loss: ', occ_loss)
+        print('latent pos loss: ', latent_positive_loss)
+        print('latent neg loss: ', -latent_negative_loss)
+        print('overall loss: ', overall_loss)
 
         return loss_dict
 

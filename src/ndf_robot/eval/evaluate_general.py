@@ -377,6 +377,8 @@ class EvaluateNetworkSetup():
             query_pts = QueryPoints.generate_sphere(**query_pts_args)
         elif query_pts_type == 'RECT':
             query_pts = QueryPoints.generate_rect(**query_pts_args)
+        elif query_pts_type == 'CYLINDER':
+            query_pts = QueryPoints.generate_cylinder(**query_pts_args)
         elif query_pts_type == 'ARM':
             query_pts = QueryPoints.generate_rack_arm(**query_pts_args)
         elif query_pts_type == 'SHELF':

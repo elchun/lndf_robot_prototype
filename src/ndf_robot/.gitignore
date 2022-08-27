@@ -5,6 +5,7 @@ eval/*
 !eval/*.py
 !eval/*.sh
 !eval/old
+!eval/experiments
 !eval/eval_configs/
 data/
 assets/

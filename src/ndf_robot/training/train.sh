@@ -1,13 +1,14 @@
 # python train_vnn_occupancy_net.py --obj_class all --experiment_name  ndf_training_exp --num_epochs 100
 # CUDA_VISIBLE_DEVICES=3 python train_conv_occupancy_net.py --obj_class mug --experiment_name  conv_occ_hidden64_anyrot_mug --num_epochs 24 --iters_til_ckpt 1000 --steps_til_summary 100 --batch_size 8 --triplet_loss --checkpoint_path ndf_vnn/
 
-CUDA_VISIBLE_DEVICES=6 python train_conv_occupancy_net.py \
+CUDA_VISIBLE_DEVICES=7 python train_conv_occupancy_net.py \
     --obj_class all \
-    --experiment_name conv_occ_hidden128_anyrot_multicategory \
+    --experiment_name DEBUG_conv_occ_hidden128_anyrot_multicategory_latent_sim_occ\
     --num_epochs 12 \
     --iters_til_ckpt 1000 \
     --steps_til_summary 100 \
     --batch_size 6 \
     --triplet_loss \
-    # --checkpoint_path ndf_vnn/conv_occ_hidden64_anyrot_multicategory_0/checkpoints/model_epoch_0007_iter_331000.pth
+    --checkpoint_path ndf_vnn/conv_occ_hidden128_anyrot_multicategory_0/checkpoints/model_epoch_0008_iter_508000.pth
+    # --checkpoint_path ndf_vnn/conv_occ_hidden64_anyrot_multicategory_part2_0/checkpoints/model_final.pth 
 

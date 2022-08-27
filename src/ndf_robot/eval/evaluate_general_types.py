@@ -10,6 +10,7 @@ ModelTypes = {
 QueryPointTypes = {
     'SPHERE',
     'RECT',
+    'CYLINDER',
     'ARM',
     'SHELF',
     'NDF_GRIPPER',
