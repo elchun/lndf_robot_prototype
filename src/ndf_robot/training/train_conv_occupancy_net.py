@@ -180,16 +180,27 @@ if __name__ == '__main__':
         'similar_occ_only': False,
     }
 
-    l2_args = {
-        'positive_loss_scale': 10,
-        'negative_loss_scale': 1,
+    # loss_args = {
+    #     'positive_loss_scale': 100,
+    #     'negative_loss_scale': 10,
+    #     'num_negative_samples': 1000
+    # }
+
+    loss_args = {
+        'positive_loss_scale': 1000,
+        'negative_loss_scale': 1000,
+        'num_negative_samples': 100
+    }
+
+    cos_args = {
+        'positive_loss_scale': 0.1,
+        'negative_loss_scale': 0.1,
         'num_negative_samples': 1000
     }
 
-
-
     # loss_fn_args = latent_margin
-    loss_fn_args = l2_args
+    # loss_fn_args = loss_args
+    loss_fn_args = cos_args
 
     # -- DATALOADER ARGS -- #
     sidelength = 128

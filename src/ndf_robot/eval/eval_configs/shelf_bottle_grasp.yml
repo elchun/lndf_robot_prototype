@@ -13,7 +13,7 @@ setup_args:
   # exp_dir_suffix: DEBUG_ALL_OPT_shelf_bottle_upright_smol_q
   # exp_dir_suffix: DEBUG_shelf_bottle_anyrot_dim128_ori_shelf_tsne
   # exp_dir_suffix: DEBUG_ALL_OPT_shelf_bottle_anyrot_simocc
-  exp_dir_suffix: DEBUG_shelf_bottle_anyrot_simocc_high
+  exp_dir_suffix: DEBUG_shelf_bottle_anyrot_simocc
   # exp_dir_suffix: DEBUG_shelf_bottle_upright_dim128_ori_shelf
 
   # exp_dir_suffix: DEBUG_ndf
@@ -37,6 +37,7 @@ evaluator:
   any_pose: True
   # any_pose: False
 
+
 # -- Conv config -- #
 model:
   type: CONV_OCC
@@ -51,10 +52,12 @@ model:
   # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_0/checkpoints/model_epoch_0008_iter_508000.pth
 #
   # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_margin_4/checkpoints/model_epoch_0002_iter_117000.pth
-  checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_high_0/checkpoints/model_epoch_0001_iter_093000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_high_0/checkpoints/model_epoch_0001_iter_093000.pth
 
-  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_3/checkpoints/model_epoch_0000_iter_019000.pth
-
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_3/checkpoints/model_epoch_0001_iter_063000.pth
+  # checkpoint: ndf_vnn/DEBUG_conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_cos_7/checkpoints/model_epoch_0000_iter_013000.pth
+  # checkpoint: ndf_vnn/DEBUG_conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_20/checkpoints/model_epoch_0000_iter_017000.pth
+  checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_cos_ok_3/checkpoints/model_epoch_0000_iter_034000.pth
 
 
   args:
