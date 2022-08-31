@@ -193,14 +193,22 @@ if __name__ == '__main__':
     }
 
     cos_args = {
-        'positive_loss_scale': 0.1,
-        'negative_loss_scale': 0.1,
+        'positive_loss_scale': 0.5,
+        'negative_loss_scale': 2,
         'num_negative_samples': 1000
     }
 
+    cos_contrast_args = {
+        'positive_loss_scale': 0.5,
+        'negative_loss_scale': 0.5,
+        'diff_loss_sample_rate': 0.0625
+    }
+
+
     # loss_fn_args = latent_margin
     # loss_fn_args = loss_args
-    loss_fn_args = cos_args
+    # loss_fn_args = cos_args
+    loss_fn_args = cos_contrast_args
 
     # -- DATALOADER ARGS -- #
     sidelength = 128
@@ -210,7 +218,9 @@ if __name__ == '__main__':
         'depth_aug': opt.depth_aug,
         'multiview_aug': opt.multiview_aug,
         'obj_class': opt.obj_class,
-        'any_rot': True
+        'any_rot': True,
+        'neg_any_se3': True,
+        'trans_ratio': 1,
     }
 
     val_dataloader_args = {
@@ -219,7 +229,9 @@ if __name__ == '__main__':
         'depth_aug': opt.depth_aug,
         'multiview_aug': opt.multiview_aug,
         'obj_class': opt.obj_class,
-        'any_rot': True
+        'any_rot': True,
+        'neg_any_se3': True,
+        'trans_ratio': 1,
     }
 
     # -- CREATE DATALOADERS -- #
@@ -262,9 +274,18 @@ if __name__ == '__main__':
 
     # -- RUN TRAIN FUNCTION -- #
     # loss_fn = val_loss_fn = losses.triplet(**loss_fn_args)
-    loss_fn = val_loss_fn = losses.simple_l2(**loss_fn_args)
+    # loss_fn = val_loss_fn = losses.simple_loss(**loss_fn_args)
+    loss_fn = val_loss_fn = losses.cos_contrast(**loss_fn_args)
     # loss_fn = val_loss_fn = losses.rotated_triplet_log
-    training.train_conv_triplet(model=model_parallel, train_dataloader=train_dataloader,
+    # training.train_conv_triplet(model=model_parallel, train_dataloader=train_dataloader,
+    #     val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr,
+    #     steps_til_summary=opt.steps_til_summary,
+    #     epochs_til_checkpoint=opt.epochs_til_ckpt,
+    #     model_dir=root_path, loss_fn=loss_fn, iters_til_checkpoint=opt.iters_til_ckpt,
+    #     summary_fn=summary_fn, clip_grad=False, val_loss_fn=val_loss_fn, overwrite=True,
+    #     config_dict=config)
+
+    training.train_conv_cos(model=model_parallel, train_dataloader=train_dataloader,
         val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr,
         steps_til_summary=opt.steps_til_summary,
         epochs_til_checkpoint=opt.epochs_til_ckpt,

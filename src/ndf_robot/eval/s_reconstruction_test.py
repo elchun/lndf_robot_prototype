@@ -23,7 +23,7 @@ import ndf_robot.model.conv_occupancy_net.conv_occupancy_net as conv_occupancy_n
 
 def make_cam_frame_scene_dict():
     """
-    Generate a plotly frame scene dict for 
+    Generate a plotly frame scene dict for
     viewing reconstruction
     """
     cam_frame_scene_dict = {}
@@ -35,7 +35,7 @@ def make_cam_frame_scene_dict():
     }
 
     plotly_scene = {
-        'xaxis': 
+        'xaxis':
             {
                 'backgroundcolor': 'rgb(255, 255, 255)',
                 'gridcolor': 'white',
@@ -46,7 +46,7 @@ def make_cam_frame_scene_dict():
                 'showaxeslabels': False,
                 'visible': False,
                 'range': [-0.5, 0.5]},
-        'yaxis': 
+        'yaxis':
             {
                 'backgroundcolor': 'rgb(255, 255, 255)',
                 'gridcolor': 'white',
@@ -57,7 +57,7 @@ def make_cam_frame_scene_dict():
                 'showaxeslabels': False,
                 'visible': False,
                 'range': [-0.5, 0.5]},
-        'zaxis': 
+        'zaxis':
             {
                 'backgroundcolor': 'rgb(255, 255, 255)',
                 'gridcolor': 'white',
@@ -150,17 +150,17 @@ if __name__ == '__main__':
     # obj_model = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/daee5cf285b8d210eeb8d422649e5f2b/models/model_normalized.obj')
     # obj_model = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/e984fd7e97c2be347eaeab1f0c9120b7/models/model_normalized.obj')
     obj_model = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/f7d776fd68b126f23b67070c4a034f08/models/model_normalized.obj')
-    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_demo_mug_weights.pth')  
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_demo_mug_weights.pth')
 
     # CONV WEIGHTS
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_exp_archive/checkpoints/model_epoch_0010_iter_074720.pth')  # Looks sort of fine
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_exp_archive/checkpoints/model_epoch_0015_iter_112080.pth')  # Looks eh
-    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_exp_archive/checkpoints/model_epoch_0020_iter_149500.pth')  # Looks sort of fine <-- Lets go with 20 for now
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_exp_archive/checkpoints/model_epoch_0020_iter_149500.pth')  # Looks sort of fine <-- Lets go with 20 for now
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_exp_archive/checkpoints/model_epoch_0040_iter_298880.pth')  # Looks fine
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_exp_archive/checkpoints/model_epoch_0099_iter_747100.pth')  # Looks fine
 
     # VNN WEIGHTS
-    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/vnn_occ_exp/checkpoints/model_epoch_0003_iter_026700.pth')  
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/vnn_occ_exp/checkpoints/model_epoch_0003_iter_026700.pth')
 
 
 
@@ -227,7 +227,7 @@ if __name__ == '__main__':
     eval_pts = ref_bb.sample_volume(100000)
 
     shape_mi = {}
-    shape_mi['point_cloud'] = ref_pcd 
+    shape_mi['point_cloud'] = ref_pcd
     shape_mi['coords'] = torch.from_numpy(eval_pts)[None, :, :].float().to(device).detach()
     out = model(shape_mi)
 
@@ -250,7 +250,7 @@ if __name__ == '__main__':
     print(f'Saving visualization to: {viz_fn}')
     plot3d(
         [in_pts, shape_np],
-        ['blue', 'black'], 
+        ['blue', 'black'],
         viz_fn,
         scene_dict=cam_frame_scene_dict,
         z_plane=False,

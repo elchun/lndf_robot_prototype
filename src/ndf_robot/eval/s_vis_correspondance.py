@@ -49,10 +49,38 @@ def get_activations(pcd, query, model):
     return act
 
 
+def get_recon(pcd, query, model, thresh=0.2):
+
+    if torch.cuda.is_available():
+        dev = torch.device('cuda:0')
+    else:
+        dev = torch.device('cpu')
+
+    model_input = {}
+
+    query = torch.from_numpy(query).float().to(dev)
+    pcd = torch.from_numpy(pcd).float().to(dev)
+
+    model_input['coords'] = query[None, :, :]
+    model_input['point_cloud'] = pcd[None, :, :]
+
+    out = model(model_input)
+
+    in_inds = torch.where(out['occ'].squeeze() > thresh)[0].cpu().numpy()
+    out_inds = torch.where(out['occ'].squeeze() < thresh)[0].cpu().numpy()
+    all_occ = out['occ']
+
+    in_pts = query[in_inds].cpu().numpy()
+    out_pts = query[out_inds].cpu().numpy()
+    all_occ = out['occ'].squeeze().cpu().detach().numpy()
+    return in_pts, out_pts, all_occ
+
+
 if __name__ == '__main__':
 
-    # seed = 0
-    seed = 1
+    seed = 0
+    # seed = 7
+    # seed = 2
 
     np.random.seed(seed)
     torch.random.manual_seed(seed)
@@ -69,6 +97,7 @@ if __name__ == '__main__':
     # see the demo object descriptions folder for other object models you can try
     # obj_model = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/28f1e7bc572a633cb9946438ed40eeb9/models/model_normalized.obj')
     obj_model = osp.join(path_util.get_ndf_obj_descriptions(), 'bottle_centered_obj_normalized/f4851a2835228377e101b7546e3ee8a7/models/model_normalized.obj')
+    # obj_model = osp.join(path_util.get_ndf_obj_descriptions(), 'bottle_centered_obj_normalized/e593aa021f3fa324530647fc03dd20dc/models/model_normalized.obj')
 
     if use_conv:
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_high_0/checkpoints/model_epoch_0001_iter_093000.pth')
@@ -82,7 +111,23 @@ if __name__ == '__main__':
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_partial_neg_extreme_0/checkpoints/model_epoch_0000_iter_005000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/DEBUG_conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_cos_2/checkpoints/model_epoch_0000_iter_013000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_cos_ok_1/checkpoints/model_epoch_0000_iter_031000.pth')
-        model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_cos_ok_3/checkpoints/model_epoch_0000_iter_034000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_cos_ok_3/checkpoints/model_epoch_0000_iter_034000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_cos_r_dif_0/checkpoints/model_epoch_0000_iter_007000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_cos_r_dif_2/checkpoints/model_epoch_0000_iter_019000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_cos_r_dif_5/checkpoints/model_epoch_0000_iter_001000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_cos_r_dif_3/checkpoints/model_epoch_0001_iter_061000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_single_v2_2/checkpoints/model_epoch_0000_iter_052000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_single_v2_scratch_0/checkpoints/model_epoch_0000_iter_052000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_single_v2_max_dif_4/checkpoints/model_epoch_0000_iter_003000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_single_v2_strong_512_0/checkpoints/model_epoch_0000_iter_007000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_single_v2_r_diff_weak_512_1/checkpoints/model_epoch_0000_iter_001000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_single_v2_strong_512x200_1/checkpoints/model_epoch_0001_iter_100000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_0/checkpoints/model_epoch_0000_iter_007000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_1/checkpoints/model_epoch_0000_iter_004000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_2/checkpoints/model_epoch_0000_iter_002000.pth')
+        model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_5/checkpoints/model_epoch_0000_iter_001000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_DEBUG_0/checkpoints/model_epoch_0000_iter_004000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_DEBUG_1/checkpoints/model_epoch_0000_iter_001000.pth')
     else:
         model_path = osp.join(path_util.get_ndf_model_weights(), 'multi_category_weights.pth')
 
@@ -93,8 +138,9 @@ if __name__ == '__main__':
     mesh2 = trimesh.load(obj_model, process=False)
     mesh2.apply_scale(scale)
 
-    # extents = mesh1.extents
-    # sample_pts = trimesh.sample.volume_rectangular(extents, n_samples, transform=None)
+    extents = mesh1.extents
+    extents_offset = 0.02
+    recon_sample_pts = trimesh.sample.volume_rectangular((extents + 2 * extents_offset) - extents_offset, n_samples, transform=None)
     sample_pts = mesh1.sample(n_samples)
     upright_sample_pts = sample_pts[:, :]
     ref_pt = mesh1.sample(1)
@@ -111,11 +157,14 @@ if __name__ == '__main__':
     rot2[:3, :3] = R.random().as_matrix()
     mesh2.apply_transform(rot2)
     sample_pts = util.transform_pcd(sample_pts, rot2)
+    recon_sample_pts = util.transform_pcd(recon_sample_pts, rot2)
 
     pcd1 = mesh1.sample(5000)
     pcd2 = mesh2.sample(5000)  # point cloud representing different shape
 
-    multiplot([pcd1, pcd2, ref_pt, sample_pts], osp.join(path_util.get_ndf_eval(), 'debug_viz', 'debug_correspondance.html'))
+    ref_plot_pt = ref_pt.reshape(1, 3) + np.random.random((20, 3)) * 0.005
+
+    multiplot([pcd1, pcd2, ref_plot_pt, sample_pts], osp.join(path_util.get_ndf_eval(), 'debug_viz', 'debug_correspondance.html'))
 
     if use_conv:
         model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=128,
@@ -148,6 +197,18 @@ if __name__ == '__main__':
     # cor = cor.sum(axis=1)
 
     print(cor.shape)
+
+
+    # -- Get reconstruction -- #
+    in_pts, out_pts, all_occ = get_recon(pcd2, recon_sample_pts, model)
+    fname = osp.join(path_util.get_ndf_eval(), 'debug_viz', 'debug_recon.html')
+    multiplot([in_pts, out_pts], fname)
+    fig = px.scatter_3d(
+        x=recon_sample_pts[:, 0], y=recon_sample_pts[:, 1], z=recon_sample_pts[:, 2],
+        color=all_occ
+    )
+    fname = osp.join(path_util.get_ndf_eval(), 'debug_viz', 'debug_recon2.html')
+    fig.write_html(fname)
 
     plot_pts = sample_pts
     color = cor

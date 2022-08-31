@@ -414,14 +414,14 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
             self.robot.arm.eetool.close()
             self._step_n_steps(200)
 
-            grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
-                f'{str(iteration).zfill(3)}_02{i}grasp_close.png')
-            self._take_image(grasp_img_fname)
-
             safeRemoveConstraint(o_cid)
             safeCollisionFilterPair(obj_id, self.table_id, -1, -1,
                 enableCollision=False)
             self._step_n_steps(200)
+
+            grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
+                f'{str(iteration).zfill(3)}_02{i}grasp_close.png')
+            self._take_image(grasp_img_fname)
 
             for jnt in plan3:
                 self.robot.arm.set_jpos(jnt, wait=False)
@@ -593,6 +593,8 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
             log_info(f'Trial result: {trial_result}')
             log_info(f'Shapenet id: {obj_shapenet_id}')
             log_info(f'Grasp Success: {grasp_success} | Place Success: {place_success}')
+            log_info(f'Grasp Success Rate: {num_grasp_success / (it + 1): 0.3f}')
+            log_info(f'Place Success Rate: {num_place_success / (it + 1): 0.3f}')
             log_str = f'Successes: {num_success} | Trials {it + 1} | ' \
                 + f'Success Rate: {num_success / (it + 1):0.3f}'
             log_info(log_str)

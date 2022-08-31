@@ -12,7 +12,20 @@ from ndf_robot.utils import path_util, geometry, torch3d_util, torch_util
 
 class JointOccTrainDataset(Dataset):
     def __init__(self, sidelength, depth_aug=False, multiview_aug=False,
-        phase='train', obj_class='all', any_rot=False):
+        phase='train', obj_class='all', any_rot=False, neg_any_se3=False,
+        trans_ratio=0.5):
+        """
+        Dataloader for object reconstruction
+
+        Args:
+            sidelength (_type_): _description_
+            depth_aug (bool, optional): _description_. Defaults to False.
+            multiview_aug (bool, optional): _description_. Defaults to False.
+            phase (str, optional): _description_. Defaults to 'train'.
+            obj_class (str, optional): _description_. Defaults to 'all'.
+            any_rot (bool, optional): _description_. Defaults to False.
+            neg_any_se3 (bool, optional): True to randomly translate objects too. Defaults to False.
+        """
 
         # Path setup (change to folder where your training data is kept)
         #   these are the names of the full dataset folders
@@ -65,6 +78,8 @@ class JointOccTrainDataset(Dataset):
         self.depth_aug = depth_aug
         self.multiview_aug = multiview_aug
         self.any_rot = any_rot
+        self.neg_any_se3 = neg_any_se3
+        self.trans_ratio = trans_ratio
 
         block = 128
         bs = 1 / block
@@ -191,7 +206,13 @@ class JointOccTrainDataset(Dataset):
 
             rix = np.random.permutation(coord.shape[0])
 
-            # print(coord.size())
+            print('Voxel bool: ', voxel_bool.shape)
+            print('Coord shape: ', coord.shape)
+            print('label_val: ', voxel_bool * 1)
+            l_debug = voxel_bool * 1
+            print('min: ', l_debug.min())
+            print('max: ', l_debug.max())
+            print('l sum: ', (l_debug).sum())
 
             coord = coord[rix[:1500]]
             label = voxel_bool[rix[:1500]]
@@ -259,7 +280,13 @@ class JointOccTrainDataset(Dataset):
             labels = label
 
             # Generate a new random rotation and create object
-            random_transform = torch.tensor(JointOccTrainDataset.__random_rot_transform())
+            if self.neg_any_se3:
+                max_range = point_cloud.max(dim=0)[0] - point_cloud.min(dim=0)[0]
+                max_range = max_range.mean().numpy()
+                max_trans = max_range * self.trans_ratio
+                random_transform = torch.tensor(JointOccTrainDataset.__random_se3_transform(max_trans))
+            else:
+                random_transform = torch.tensor(JointOccTrainDataset.__random_rot_transform())
 
             point_cloud_transformed = torch_util.transform_pcd_torch(point_cloud,
                 random_transform)
@@ -269,8 +296,8 @@ class JointOccTrainDataset(Dataset):
 
             # Generate shuffled coordinates.  Simulates random sampling in
             # bounding box for negative triplet loss example
-            shuffler = torch.randperm(coords_transformed.shape[0])
-            coords_transformed_shuffled = coords_transformed[shuffler]
+            # shuffler = torch.randperm(coords_transformed.shape[0])
+            # coords_transformed_shuffled = coords_transformed[shuffler]
 
             # Generate random samples within bounding box of rotated
             min_coords = torch.min(coords_transformed, dim=0)[0].numpy()
@@ -361,5 +388,32 @@ class JointOccTrainDataset(Dataset):
 
         transform = np.eye(4)
         transform[:3, :3] = rand_rot
+
+        return transform
+
+    @staticmethod
+    def __random_se3_transform(max_translate=0.05):
+        """
+        Generate a random SE(3) transform
+
+        Args:
+            translate (bool, optional): True to include translation in transform.
+                Defaults to False.
+
+        Raises:
+            NotImplementedError: translation not done yet
+
+        Returns:
+            Transform with random rotation
+        """
+        rand_quat = JointOccTrainDataset.__random_quaternions(1)
+        rand_trans = np.random.random((3,)) * max_translate
+
+        rand_rot = Rotation.from_quat(rand_quat)
+        rand_rot = rand_rot.as_matrix()
+
+        transform = np.eye(4)
+        transform[:3, :3] = rand_rot
+        transform[:3, 3] = rand_trans
 
         return transform

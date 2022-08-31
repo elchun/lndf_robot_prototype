@@ -1,4 +1,5 @@
-from sympy import Q
+# from sympy import Q
+import math
 import torch
 from torch.nn import functional as F
 
@@ -220,8 +221,8 @@ def triplet(occ_margin=0, positive_loss_scale=0.3, negative_loss_scale=0.3,
     return loss_fn
 
 
-def simple_l2(positive_loss_scale: int = 1, negative_loss_scale: int = 1,
-    num_negative_samples: int=100):
+def simple_loss(positive_loss_scale: int = 1, negative_loss_scale: int = 1,
+    num_negative_samples: int=100, type: str = 'cos_single'):
     def loss_fn(model_outputs, ground_truth, val=False, **kwargs):
         """
         L2 loss enforcing similarity between rotated activations and
@@ -282,47 +283,279 @@ def simple_l2(positive_loss_scale: int = 1, negative_loss_scale: int = 1,
         occ_loss = (standard_loss_occ + rot_loss_occ) / 2
 
         #-- MSE loss -- #
-        # latent_positive_loss = F.mse_loss(standard_act_hat, rot_act_hat, reduction='mean')
+        if type == 'mse':
+            latent_positive_loss = F.mse_loss(standard_act_hat, rot_act_hat, reduction='mean')
 
-        # latent_negative_loss = F.mse_loss(rot_act_hat[:num_negative_samples, :],
-        #     rot_negative_act_hat[:num_negative_samples, :], reduction='mean')
+            latent_negative_loss = F.mse_loss(rot_act_hat[:num_negative_samples, :],
+                rot_negative_act_hat[:num_negative_samples, :], reduction='mean')
+
+            # -- Overall loss -- #
+            overall_loss = occ_loss \
+                + positive_loss_scale * latent_positive_loss \
+                + negative_loss_scale * latent_negative_loss
 
         # # -- l1 loss -- #
-        # latent_positive_loss = F.l1_loss(standard_act_hat, rot_act_hat, reduction='mean')
+        elif type == 'l1':
+            latent_positive_loss = F.l1_loss(standard_act_hat, rot_act_hat, reduction='mean')
 
-        # # latent_negative_loss = F.l1_loss(rot_act_hat[:num_negative_samples, :],
-        # #     rot_negative_act_hat[:num_negative_samples, :], reduction='mean')
+            # latent_negative_loss = F.l1_loss(rot_act_hat[:num_negative_samples, :],
+            #     rot_negative_act_hat[:num_negative_samples, :], reduction='mean')
 
-        # latent_negative_loss = F.l1_loss(rot_act_hat[:num_negative_samples, :],
-        #     rot_negative_act_hat[:num_negative_samples, :], reduction='none')
-        # latent_negative_loss = latent_negative_loss.sort(dim=0)[0]
-        # latent_negative_loss = -latent_negative_loss[:50, :].mean()
+            latent_negative_loss = F.l1_loss(rot_act_hat[:num_negative_samples, :],
+                rot_negative_act_hat[:num_negative_samples, :], reduction='none')
+            latent_negative_loss = latent_negative_loss.sort(dim=0)[0]
+            latent_negative_loss = -latent_negative_loss[:50, :].mean()
+
+            # -- Overall loss -- #
+            overall_loss = occ_loss \
+                + positive_loss_scale * latent_positive_loss \
+                + negative_loss_scale * latent_negative_loss
 
         # -- Cosine loss -- #
-        latent_positive_loss = F.cosine_similarity(standard_act_hat, rot_act_hat, dim=2)
+        elif type == 'cos':
+            latent_positive_loss = F.cosine_similarity(standard_act_hat, rot_act_hat, dim=2)
 
-        # latent_negative_loss = F.cosine_similarity(rot_act_hat[:num_negative_samples, :],
-        #     rot_negative_act_hat[:num_negative_samples, :], dim=2)
+            # latent_negative_loss = F.cosine_similarity(rot_act_hat[:num_negative_samples, :],
+            #     rot_negative_act_hat[:num_negative_samples, :], dim=2)
 
-        r_idx1 = torch.randperm(standard_act_hat.shape[1])
-        r_idx2 = torch.randperm(standard_act_hat.shape[1])
+            r_idx1 = torch.randperm(standard_act_hat.shape[1])
+            r_idx2 = torch.randperm(standard_act_hat.shape[1])
 
-        # latent_negative_loss = F.cosine_similarity(rot_act_hat[:, :num_negative_samples, :],
-        #     rot_negative_act_hat[:, :num_negative_samples, :], dim=2)
+            # latent_negative_loss = F.cosine_similarity(rot_act_hat[:, :num_negative_samples, :],
+            #     rot_negative_act_hat[:, :num_negative_samples, :], dim=2)
 
-        latent_negative_loss = F.cosine_similarity(rot_act_hat[:, r_idx1, :],
-            rot_act_hat[:, r_idx2, :], dim=2)
+            latent_negative_loss = F.cosine_similarity(rot_act_hat[:, r_idx1, :],
+               rot_act_hat[:, r_idx2, :], dim=2)
 
-        # print(latent_negative_loss.sum(dim=1))
-        # print(rot_act_hat[:, r_idx2, :].shape)
+            # print(latent_negative_loss.sum(dim=1))
+            # print(rot_act_hat[:, r_idx2, :].shape)
 
-        latent_positive_loss = 1 - latent_positive_loss[latent_positive_loss != 0].mean()
-        latent_negative_loss = latent_negative_loss[latent_negative_loss != 0].mean()
+            latent_positive_loss = 1 - latent_positive_loss[latent_positive_loss != 0].mean()
+            latent_negative_loss = latent_negative_loss[latent_negative_loss != 0].mean()
 
-        # -- Overall loss -- #
+            # -- Overall loss -- #
+            overall_loss = occ_loss \
+                + positive_loss_scale * latent_positive_loss \
+                + negative_loss_scale * latent_negative_loss
+
+        # -- Cosine loss -- #
+        elif type == 'cos_rdif':
+            # Correlation
+            latent_positive_loss = F.cosine_similarity(standard_act_hat, rot_act_hat, dim=2)
+
+            # Break symmetry
+            latent_negative_loss = F.cosine_similarity(rot_act_hat,
+                rot_negative_act_hat, dim=2)
+
+            # Spread out field
+            r_idx1 = torch.randperm(standard_act_hat.shape[1])
+            r_idx2 = torch.randperm(standard_act_hat.shape[1])
+
+            latent_spread_loss = F.cosine_similarity(rot_act_hat[:, r_idx1, :],
+               rot_act_hat[:, r_idx2, :], dim=2)
+
+            latent_positive_loss = 1 - latent_positive_loss[latent_positive_loss != 0].mean()
+            latent_negative_loss = latent_negative_loss[latent_negative_loss != 0].mean()
+            latent_spread_loss = latent_spread_loss[latent_spread_loss != 0].mean()
+
+            # -- Overall loss -- #
+            overall_loss = occ_loss \
+                + positive_loss_scale * latent_positive_loss \
+                + negative_loss_scale * latent_negative_loss \
+                + 0.1 * negative_loss_scale * latent_spread_loss
+
+        elif type == 'cos_single':
+            non_zero_label = torch.tensor(label).int()
+
+            dev = non_zero_label.device
+
+            # r_idx = torch.randperm(non_zero_idx.shape[0])
+            # non_zero_idx = torch.nonzero(non_zero_label)
+            # non_zero_idx = non_zero_idx[r_idx]
+
+            non_zero_idx = torch.arange(0, label.shape[1])[None, :].repeat(6, 1).to(dev)
+            non_zero_idx = non_zero_label * non_zero_idx
+            non_zero_idx = non_zero_idx.sort(dim=1, descending=True)[0]
+
+            n_sim_samples = 1
+            n_diff_samples = 512
+            n_diff_loss_samples = 512
+            # n_diff_loss_samples = 32
+            n_diff_repeats = 512  # Should be n_diff_samples / n_sim_samples
+
+            sim_idxs = non_zero_idx[:, :n_sim_samples][:, :, None]
+            sim_idxs = sim_idxs.repeat(1, 1, standard_act_hat.shape[-1])
+
+            diff_idxs = non_zero_idx[:, n_sim_samples:n_diff_samples + n_sim_samples][:, :, None]
+            diff_idxs = diff_idxs.repeat(1, 1, standard_act_hat.shape[-1])
+
+            # print(diff_idxs)
+            # print(diff_idxs.shape)
+
+            # Correlation
+            latent_positive_loss = F.cosine_similarity(standard_act_hat.gather(1, sim_idxs),
+                rot_act_hat.gather(1, sim_idxs), dim=2)
+
+            # Difference
+            latent_negative_loss = F.cosine_similarity(rot_act_hat.gather(1, sim_idxs).repeat(1, n_diff_repeats, 1),
+               rot_act_hat.gather(1, diff_idxs), dim=2)
+
+            latent_positive_loss = 1 - latent_positive_loss.mean()
+            latent_negative_loss = latent_negative_loss.sort(dim=1, descending=True)[0]
+            latent_negative_loss = latent_negative_loss[:n_diff_loss_samples].mean()
+
+            overall_loss = occ_loss \
+                + positive_loss_scale * latent_positive_loss \
+                + negative_loss_scale * latent_negative_loss \
+
+            # # sim_idx = non_zero_idx[
+            # # diff
+
+
+            # n_samples = 100  # Oversample to start since many samples may be invalid
+
+            # n_sim_samples = 1
+            # n_diff_samples = 10
+
+            # sim_idxs = torch.randint(0, standard_act_hat.shape[1], (n_samples,))
+
+            # # Correlation
+            # latent_positive_loss = F.cosine_similarity(standard_act_hat[:, sim_idxs, :], rot_act_hat[:, sim_idxs, :], dim=2)
+
+            # # # Break symmetry
+            # # latent_negative_loss = F.cosine_similarity(rot_act_hat[],
+            # #     rot_negative_act_hat, dim=2)
+
+            # # Spread out field
+            # r_idx = torch.randperm(standard_act_hat.shape[1])
+            # # r_idx2 = torch.randperm(standard_act_hat.shape[1])
+
+            # latent_negative_loss = F.cosine_similarity(rot_act_hat[:, sim_idxs, :],
+            #    rot_act_hat[:, r_idx[:n_samples], :], dim=2)
+
+            # latent_positive_loss = 1 - latent_positive_loss[latent_positive_loss != 0][:n_sim_samples].mean()
+            # latent_negative_loss = latent_negative_loss[latent_negative_loss != 0][:n_diff_samples].mean()
+
+            # # latent_spread_loss = latent_spread_loss[latent_spread_loss != 0].mean()
+
+            # # -- Overall loss -- #
+            # overall_loss = occ_loss \
+            #     + positive_loss_scale * latent_positive_loss \
+            #     + negative_loss_scale * latent_negative_loss \
+
+        loss_dict['occ'] = overall_loss
+
+        print('occ loss: ', occ_loss)
+        print('latent pos loss: ', latent_positive_loss)
+        print('latent neg loss: ', latent_negative_loss)
+        # if latent_spread_loss:
+        #     print('latent spread loss: ', latent_spread_loss)
+        print('overall loss: ', overall_loss)
+
+        return loss_dict
+
+    return loss_fn
+
+
+def cos_contrast(positive_loss_scale: int = 1, negative_loss_scale: int = 1,
+    diff_loss_sample_rate: int = 0.0625):
+    def loss_fn(model_outputs, ground_truth, val=False, **kwargs):
+        """
+        L2 loss enforcing similarity between rotated activations and
+        difference between random coords
+
+        Args:
+            model_outputs (dict): Dictionary containing 'standard', 'rot',
+                'standard_act_hat', 'rot_act_hat'
+            ground_truth (dict): Dictionary containing 'occ'
+            occ_margin (float, optional): Lower value makes occupancy
+                prediction better
+
+        Returns:
+            dict: dict containing 'occ'
+        """
+
+        similar_occ_only = True
+
+        loss_dict = dict()
+        label = ground_truth['occ'].squeeze()
+        label = (label + 1) / 2.
+
+        standard_outputs = model_outputs['standard']
+        rot_outputs = model_outputs['rot']
+
+        standard_act_hat = model_outputs['standard_act_hat']
+        rot_act_hat = model_outputs['rot_act_hat']
+
+        rot_negative_act_hat = model_outputs['rot_negative_act_hat']
+
+        if similar_occ_only:
+            # Create bool tensor to mask unoccupied stuff
+            non_zero_label = torch.tensor(label.unsqueeze(-1)).bool()
+
+            standard_act_hat *= non_zero_label
+            rot_act_hat *= non_zero_label
+            rot_negative_act_hat *= non_zero_label
+
+        # print('Standard shape: ', standard_act_hat.size())  # [6, 1500, 32]
+
+        # print('Flattened standard size: ', standard_act_hat.size())  # Was [6, 48000]
+        # print('Flattened rot size: ', rot_act_hat.size())  # Was [6, 48000]
+
+        # Calculate loss of occupancy
+        standard_loss_occ = -1 * (label * torch.log(standard_outputs['occ'] + 1e-5)
+            + (1 - label) * torch.log(1 - standard_outputs['occ'] + 1e-5)).mean()
+        rot_loss_occ = -1 * (label * torch.log(rot_outputs['occ'] + 1e-5)
+            + (1 - label) * torch.log(1 - rot_outputs['occ'] + 1e-5)).mean()
+
+        occ_loss = (standard_loss_occ + rot_loss_occ) / 2
+
+        # -- Get all points with non-zero ground truth occupancy -- #
+        non_zero_label = torch.tensor(label).int()
+
+        dev = non_zero_label.device
+
+        non_zero_idx = torch.arange(0, label.shape[1])[None, :].repeat(6, 1).to(dev)
+        non_zero_idx = non_zero_label * non_zero_idx
+        non_zero_idx = non_zero_idx.sort(dim=1, descending=True)[0]
+
+        n_sim_samples = 1
+        n_diff_samples = 256
+        n_diff_loss_samples = math.floor(n_diff_samples * diff_loss_sample_rate)
+        # n_diff_loss_samples = 32  # Set in header
+        n_diff_repeats = 256  # Should be n_diff_samples / n_sim_samples
+
+        print('n_sum: ', non_zero_label.sum(dim=1))
+
+        # -- Select indicies to use as similar and different samples -- $
+        # Shuffle good indices
+        valid_idxs = non_zero_idx[:, :n_sim_samples + n_diff_samples]
+        r_perm = torch.randperm(valid_idxs.shape[-1])
+        valid_idxs = non_zero_idx[:, r_perm]
+
+        sim_idxs = valid_idxs[:, :n_sim_samples][:, :, None]
+        sim_idxs = sim_idxs.repeat(1, 1, standard_act_hat.shape[-1])
+
+        diff_idxs = valid_idxs[:, n_sim_samples:n_diff_samples + n_sim_samples][:, :, None]
+        diff_idxs = diff_idxs.repeat(1, 1, standard_act_hat.shape[-1])
+
+        # Correlation
+        latent_positive_loss = F.cosine_similarity(standard_act_hat.gather(1, sim_idxs),
+            rot_act_hat.gather(1, sim_idxs), dim=2)
+
+        # Difference
+        # sim_tensor = rot_act_hat.gather(1, sim_idxs).repeat(1, n_diff_repeats, 1)
+        sim_tensor = standard_act_hat.gather(1, sim_idxs).repeat(1, n_diff_repeats, 1)
+        latent_negative_loss = F.cosine_similarity(sim_tensor,
+            rot_act_hat.gather(1, diff_idxs), dim=2)
+
+        latent_positive_loss = 1 - latent_positive_loss.mean()
+        latent_negative_loss = latent_negative_loss.sort(dim=1, descending=True)[0]
+        latent_negative_loss = latent_negative_loss[:n_diff_loss_samples].mean()
+
         overall_loss = occ_loss \
             + positive_loss_scale * latent_positive_loss \
-            + negative_loss_scale * latent_negative_loss
+            + negative_loss_scale * latent_negative_loss \
 
         loss_dict['occ'] = overall_loss
 

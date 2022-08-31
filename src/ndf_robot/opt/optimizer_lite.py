@@ -45,7 +45,7 @@ class OccNetOptimizer:
                  rand_translate=False, viz_path='visualization', use_tsne=False,
                  M_override: 'bool | int' = None, query_pts_override=True,
                  opt_fname_prefix: str = 'ee_pose_optimized',
-                 save_all_opt: bool = False):
+                 save_all_opt: bool = False, cos_loss: bool = False):
 
         self.n_obj_points = 2000
         self.n_query_points = 1500
@@ -67,7 +67,14 @@ class OccNetOptimizer:
         self.demos: list[Demo] = []
         self.target_act_hat = None
 
-        self.loss_fn = torch.nn.L1Loss()
+        self.cos_loss = cos_loss
+        if cos_loss:
+            def loss_fn(output, target):
+                # print(output.shape)
+                return -F.cosine_similarity(output, target, dim=1).mean()
+            self.loss_fn = loss_fn
+        else:
+            self.loss_fn = torch.nn.L1Loss()
         if torch.cuda.is_available():
             self.dev = torch.device('cuda:0')
         else:
