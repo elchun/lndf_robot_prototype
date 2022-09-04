@@ -1,5 +1,6 @@
 import os, os.path as osp
 from re import X
+from sys import path_hooks
 import numpy as np
 import trimesh
 from scipy.spatial import KDTree, distance
@@ -7,7 +8,8 @@ import time
 import pybullet as p
 import copy
 
-from ndf_robot.utils import util, trimesh_util
+from ndf_robot.utils import path_util, util, trimesh_util
+from ndf_robot.utils.plotly_save import multiplot
 
 # some helpers
 # def soft_grasp_close(robot, joint_id2, force=100):
@@ -16,7 +18,10 @@ def soft_grasp_close(robot, joint_id2, force=40):
 
     # Slower velocity may help with collision detection
     # p.setJointMotorControl2(robot.arm.robot_id, joint_id2, p.VELOCITY_CONTROL, targetVelocity=-0.5, force=force)
-    p.setJointMotorControl2(robot.arm.robot_id, joint_id2, p.VELOCITY_CONTROL, targetVelocity=-0.1, force=force)
+    p.setJointMotorControl2(robot.arm.robot_id, joint_id2, p.VELOCITY_CONTROL, targetVelocity=-0.2, force=force)
+
+    # Torque control
+    # p.setJointMotorControl2(robot.arm.robot_id, joint_id2, p.TORQUE_CONTROL, targetVelocity=-0.1, force=-force)
     # NEW
     # p.setJointMotorControl2(robot.arm.robot_id, joint_id2 + 1, p.VELOCITY_CONTROL, targetVelocity=-1, force=force)
     # p.setJointMotorControl2(robot.arm.robot_id, joint_id2, p.VELOCITY_CONTROL, targetVelocity=-1, force=100)
@@ -124,6 +129,38 @@ def object_is_intersecting(obj1_id, obj2_id, obj1_link_index, obj2_link_index,
     print('Max normal force: ', max_normal_force)
     return max_normal_force > max_force_threshold
 
+def object_is_still_grasped_force(robot, obj_id, right_pad_id, left_pad_id, thresh):
+    """
+    Detects collision with object, or grasp success...
+
+    Args:
+        robot (_type_): _description_
+        obj_id (_type_): _description_
+        right_pad_id (_type_): _description_
+        left_pad_id (_type_): _description_
+        thresh (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    # for i in range(p.getNumJoints(robot.arm.robot_id)):
+    #     contact_points = p.getContactPoints(bodyA=obj_id, bodyB=robot.arm.robot_id,
+    #         linkIndexA=-1, linkIndexB=i)
+    #     max_normal_force = max([abs(point[9]) for point in contact_points] + [0])
+    #     if max_normal_force > thresh:
+    #         return True
+    # return False
+
+    right_contact_points = p.getContactPoints(bodyA=obj_id, bodyB=robot.arm.robot_id,
+        linkIndexA=-1, linkIndexB=right_pad_id)
+    left_contact_points = p.getContactPoints(bodyA=obj_id, bodyB=robot.arm.robot_id,
+        linkIndexA=-1, linkIndexB=left_pad_id)
+
+    right_max_normal_force = max([abs(point[9]) for point in right_contact_points] + [0])
+    left_max_normal_force = max([abs(point[9]) for point in left_contact_points] + [0])
+
+    return right_max_normal_force > thresh and left_max_normal_force > thresh
+
 def object_is_upright(obj_id, thresh: float = 0.1) -> bool:
     """
     True if object is roughly pointing upright.
@@ -153,6 +190,32 @@ def object_is_upright(obj_id, thresh: float = 0.1) -> bool:
     print('y vec: ', y_vec)
     print('Similarity: ', similarity)
     return similarity < thresh
+
+
+def get_ee_btw_finger_tf(ee_pose):
+    """
+    Gets the updated world frame normal direction of the palms
+    """
+    dist = -0.0
+    normal_x = util.list2pose_stamped([dist, 0, 0, 0, 0, 0, 1])
+    normal_y = util.list2pose_stamped([0, dist, 0, 0, 0, 0, 1])
+    normal_z = util.list2pose_stamped([0, 0, dist, 0, 0, 0, 1])
+
+    normal_x = util.transform_pose(normal_x, util.list2pose_stamped(ee_pose))
+    normal_y = util.transform_pose(normal_y, util.list2pose_stamped(ee_pose))
+    normal_z = util.transform_pose(normal_z, util.list2pose_stamped(ee_pose))
+
+    # dx_vec = util.pose_stamped2np(normal_x)[:3] - np.asarray(ee_pose)[:3]
+    # dy_vec = util.pose_stamped2np(normal_y)[:3] - np.asarray(ee_pose)[:3]
+    # dz_vec = util.pose_stamped2np(normal_z)[:3] - np.asarray(ee_pose)[:3]
+    dx_vec = np.asarray(ee_pose)[:3] - util.pose_stamped2np(normal_x)[:3]
+    dy_vec = np.asarray(ee_pose)[:3] - util.pose_stamped2np(normal_y)[:3]
+    dz_vec = np.asarray(ee_pose)[:3] - util.pose_stamped2np(normal_z)[:3]
+
+    # return dx_vec.tolist() + [0, 0, 0, 1]
+    # return dx_vec.tolist() + [0, 0, 0, 1]
+    return dz_vec.tolist() + [0, 0, 0, 1]
+
 
 
 def get_ee_offset(ee_pose):
@@ -458,6 +521,9 @@ def post_process_grasp_point(pre_grasp_ee_pose, target_obj_pcd, thin_feature=Tru
         detected_pt = copy.deepcopy(grasp_pt)
         grasp_pt = (antipodal_close_pt + grasp_pt) / 2.0
 
+    plot_path = osp.join(path_util.get_ndf_eval(), 'debug_viz', 'post_process.html')
+    multiplot([target_obj_voxel_down, grasp_close_pts, pts_within_ball], plot_path)
+
     if grasp_viz:
     # if True:
         # scene = trimesh_util.trimesh_show(
@@ -504,4 +570,5 @@ def post_process_grasp_point(pre_grasp_ee_pose, target_obj_pcd, thin_feature=Tru
 
         scene.add_geometry([grasp_sph, new_grasp_sph])
         scene.show()
+
     return new_grasp_pt

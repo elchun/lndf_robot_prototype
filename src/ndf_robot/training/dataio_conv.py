@@ -206,16 +206,37 @@ class JointOccTrainDataset(Dataset):
 
             rix = np.random.permutation(coord.shape[0])
 
-            print('Voxel bool: ', voxel_bool.shape)
-            print('Coord shape: ', coord.shape)
-            print('label_val: ', voxel_bool * 1)
-            l_debug = voxel_bool * 1
-            print('min: ', l_debug.min())
-            print('max: ', l_debug.max())
-            print('l sum: ', (l_debug).sum())
+            # print('Voxel bool: ', voxel_bool.shape)
+            # print('Coord shape: ', coord.shape)
+            # print('label_val: ', voxel_bool * 1)
+            # l_debug = voxel_bool * 1
+            # print('min: ', l_debug.min())
+            # print('max: ', l_debug.max())
+            # print('l sum: ', (l_debug).sum())
 
-            coord = coord[rix[:1500]]
-            label = voxel_bool[rix[:1500]]
+            # -- Coord selection -- #
+            # Weight coords so half have positive gt occ, the other have neg
+            n_in_pts = 750
+            n_out_pts = 750
+
+            flat_label = voxel_bool.flatten() * 1
+            non_zero_idx = np.where(flat_label != 0)[0]
+            zero_idx = np.where(flat_label == 0)[0]
+
+            non_zero_idx = np.random.permutation(non_zero_idx).repeat(2)[:n_in_pts]
+            zero_idx = np.random.permutation(zero_idx).repeat(2)[:n_out_pts]
+
+            idx = np.hstack([non_zero_idx, zero_idx])
+
+            coord = coord[idx]
+            label = voxel_bool[idx]
+
+            # print(coord.shape)
+            # print(label.shape)
+
+            # -- Old selection code -- #
+            # coord = coord[rix[:1500]]
+            # label = voxel_bool[rix[:1500]]
 
             offset = np.random.uniform(-self.hbs, self.hbs, coord.shape)
             coord = coord + offset

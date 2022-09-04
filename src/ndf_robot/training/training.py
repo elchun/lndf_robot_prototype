@@ -967,7 +967,8 @@ def train_conv_cos(model, train_dataloader, epochs, lr, steps_til_summary, epoch
                     'rot': rot_output,
                     'standard_act_hat': standard_act_hat,
                     'rot_act_hat': rot_act_hat,
-                    'rot_negative_act_hat': rot_negative_act_hat}
+                    'rot_negative_act_hat': rot_negative_act_hat,
+                    'coords': model_input['coords']}
 
                 losses = loss_fn(model_output, gt, it=total_steps)
 
@@ -1074,13 +1075,13 @@ def train_conv_cos(model, train_dataloader, epochs, lr, steps_til_summary, epoch
                                 rot_negative_act_hat = model.forward_latent(rot_negative_latent,
                                     rot_negative_input['coords'])
 
-
                                 model_output = {
                                     'standard': standard_output,
                                     'rot': rot_output,
                                     'standard_act_hat': standard_act_hat,
                                     'rot_act_hat': rot_act_hat,
-                                    'rot_negative_act_hat': rot_negative_act_hat}
+                                    'rot_negative_act_hat': rot_negative_act_hat,
+                                    'coords': model_input['coords']}
 
                                 val_loss = val_loss_fn(model_output, gt)
 

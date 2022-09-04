@@ -95,6 +95,7 @@ if __name__ == '__main__':
         'latent_dim': 128,
         'return_features': True,
         'acts': 'last'
+        # 'acts': 'all'
     }
 
     # latent_dim_32_inp = {
@@ -199,16 +200,30 @@ if __name__ == '__main__':
     }
 
     cos_contrast_args = {
-        'positive_loss_scale': 0.5,
-        'negative_loss_scale': 0.5,
-        'diff_loss_sample_rate': 0.0625
+        'positive_loss_scale': 0.04,
+        'negative_loss_scale': 0.01,
+        # 'diff_loss_sample_rate': 0.0625
+        # 'diff_loss_sample_rate': 0.125,
+        'diff_loss_sample_rate': 0.5,
+        # 'diff_loss_sample_rate': 1,
     }
 
+    cos_relative_args = {
+        'latent_loss_scale': 1
+    }
 
+    no_sim_contrast = {
+        'positive_loss_scale': 0,
+        'negative_loss_scale': 0,
+        'diff_loss_sample_rate': 0,
+        # 'diff_loss_sample_rate': 1,
+    }
     # loss_fn_args = latent_margin
     # loss_fn_args = loss_args
     # loss_fn_args = cos_args
-    loss_fn_args = cos_contrast_args
+    # loss_fn_args = cos_contrast_args
+    loss_fn_args = cos_relative_args
+    # loss_fn_args = no_sim_contrast
 
     # -- DATALOADER ARGS -- #
     sidelength = 128
@@ -220,7 +235,10 @@ if __name__ == '__main__':
         'obj_class': opt.obj_class,
         'any_rot': True,
         'neg_any_se3': True,
-        'trans_ratio': 1,
+        # 'trans_ratio': 1,
+        # 'trans_ratio': 0.5,
+        # 'trans_ratio': 0.25,
+        'trans_ratio': 0,
     }
 
     val_dataloader_args = {
@@ -231,7 +249,10 @@ if __name__ == '__main__':
         'obj_class': opt.obj_class,
         'any_rot': True,
         'neg_any_se3': True,
-        'trans_ratio': 1,
+        # 'trans_ratio': 1,
+        # 'trans_ratio': 0.25,
+        # 'trans_ratio': 0.25,
+        'trans_ratio': 0,
     }
 
     # -- CREATE DATALOADERS -- #
@@ -275,8 +296,11 @@ if __name__ == '__main__':
     # -- RUN TRAIN FUNCTION -- #
     # loss_fn = val_loss_fn = losses.triplet(**loss_fn_args)
     # loss_fn = val_loss_fn = losses.simple_loss(**loss_fn_args)
-    loss_fn = val_loss_fn = losses.cos_contrast(**loss_fn_args)
+    # loss_fn = val_loss_fn = losses.cos_contrast(**loss_fn_args)
+    # loss_fn = val_loss_fn = losses.cos_relative(**loss_fn_args)
+    loss_fn = val_loss_fn = losses.cos_distance(**loss_fn_args)
     # loss_fn = val_loss_fn = losses.rotated_triplet_log
+
     # training.train_conv_triplet(model=model_parallel, train_dataloader=train_dataloader,
     #     val_dataloader=val_dataloader, epochs=opt.num_epochs, lr=opt.lr,
     #     steps_til_summary=opt.steps_til_summary,

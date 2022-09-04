@@ -61,9 +61,23 @@ model:
   # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_cos_r_dif_3/checkpoints/model_epoch_0000_iter_015000.pth
   # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_single_6/checkpoints/model_epoch_0000_iter_026000.pth
   # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_single_v2_r_diff_weak_512_1/checkpoints/model_epoch_0000_iter_001000.pth
-  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_1/checkpoints/model_epoch_0000_iter_003000.pth
-  checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_5/checkpoints/model_epoch_0000_iter_001000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_1/checkpoints/model_epoch_0002_iter_123000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_5/checkpoints/model_epoch_0000_iter_001000.pth
   # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_single_v2_strong_512_0/checkpoints/model_epoch_0000_iter_007000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_2/checkpoints/model_epoch_0000_iter_003000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_1/checkpoints/model_epoch_0000_iter_032000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_3/checkpoints/model_epoch_0000_iter_005000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_5/checkpoints/model_epoch_0000_iter_003000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_6/checkpoints/model_epoch_0000_iter_002000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_3/checkpoints/model_epoch_0000_iter_004000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_8/checkpoints/model_epoch_0000_iter_039000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_9/checkpoints/model_epoch_0001_iter_094000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s3_5/checkpoints/model_epoch_0000_iter_008000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s3_6/checkpoints/model_epoch_0000_iter_014000.pth
+  checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s3_7/checkpoints/model_epoch_0002_iter_130000.pth
+
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_1/checkpoints/model_epoch_0008_iter_467000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_1/checkpoints/model_epoch_0003_iter_202000.pth
 
 
   args:
@@ -77,7 +91,8 @@ model:
 
 grasp_optimizer:
   args:
-    opt_iterations: 1000
+    # opt_iterations: 1000
+    opt_iterations: 500
     rand_translate: True
     use_tsne: False
     M_override: 20
@@ -86,7 +101,8 @@ grasp_optimizer:
 
 place_optimizer:
   args:
-    opt_iterations: 1000
+    # opt_iterations: 1000
+    opt_iterations: 500
     rand_translate: True
     use_tsne: False
     M_override: 20
@@ -112,7 +128,8 @@ gripper_query_pts:
   args:
     n_pts: 1000
     x: 0.04
-    y: 0.04
+    # y: 0.04
+    y: 0.05
     z1: 0.04
     z2: 0.01
 
@@ -133,13 +150,27 @@ gripper_query_pts:
 #     y_rot_rad: 0.0
 #     x_trans: 0.0
 #     y_trans: 0.07
-#     # z_trans: 0.11
-#     z_trans: 0.09
+#     z_trans: 0.11
+#     # z_trans: 0.09
 
 shelf_query_pts:
-  type: NDF_SHELF
+  type: SHELF
   args:
     n_pts: 1000
+    # radius: 0.03
+    # radius: 0.08
+    radius: 0.03
+    height: 0.30
+    y_rot_rad: 0.0
+    x_trans: 0.0
+    y_trans: 0.07
+    # z_trans: 0.11
+    z_trans: 0.08
+
+# shelf_query_pts:
+#   type: NDF_SHELF
+#   args:
+#     n_pts: 1000
 
 
 

@@ -525,7 +525,7 @@ def cos_contrast(positive_loss_scale: int = 1, negative_loss_scale: int = 1,
         # n_diff_loss_samples = 32  # Set in header
         n_diff_repeats = 256  # Should be n_diff_samples / n_sim_samples
 
-        print('n_sum: ', non_zero_label.sum(dim=1))
+        # print('n_sum: ', non_zero_label.sum(dim=1))
 
         # -- Select indicies to use as similar and different samples -- $
         # Shuffle good indices
@@ -547,11 +547,14 @@ def cos_contrast(positive_loss_scale: int = 1, negative_loss_scale: int = 1,
         # sim_tensor = rot_act_hat.gather(1, sim_idxs).repeat(1, n_diff_repeats, 1)
         sim_tensor = standard_act_hat.gather(1, sim_idxs).repeat(1, n_diff_repeats, 1)
         latent_negative_loss = F.cosine_similarity(sim_tensor,
-            rot_act_hat.gather(1, diff_idxs), dim=2)
+            standard_act_hat.gather(1, diff_idxs), dim=2)
 
         latent_positive_loss = 1 - latent_positive_loss.mean()
         latent_negative_loss = latent_negative_loss.sort(dim=1, descending=True)[0]
-        latent_negative_loss = latent_negative_loss[:n_diff_loss_samples].mean()
+        # print(latent_negative_loss)
+        print('DEBUG: ', latent_negative_loss[:n_diff_loss_samples])
+        print('DEBUG: ', latent_negative_loss[:, :n_diff_loss_samples])
+        latent_negative_loss = latent_negative_loss[:, :n_diff_loss_samples].mean()  # Add colon
 
         overall_loss = occ_loss \
             + positive_loss_scale * latent_positive_loss \
@@ -567,6 +570,233 @@ def cos_contrast(positive_loss_scale: int = 1, negative_loss_scale: int = 1,
         return loss_dict
 
     return loss_fn
+
+
+def cos_relative(latent_loss_scale: int = 1):
+    def loss_fn(model_outputs, ground_truth, val=False, **kwargs):
+        """
+        L2 loss enforcing similarity between rotated activations and
+        difference between random coords
+
+        Args:
+            model_outputs (dict): Dictionary containing 'standard', 'rot',
+                'standard_act_hat', 'rot_act_hat'
+            ground_truth (dict): Dictionary containing 'occ'
+            occ_margin (float, optional): Lower value makes occupancy
+                prediction better
+
+        Returns:
+            dict: dict containing 'occ'
+        """
+
+        similar_occ_only = True
+
+        loss_dict = dict()
+        label = ground_truth['occ'].squeeze()
+        label = (label + 1) / 2.
+
+        standard_outputs = model_outputs['standard']
+        rot_outputs = model_outputs['rot']
+
+        standard_act_hat = model_outputs['standard_act_hat']
+        rot_act_hat = model_outputs['rot_act_hat']
+
+        # rot_negative_act_hat = model_outputs['rot_negative_act_hat']
+
+        if similar_occ_only:
+            # Create bool tensor to mask unoccupied stuff
+            non_zero_label = torch.tensor(label.unsqueeze(-1)).bool()
+
+            standard_act_hat *= non_zero_label
+            rot_act_hat *= non_zero_label
+
+        # -- Calculate loss of occupancy -- #
+        standard_loss_occ = -1 * (label * torch.log(standard_outputs['occ'] + 1e-5)
+            + (1 - label) * torch.log(1 - standard_outputs['occ'] + 1e-5)).mean()
+        rot_loss_occ = -1 * (label * torch.log(rot_outputs['occ'] + 1e-5)
+            + (1 - label) * torch.log(1 - rot_outputs['occ'] + 1e-5)).mean()
+
+        occ_loss = (standard_loss_occ + rot_loss_occ) / 2
+
+        # -- Get all points with non-zero ground truth occupancy -- #
+        non_zero_label = torch.tensor(label).int()
+
+        dev = non_zero_label.device
+
+        non_zero_idx = torch.arange(0, label.shape[1])[None, :].repeat(6, 1).to(dev)
+        non_zero_idx = non_zero_label * non_zero_idx
+        non_zero_idx = non_zero_idx.sort(dim=1, descending=True)[0]
+
+        n_sim_samples = 1
+        n_diff_samples = 256
+
+        # print('n_sum: ', non_zero_label.sum(dim=1))
+
+        # -- Select indicies to use as similar and different samples -- $
+        # Shuffle good indices
+        valid_idxs = non_zero_idx[:, :n_sim_samples + n_diff_samples]
+        r_perm = torch.randperm(valid_idxs.shape[-1])
+        valid_idxs = non_zero_idx[:, r_perm]
+
+        # Select similar examples
+        sim_idxs = valid_idxs[:, :n_sim_samples][:, :, None]
+        sim_idxs = sim_idxs.repeat(1, 1, standard_act_hat.shape[-1])
+
+        # Select different examples
+        diff_idxs = valid_idxs[:, n_sim_samples:n_diff_samples + n_sim_samples][:, :, None]
+        diff_idxs = diff_idxs.repeat(1, 1, standard_act_hat.shape[-1])
+
+        # Correlation
+        latent_positive_sim = F.cosine_similarity(standard_act_hat.gather(1, sim_idxs),
+            rot_act_hat.gather(1, sim_idxs), dim=2)
+
+        # Difference
+        # sim_tensor = rot_act_hat.gather(1, sim_idxs).repeat(1, n_diff_repeats, 1)
+        sim_tensor = standard_act_hat.gather(1, sim_idxs).repeat(1, n_diff_samples, 1)
+        latent_negative_sim = F.cosine_similarity(sim_tensor,
+            rot_act_hat.gather(1, diff_idxs), dim=2)
+
+        relative_sim = torch.cat((latent_positive_sim, latent_negative_sim), dim=1)  # (6, 257)
+
+        # -- With cross entropy -- #
+        target = torch.zeros(relative_sim.shape).to(dev)
+        target[:, :n_sim_samples] = 1
+
+        # weight = torch.ones(relative_sim.shape[1])
+        # weight[:n_sim_samples] *= 10
+
+        latent_loss = F.cross_entropy(relative_sim, target)
+
+        # -- With binary cross entropy -- #
+        # probs = F.softmax(relative_sim, dim=1)  # (6, 257)
+        # probs = probs[:, :n_sim_samples]  # (6 x 1)
+        # latent_loss = F.binary_cross_entropy(probs, torch.ones(probs.shape).to(dev))
+        # latent_loss = probs[:, :n_sim_samples].mean()
+        # latent_loss = 1 - latent_loss
+
+        overall_loss = occ_loss \
+            + latent_loss_scale * latent_loss
+
+        loss_dict['occ'] = overall_loss
+
+        print('occ loss: ', occ_loss)
+        print('latent pos loss: ', latent_loss)
+        print('overall loss: ', overall_loss)
+
+        return loss_dict
+
+    return loss_fn
+
+
+def cos_distance(latent_loss_scale: int = 1):
+    def loss_fn(model_outputs, ground_truth, val=False, **kwargs):
+        """
+        Use distance to reweight similarity
+        """
+
+        similar_occ_only = True
+
+        loss_dict = dict()
+        label = ground_truth['occ'].squeeze()
+        label = (label + 1) / 2.
+
+        standard_outputs = model_outputs['standard']
+        rot_outputs = model_outputs['rot']
+
+        standard_act_hat = model_outputs['standard_act_hat']
+        rot_act_hat = model_outputs['rot_act_hat']
+
+        coords = model_outputs['coords']
+
+        # rot_negative_act_hat = model_outputs['rot_negative_act_hat']
+
+        if similar_occ_only:
+            # Create bool tensor to mask unoccupied stuff
+            non_zero_label = torch.tensor(label.unsqueeze(-1)).bool()
+
+            standard_act_hat *= non_zero_label
+            rot_act_hat *= non_zero_label
+
+        # -- Calculate loss of occupancy -- #
+        standard_loss_occ = -1 * (label * torch.log(standard_outputs['occ'] + 1e-5)
+            + (1 - label) * torch.log(1 - standard_outputs['occ'] + 1e-5)).mean()
+        rot_loss_occ = -1 * (label * torch.log(rot_outputs['occ'] + 1e-5)
+            + (1 - label) * torch.log(1 - rot_outputs['occ'] + 1e-5)).mean()
+
+        occ_loss = (standard_loss_occ + rot_loss_occ) / 2
+
+        # -- Get all points with non-zero ground truth occupancy -- #
+        non_zero_label = torch.tensor(label).int()
+
+        dev = non_zero_label.device
+
+        non_zero_idx = torch.arange(0, label.shape[1])[None, :].repeat(6, 1).to(dev)
+        non_zero_idx = non_zero_label * non_zero_idx
+        non_zero_idx = non_zero_idx.sort(dim=1, descending=True)[0]
+
+        n_sim_samples = 1
+        n_diff_samples = 256
+
+        # print('n_sum: ', non_zero_label.sum(dim=1))
+
+        # -- Select indicies to use as similar and different samples -- $
+        # Shuffle good indices
+        valid_idxs = non_zero_idx[:, :n_sim_samples + n_diff_samples]
+        r_perm = torch.randperm(valid_idxs.shape[-1])
+        valid_idxs = non_zero_idx[:, r_perm]
+
+        # Select similar examples
+        sim_idxs = valid_idxs[:, :n_sim_samples][:, :, None]
+        sim_idxs = sim_idxs.repeat(1, 1, standard_act_hat.shape[-1])
+
+        # Select different examples
+        diff_idxs = valid_idxs[:, n_sim_samples:n_diff_samples + n_sim_samples][:, :, None]
+        diff_idxs = diff_idxs.repeat(1, 1, standard_act_hat.shape[-1])
+
+        # Correlation
+        latent_positive_sim = F.cosine_similarity(standard_act_hat.gather(1, sim_idxs),
+            rot_act_hat.gather(1, sim_idxs), dim=2)
+
+        # Difference
+        # sim_tensor = rot_act_hat.gather(1, sim_idxs).repeat(1, n_diff_repeats, 1)
+        sim_tensor = standard_act_hat.gather(1, sim_idxs).repeat(1, n_diff_samples, 1)
+        latent_negative_sim = F.cosine_similarity(sim_tensor,
+            rot_act_hat.gather(1, diff_idxs), dim=2)
+
+        relative_sim = torch.cat((latent_positive_sim, latent_negative_sim), dim=1)  # (6, 257)
+
+        # -- With cross entropy -- #
+        target = torch.zeros(relative_sim.shape[1]).to(dev)
+        target[:n_sim_samples] = 1
+
+        # Get weight based on coordinates
+        target_sim_idxs = sim_idxs[:, :, :3]  # Only take the first three repeats for gather
+        target_diff_idxs = diff_idxs[:, :, :3]
+        sim_coords = coords.gather(1, target_sim_idxs)
+        diff_coords = coords.gather(1, target_diff_idxs)
+        all_coords = torch.cat((sim_coords, diff_coords), dim=1)
+        distances = ((all_coords - sim_coords)**2).sum(dim=-1).sqrt() # (6, 257)
+        weight = 1 / (distances + 1e-6)
+        weight = weight / weight .sum(dim=-1, keepdim=True)
+
+        # print(weight.sum())
+        # print(relative_sim)
+
+        latent_loss = F.cross_entropy(relative_sim, weight)
+
+        overall_loss = occ_loss \
+            + latent_loss_scale * latent_loss
+
+        loss_dict['occ'] = overall_loss
+
+        print('occ loss: ', occ_loss)
+        print('latent pos loss: ', latent_loss)
+        print('overall loss: ', overall_loss)
+
+        return loss_dict
+
+    return loss_fn
+
 
 
 def rotated_triplet_log(model_outputs, ground_truth, **kwargs):

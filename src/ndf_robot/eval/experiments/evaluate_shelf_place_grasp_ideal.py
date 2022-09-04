@@ -24,13 +24,15 @@ from ndf_robot.utils.eval_gen_utils import (
     soft_grasp_close, constraint_grasp_close, constraint_obj_world, constraint_grasp_open,
     safeCollisionFilterPair, object_is_still_grasped, get_ee_offset, post_process_grasp_point,
     process_demo_data_rack, process_demo_data_shelf, process_xq_data, process_xq_rs_data, safeRemoveConstraint,
-    object_is_intersecting, object_is_upright
+    object_is_intersecting, object_is_upright, object_is_still_grasped_force, get_ee_btw_finger_tf
 )
 from ndf_robot.eval.evaluate_general_types import (ExperimentTypes, ModelTypes,
     QueryPointTypes, TrialResults, RobotIDs, SimConstants, TrialData)
 from ndf_robot.eval.demo_io import DemoIO
 
 from ndf_robot.eval.experiments.evaluate_network import EvaluateNetwork
+
+from ndf_robot.utils.plotly_save import multiplot
 
 
 class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
@@ -238,21 +240,33 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
         trial_data.aux_data['grasp_opt_idx'] = best_grasp_idx
 
         # -- Post process grasp position -- #
-        try:
-            # When there are no nearby grasp points, this throws an index
-            # error.  The try catch allows us to run more trials after the error.
-            new_grasp_pt = post_process_grasp_point(
-                grasp_ee_pose,
-                target_obj_pcd_obs,
-                thin_feature=thin_feature,
-                grasp_viz=grasp_viz,
-                grasp_dist_thresh=grasp_dist_thresh)
-        except IndexError:
-            trial_data.trial_result = TrialResults.POST_PROCESS_FAILED
-            self.robot.pb_client.remove_body(obj_id)
-            return trial_data
 
-        grasp_ee_pose[:3] = new_grasp_pt
+        grasp_ee_pose_finger = util.pose_stamped2list(
+            util.transform_pose(
+                pose_source=util.list2pose_stamped(grasp_ee_pose),
+                pose_transform=util.list2pose_stamped(get_ee_btw_finger_tf(grasp_ee_pose))))
+
+        fname = osp.join(path_util.get_ndf_eval(), 'debug_viz', 'grasp_pt.html')
+        multiplot([target_obj_pcd_obs, np.array(grasp_ee_pose_finger[:3]).reshape(1, -1)], fname)
+
+        # try:
+        #     # When there are no nearby grasp points, this throws an index
+        #     # error.  The try catch allows us to run more trials after the error.
+        #     new_grasp_pt = post_process_grasp_point(
+        #         # grasp_ee_pose,
+        #         grasp_ee_pose_finger,
+        #         target_obj_pcd_obs,
+        #         thin_feature=thin_feature,
+        #         grasp_viz=grasp_viz,
+        #         grasp_dist_thresh=grasp_dist_thresh)
+        # except IndexError:
+        #     trial_data.trial_result = TrialResults.POST_PROCESS_FAILED
+        #     self.robot.pb_client.remove_body(obj_id)
+        #     return trial_data
+
+
+        # Uncomment this to actually use post process
+        # grasp_ee_pose[:3] = new_grasp_pt
 
         # -- Create pose which offsets gripper from object -- #
         pregrasp_offset_tf = get_ee_offset(ee_pose=grasp_ee_pose)
@@ -408,25 +422,51 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
                 f'{str(iteration).zfill(3)}_02{i}grasp.png')
             self._take_image(grasp_img_fname)
 
+
+            # use constrained grasp to move to upright location, then
+            # try grasping.
+
+            # TODO: CHECK GRASP WITH FORCE, THEN RELEASE AND SEE IF IT FALLS
+
             # Testing with different close methods.
             # self.robot.arm.eetool.close()
             soft_grasp_close(self.robot, RobotIDs.finger_joint_id, force=40)
-            self.robot.arm.eetool.close()
             self._step_n_steps(200)
+            grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
+                f'{str(iteration).zfill(3)}_02{i}grasp_close.png')
+            self._take_image(grasp_img_fname)
+            # soft_grasp_close(self.robot, RobotIDs.finger_joint_id, force=100)
+            # self._step_n_steps(1)
+
+            print('Grasp success with force: ', object_is_still_grasped_force(self.robot, obj_id,
+                RobotIDs.right_pad_id, RobotIDs.left_pad_id, 5))
+
+            print('Grasp success normal: ', object_is_still_grasped(self.robot, obj_id,
+                RobotIDs.right_pad_id, RobotIDs.left_pad_id))
+
+            # Use constraint grasp to move object.
+            cid = constraint_grasp_close(self.robot, obj_id)
+
+            # contact_grasp_success = object_is_still_grasped(self.robot,
+            #     obj_id, RobotIDs.right_pad_id, RobotIDs.left_pad_id)
 
             safeRemoveConstraint(o_cid)
             safeCollisionFilterPair(obj_id, self.table_id, -1, -1,
                 enableCollision=False)
             self._step_n_steps(200)
 
-            grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
-                f'{str(iteration).zfill(3)}_02{i}grasp_close.png')
-            self._take_image(grasp_img_fname)
-
             for jnt in plan3:
                 self.robot.arm.set_jpos(jnt, wait=False)
                 self._step_n_steps(1)
             self.robot.arm.set_jpos(plan3[-1], wait=False)
+            self._step_n_steps(240)
+
+            # -- Take image of grasp at clearance height -- #
+            grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
+                '%s_03clearance.png' % str(iteration).zfill(3))
+            self._take_image(grasp_img_fname)
+
+            constraint_grasp_open(cid)
             self._step_n_steps(240)
 
             contact_grasp_success = object_is_still_grasped(self.robot,
@@ -451,12 +491,9 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
         #     self._step_n_steps(1)
         # self.robot.arm.set_jpos(plan3[-1], wait=False)
 
-        # -- Take image of grasp at clearance height -- #
-        grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
-            '%s_03clearance.png' % str(iteration).zfill(3))
-        self._take_image(grasp_img_fname)
 
         self.robot.arm.eetool.open()
+        constraint_grasp_open(cid)
         self._step_n_steps(120)
 
         grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
@@ -522,7 +559,8 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
             print(f'Upright: {upright}')
 
             touching_surf = len(obj_surf_contacts) > 0
-            place_success = touching_surf and (not intersecting) and upright
+            # place_success = touching_surf and (not intersecting) and upright
+            place_success = touching_surf and (not intersecting)  # Don't care about upright (We just want it placed)
 
             if place_success:
                 trial_data.aux_data['place_success'] = True

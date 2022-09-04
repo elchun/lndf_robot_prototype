@@ -78,8 +78,8 @@ def get_recon(pcd, query, model, thresh=0.2):
 
 if __name__ == '__main__':
 
-    seed = 0
-    # seed = 7
+    # seed = 0
+    seed = 6
     # seed = 2
 
     np.random.seed(seed)
@@ -102,6 +102,10 @@ if __name__ == '__main__':
     if use_conv:
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_high_0/checkpoints/model_epoch_0001_iter_093000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_0/checkpoints/model_epoch_0008_iter_508000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_1/checkpoints/model_epoch_0008_iter_467000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_2/checkpoints/model_epoch_0004_iter_267000.pth')
+
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_1/checkpoints/model_epoch_0003_iter_202000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_3/checkpoints/model_epoch_0001_iter_063000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/DEBUG_conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_16/checkpoints/model_epoch_0000_iter_055000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/DEBUG_conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_20/checkpoints/model_epoch_0000_iter_017000.pth')
@@ -123,13 +127,43 @@ if __name__ == '__main__':
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_single_v2_r_diff_weak_512_1/checkpoints/model_epoch_0000_iter_001000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_single_v2_strong_512x200_1/checkpoints/model_epoch_0001_iter_100000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_0/checkpoints/model_epoch_0000_iter_007000.pth')
-        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_1/checkpoints/model_epoch_0000_iter_004000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_1/checkpoints/model_epoch_0002_iter_123000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_2/checkpoints/model_epoch_0000_iter_002000.pth')
-        model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_5/checkpoints/model_epoch_0000_iter_001000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_5/checkpoints/model_epoch_0000_iter_001000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_DEBUG_0/checkpoints/model_epoch_0000_iter_004000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_DEBUG_1/checkpoints/model_epoch_0000_iter_001000.pth')
+
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_0/checkpoints/model_epoch_0001_iter_089000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_DEBUG_0/checkpoints/model_epoch_0001_iter_083000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_DEBUG_1/checkpoints/model_epoch_0000_iter_002000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_DEBUG_5/checkpoints/model_epoch_0000_iter_002000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_DEBUG_8/checkpoints/model_epoch_0000_iter_002000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_DEBUG_9/checkpoints/model_epoch_0000_iter_003000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_1/checkpoints/model_epoch_0000_iter_032000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_2/checkpoints/model_epoch_0000_iter_030000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_3/checkpoints/model_epoch_0000_iter_005000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_4/checkpoints/model_epoch_0000_iter_003000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_5/checkpoints/model_epoch_0000_iter_008000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_6/checkpoints/model_epoch_0000_iter_005000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_6/checkpoints/model_epoch_0000_iter_009000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_7/checkpoints/model_epoch_0000_iter_010000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_8/checkpoints/model_epoch_0002_iter_124000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_9/checkpoints/model_epoch_0001_iter_094000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_10/checkpoints/model_epoch_0001_iter_083000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_11/checkpoints/model_epoch_0000_iter_010000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_12/checkpoints/model_epoch_0000_iter_005000.pth')
+
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s3_0/checkpoints/model_epoch_0000_iter_001000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s3_5/checkpoints/model_epoch_0002_iter_132000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s3_6/checkpoints/model_epoch_0001_iter_116000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s3_7/checkpoints/model_epoch_0002_iter_132000.pth')
+        model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s3_all_1/checkpoints/model_epoch_0000_iter_005000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_DEBUG_9/checkpoints/model_epoch_0000_iter_031000.pth')
     else:
         model_path = osp.join(path_util.get_ndf_model_weights(), 'multi_category_weights.pth')
+
+    assert osp.exists(model_path), 'Model weights not found'
+    print('Model weights good!')
 
     scale = 0.25
     mesh1 = trimesh.load(obj_model, process=False)
@@ -167,8 +201,11 @@ if __name__ == '__main__':
     multiplot([pcd1, pcd2, ref_plot_pt, sample_pts], osp.join(path_util.get_ndf_eval(), 'debug_viz', 'debug_correspondance.html'))
 
     if use_conv:
+        # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=128,
+        #     model_type='pointnet', return_features=True, sigmoid=False, acts='last').cuda()
+
         model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=128,
-            model_type='pointnet', return_features=True, sigmoid=False, acts='last').cuda()
+            model_type='pointnet', return_features=True, sigmoid=False, acts='all').cuda()
     else:
         model = vnn_occupancy_network.VNNOccNet(latent_dim=256,
             model_type='pointnet', return_features=True, sigmoid=True).cuda()

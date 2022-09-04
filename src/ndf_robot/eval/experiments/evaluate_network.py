@@ -365,8 +365,8 @@ class EvaluateNetwork():
         )
 
         # p.changeDynamics(obj_id, -1, lateralFriction=0.5)
-        p.changeDynamics(obj_id, -1, lateralFriction=1.0, linearDamping=5, angularDamping=5)
-        # p.changeDynamics(obj_id, -1, lateralFriction=4.0, linearDamping=5, angularDamping=5)
+        # p.changeDynamics(obj_id, -1, lateralFriction=1.0, linearDamping=5, angularDamping=5)
+        p.changeDynamics(obj_id, -1, lateralFriction=4.0, linearDamping=5, angularDamping=5)
 
         o_cid = None
         if no_gravity:
