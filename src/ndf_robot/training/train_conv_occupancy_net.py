@@ -108,8 +108,8 @@ if __name__ == '__main__':
     # conv_occ_args = default_args
     # conv_occ_args = latent_dim_16
     # conv_occ_args = latent_dim_32
-    # conv_occ_args = latent_dim_64
-    conv_occ_args = latent_dim_128
+    conv_occ_args = latent_dim_64
+    # conv_occ_args = latent_dim_128
 
     # -- LOSS FUNCTION ARGS -- #
     # default_args = {
@@ -209,21 +209,34 @@ if __name__ == '__main__':
     }
 
     cos_relative_args = {
-        'latent_loss_scale': 1
+        # 'latent_loss_scale': 1
+        'latent_loss_scale': 0.1
     }
 
+    cos_distance_args = {
+        'latent_loss_scale': 0.1,
+        'dis_offset': 0.002,
+        'dis_scale': 1,
+    }
+
+    # cos_distance_args = {
+    #     'latent_loss_scale': 1,
+    #     'dis_offset': 0.002,
+    #     'dis_scale': 1.0,
+    # }
+
     no_sim_contrast = {
-        'positive_loss_scale': 0,
-        'negative_loss_scale': 0,
-        'diff_loss_sample_rate': 0,
-        # 'diff_loss_sample_rate': 1,
+        'latent_loss_scale': 0,
+        'dis_offset': 0.002,
+        'dis_scale': 1,
     }
     # loss_fn_args = latent_margin
     # loss_fn_args = loss_args
     # loss_fn_args = cos_args
     # loss_fn_args = cos_contrast_args
-    loss_fn_args = cos_relative_args
-    # loss_fn_args = no_sim_contrast
+    # loss_fn_args = cos_relative_args
+    # loss_fn_args = cos_distance_args
+    loss_fn_args = no_sim_contrast
 
     # -- DATALOADER ARGS -- #
     sidelength = 128

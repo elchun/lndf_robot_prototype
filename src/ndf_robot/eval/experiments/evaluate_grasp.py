@@ -50,6 +50,11 @@ class EvaluateGrasp(EvaluateNetwork):
         self.table_urdf_fname = osp.join(path_util.get_ndf_descriptions(),
             'hanging/table/table.urdf')
 
+        # When using default scale, conv does better?
+        self.scale_low = 0.20
+        self.scale_high = 0.30
+        self.scale_default = 0.25
+
     def load_demos(self):
         """
         Load demos from self.demo_load_dir.  Add demo data to optimizer

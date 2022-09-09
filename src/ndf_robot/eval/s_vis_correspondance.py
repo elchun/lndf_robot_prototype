@@ -157,8 +157,22 @@ if __name__ == '__main__':
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s3_5/checkpoints/model_epoch_0002_iter_132000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s3_6/checkpoints/model_epoch_0001_iter_116000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s3_7/checkpoints/model_epoch_0002_iter_132000.pth')
-        model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s3_all_1/checkpoints/model_epoch_0000_iter_005000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/DEBUG_conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_31/checkpoints/model_epoch_0000_iter_026000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_2/checkpoints/model_epoch_0001_iter_093000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_3/checkpoints/model_epoch_0000_iter_048000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_4/checkpoints/model_epoch_0000_iter_012000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_5/checkpoints/model_epoch_0000_iter_009000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_6/checkpoints/model_epoch_0000_iter_011000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_6/checkpoints/model_epoch_0000_iter_020000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_7/checkpoints/model_epoch_0000_iter_020000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_8/checkpoints/model_epoch_0000_iter_008000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s3_all_1/checkpoints/model_epoch_0000_iter_005000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_DEBUG_9/checkpoints/model_epoch_0000_iter_031000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/DEBUG_conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_22/checkpoints/model_epoch_0000_iter_003000.pth')
+
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_multicategory_latent_sim_occ_neg_se3_s4_1/checkpoints/model_epoch_0000_iter_050000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_multicategory_latent_sim_occ_neg_se3_s4_1/checkpoints/model_epoch_0002_iter_117000.pth')
+        model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_multicategory_latent_sim_occ_neg_se3_s4_1/checkpoints/model_epoch_0005_iter_326000.pth')
     else:
         model_path = osp.join(path_util.get_ndf_model_weights(), 'multi_category_weights.pth')
 
@@ -204,8 +218,11 @@ if __name__ == '__main__':
         # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=128,
         #     model_type='pointnet', return_features=True, sigmoid=False, acts='last').cuda()
 
-        model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=128,
-            model_type='pointnet', return_features=True, sigmoid=False, acts='all').cuda()
+        # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=128,
+        #     model_type='pointnet', return_features=True, sigmoid=False, acts='last').cuda()
+
+        model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=64,
+            model_type='pointnet', return_features=True, sigmoid=False, acts='last').cuda()
     else:
         model = vnn_occupancy_network.VNNOccNet(latent_dim=256,
             model_type='pointnet', return_features=True, sigmoid=True).cuda()

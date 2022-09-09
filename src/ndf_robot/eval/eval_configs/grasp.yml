@@ -11,10 +11,10 @@ setup_args:
   # exp_dir_suffix: EVAL_conv_grasp_upright_mug
   # exp_dir_suffix: EVAL_conv_grasp_upright_bowl_handle
   # exp_dir_suffix: EVAL_conv_grasp_upright_bottle_handle
-  exp_dir_suffix: EVAL_conv_grasp_upright_large_mug
+  # exp_dir_suffix: EVAL_conv_grasp_upright_large_mug
 
   # exp_dir_suffix: EVAL_conv_grasp_anyrot_mug
-  # exp_dir_suffix: EVAL_conv_grasp_anyrot_bowl_handle
+  exp_dir_suffix: EVAL_conv_grasp_anyrot_bowl_handle
   # exp_dir_suffix: EVAL_conv_grasp_anyrot_bottle_handle
 
   # exp_dir_suffix: DEBUG
@@ -27,14 +27,15 @@ setup_args:
 
 evaluator:
   pybullet_viz: False
-  test_obj_class: mug
+  # test_obj_class: mug
   # test_obj_class: bowl_handle
+  test_obj_class: bowl_handlev2
   # test_obj_class: bottle_handle
   num_trials: 200
   include_avoid_obj: False
   # include_avoid_obj: False
-  # any_pose: True
-  any_pose: False
+  any_pose: True
+  # any_pose: False
 
 # -- Conv config -- #
 model:
@@ -55,9 +56,12 @@ model:
 
   # checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_multicategory_0/checkpoints/model_epoch_0007_iter_331000.pth
   checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_multicategory_part2_0/checkpoints/model_final.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_6/checkpoints/model_epoch_0000_iter_010000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_7/checkpoints/model_epoch_0001_iter_060000.pth
 
   args:
     latent_dim: 64
+    # latent_dim: 128
     model_type: pointnet
     return_features: True
     sigmoid: False
@@ -66,8 +70,8 @@ model:
 
 grasp_optimizer:
   args:
-    opt_iterations: 1000
-    # opt_iterations: 500
+    # opt_iterations: 1000
+    opt_iterations: 500
     rand_translate: True
     use_tsne: False
     M_override: 20
@@ -75,8 +79,8 @@ grasp_optimizer:
 
 place_optimizer:
   args:
-    opt_iterations: 1000
-    # opt_iterations: 500
+    # opt_iterations: 1000
+    opt_iterations: 500
     rand_translate: True
     use_tsne: False
     M_override: 20

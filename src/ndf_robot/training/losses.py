@@ -1,5 +1,7 @@
 # from sympy import Q
 import math
+from pydoc import describe
+from turtle import distance
 import torch
 from torch.nn import functional as F
 
@@ -688,7 +690,7 @@ def cos_relative(latent_loss_scale: int = 1):
     return loss_fn
 
 
-def cos_distance(latent_loss_scale: int = 1):
+def cos_distance(latent_loss_scale: int = 1, dis_offset: float = 0.002, dis_scale: float = 1.0):
     def loss_fn(model_outputs, ground_truth, val=False, **kwargs):
         """
         Use distance to reweight similarity
@@ -766,8 +768,8 @@ def cos_distance(latent_loss_scale: int = 1):
         relative_sim = torch.cat((latent_positive_sim, latent_negative_sim), dim=1)  # (6, 257)
 
         # -- With cross entropy -- #
-        target = torch.zeros(relative_sim.shape[1]).to(dev)
-        target[:n_sim_samples] = 1
+        # target = torch.zeros(relative_sim.shape[1]).to(dev)
+        # target[:n_sim_samples] = 1
 
         # Get weight based on coordinates
         target_sim_idxs = sim_idxs[:, :, :3]  # Only take the first three repeats for gather
@@ -776,13 +778,22 @@ def cos_distance(latent_loss_scale: int = 1):
         diff_coords = coords.gather(1, target_diff_idxs)
         all_coords = torch.cat((sim_coords, diff_coords), dim=1)
         distances = ((all_coords - sim_coords)**2).sum(dim=-1).sqrt() # (6, 257)
-        weight = 1 / (distances + 1e-6)
-        weight = weight / weight .sum(dim=-1, keepdim=True)
+
+        # Comment out if using max
+        target = 1 / (distances + dis_offset)
+
+        # Comment out if using pure offset
+        # target = 1 / (dis_scale * torch.maximum(distances, torch.tensor(dis_offset)))
+
+        target = target / target.sum(dim=-1, keepdim=True)
+        # print(weight)
+        print(target.min())
+        print(target.sort(descending=True)[0][:, :10])
 
         # print(weight.sum())
         # print(relative_sim)
 
-        latent_loss = F.cross_entropy(relative_sim, weight)
+        latent_loss = F.cross_entropy(relative_sim, target)
 
         overall_loss = occ_loss \
             + latent_loss_scale * latent_loss

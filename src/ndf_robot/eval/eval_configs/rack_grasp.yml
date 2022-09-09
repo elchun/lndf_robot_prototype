@@ -9,7 +9,7 @@ setup_args:
   # exp_dir_suffix: EVAL_conv_rack_grasp_upright_bowl_handle
 
   # exp_dir_suffix: EVAL_conv_rack_grasp_anyrot_mug
-  # exp_dir_suffix: EVAL_conv_rack_grasp_anyrot_bowl_handle
+  exp_dir_suffix: EVAL_conv_rack_grasp_anyrot_bowl_handle
 
   # exp_dir_suffix: EVAL_ndf_rack_grasp_ori_q_upright_large_mug
   # exp_dir_suffix: EVAL_ndf_rack_grasp_new_q_upright_large_mug
@@ -31,7 +31,7 @@ setup_args:
   # exp_dir_suffix: EVAL_ndf_rack_grasp_new_q_anyrot_small_bowl
 
   # exp_dir_suffix: DEBUG_conv_rack_grasp_anyrot_mug
-  exp_dir_suffix: DEBUG_conv_rack_grasp_upright_mug
+  # exp_dir_suffix: DEBUG_conv_rack_grasp_upright_mug
 
   demo_exp: 'mug/grasp_rim_hang_handle_gaussian_precise_w_shelf_converted'
   # demo_exp: 'bowl/grasp_rim_anywhere_place_shelf_all_methods_multi_instance_converted'
@@ -45,15 +45,15 @@ setup_args:
 
 evaluator:
   pybullet_viz: False
-  test_obj_class: mug
-  # test_obj_class: bowl_handle
+  # test_obj_class: mug
+  test_obj_class: bowl_handle
   # test_obj_class: bowl_handle_small
   # test_obj_class: bottle_handle
   num_trials: 200
   # include_avoid_obj: True
   include_avoid_obj: False
-  # any_pose: True
-  any_pose: False
+  any_pose: True
+  # any_pose: False
 
 # -- Conv config -- #
 model:
@@ -67,7 +67,9 @@ model:
   # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_1/checkpoints/model_epoch_0003_iter_202000.pth
   # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s2_9/checkpoints/model_epoch_0001_iter_094000.pth
   # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s3_7/checkpoints/model_epoch_0002_iter_130000.pth
-  checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_1/checkpoints/model_epoch_0008_iter_467000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_1/checkpoints/model_epoch_0008_iter_467000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_0/checkpoints/model_epoch_0000_iter_017000.pth
+  checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_3/checkpoints/model_epoch_0000_iter_048000.pth
 
   args:
     # latent_dim: 64

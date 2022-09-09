@@ -513,6 +513,8 @@ class EvaluateRackPlaceGraspIdealStep(EvaluateNetwork):
         Run experiment for {self.num_trials}
         """
         num_success = 0
+        num_grasp_success = 0
+        num_place_success = 0
 
         start_time = time.time()
 
@@ -546,10 +548,14 @@ class EvaluateRackPlaceGraspIdealStep(EvaluateNetwork):
 
             if trial_result == TrialResults.SUCCESS:
                 num_success += 1
+            num_grasp_success += grasp_success
+            num_place_success += place_success
 
             log_info(f'Experiment: {self.experiment_type}')
             log_info(f'Trial result: {trial_result}')
             log_info(f'Shapenet id: {obj_shapenet_id}')
+            log_info(f'Grasp Success Rate: {num_grasp_success / (it + 1): 0.3f}')
+            log_info(f'Place Success Rate: {num_place_success / (it + 1): 0.3f}')
             log_info(f'Grasp Success: {grasp_success} | Place Success: {place_success}')
             log_str = f'Successes: {num_success} | Trials {it + 1} | ' \
                 + f'Success Rate: {num_success / (it + 1):0.3f}'
@@ -560,6 +566,8 @@ class EvaluateRackPlaceGraspIdealStep(EvaluateNetwork):
                 f.write(f'Trial result: {trial_result}\n')
                 f.write(f'Grasp Success Rate: {num_success / (it + 1): 0.3f}\n')
                 f.write(f'Shapenet id: {obj_shapenet_id}\n')
+                f.write(f'Grasp Success Rate: {num_grasp_success / (it + 1): 0.3f}\n')
+                f.write(f'Place Success Rate: {num_place_success / (it + 1): 0.3f}\n')
                 f.write(f'Grasp Success: {grasp_success} | Place Success: {place_success}\n')
                 f.write(f'Best Grasp idx: {best_grasp_idx}\n')
                 f.write(f'Best Place idx: {best_place_idx}\n')
