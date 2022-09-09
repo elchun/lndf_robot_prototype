@@ -97,7 +97,8 @@ def object_is_still_grasped(robot, obj_id, right_pad_id, left_pad_id):
                                             linkIndexA=-1, linkIndexB=right_pad_id)
     obj_finger_left_info = p.getClosestPoints(bodyA=obj_id, bodyB=robot.arm.robot_id, distance=0.002,
                                             linkIndexA=-1, linkIndexB=left_pad_id)
-    obj_still_in_grasp = len(obj_finger_left_info) > 0 or len(obj_finger_right_info) > 0
+    # obj_still_in_grasp = len(obj_finger_left_info) > 0 or len(obj_finger_right_info) > 0
+    obj_still_in_grasp = len(obj_finger_left_info) > 0 and len(obj_finger_right_info) > 0
     return obj_still_in_grasp
 
 def object_is_intersecting(obj1_id, obj2_id, obj1_link_index, obj2_link_index,

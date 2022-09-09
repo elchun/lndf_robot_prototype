@@ -36,7 +36,9 @@ from ndf_robot.eval.experiments.evaluate_network import EvaluateNetwork
 class EvaluateGrasp(EvaluateNetwork):
     def __init__(self, grasp_optimizer: OccNetOptimizer,
                  seed: int, shapenet_obj_dir: str, eval_save_dir: str,
-                 demo_load_dir: str, pybullet_viz: bool = False,
+                 demo_load_dir: str, obj_scale_low: float,
+                 obj_scale_high: float, obj_scale_default: float,
+                 pybullet_viz: bool = False,
                  test_obj_class: str = 'mug', num_trials: int = 200,
                  include_avoid_obj: bool = True, any_pose: bool = True):
 
@@ -54,6 +56,10 @@ class EvaluateGrasp(EvaluateNetwork):
         self.scale_low = 0.20
         self.scale_high = 0.30
         self.scale_default = 0.25
+
+        self.scale_low = obj_scale_low
+        self.scale_high = obj_scale_high
+        self.scale_default = obj_scale_default
 
     def load_demos(self):
         """

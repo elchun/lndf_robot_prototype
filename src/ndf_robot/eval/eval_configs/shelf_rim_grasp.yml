@@ -2,9 +2,9 @@ setup_args:
   # exp_dir_suffix: EVAL_conv_shelf_upright_bowl
   # exp_dir_suffix: EVAL_conv_shelf_upright_bowl_handle
   # exp_dir_suffix: EVAL_conv_shelf_upright_mug
-  # exp_dir_suffix: EVAL_conv_shelf_anyrot_bowl
+  exp_dir_suffix: EVAL_conv_shelf_anyrot_bowl
   # exp_dir_suffix: EVAL_conv_shelf_anyrot_bowl_handle
-  exp_dir_suffix: EVAL_conv_shelf_anyrot_mug
+  # exp_dir_suffix: EVAL_conv_shelf_anyrot_mug
 
 
   # exp_dir_suffix: EVAL_ndf_q_ori_shelf_upright_bowl
@@ -45,14 +45,18 @@ setup_args:
 
 evaluator:
   pybullet_viz: False
-  # test_obj_class: bowlv2
+  test_obj_class: bowl_std
   # test_obj_class: bowl_handlev2
-  test_obj_class: mug
+  # test_obj_class: mug
 
   num_trials: 200
   include_avoid_obj: False
   # any_pose: False
   any_pose: True
+
+  obj_scale_low: 0.95
+  obj_scale_high: 1.05
+  obj_scale_default: 1.0
 
 # -- Conv config -- #
 model:
@@ -60,10 +64,13 @@ model:
   # checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_final.pth
   # checkpoint: ndf_vnn/conv_occ_hidden64_latent_margin_4/checkpoints/model_epoch_0017_iter_255000.pth
   # checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_multicategory_0/checkpoints/model_epoch_0004_iter_201000.pth
-  checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_multicategory_part2_0/checkpoints/model_final.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_multicategory_part2_0/checkpoints/model_final.pth
+
+  checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_7/checkpoints/model_epoch_0001_iter_060000.pth
 
   args:
     latent_dim: 64
+    latent_dim: 128
     model_type: pointnet
     return_features: True
     sigmoid: False
@@ -138,21 +145,21 @@ gripper_query_pts:
 #     y_trans: 0.07
 #     z_trans: 0.11
 
-# shelf_query_pts:
-#   type: SHELF
-#   args:
-#     n_pts: 1000
-#     radius: 0.1
-#     height: 0.08
-#     y_rot_rad: 0.0
-#     x_trans: 0.0
-#     y_trans: 0.07
-#     z_trans: 0.09
-
 shelf_query_pts:
-  type: NDF_SHELF
+  type: SHELF
   args:
     n_pts: 1000
+    radius: 0.06
+    height: 0.10
+    y_rot_rad: 0.0
+    x_trans: 0.0
+    y_trans: 0.07
+    z_trans: 0.08
+
+# shelf_query_pts:
+#   type: NDF_SHELF
+#   args:
+#     n_pts: 1000
 
 # # -- NDF Config -- #
 # model:

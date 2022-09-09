@@ -8,8 +8,9 @@ from ndf_robot.utils import path_util
 
 if __name__ == '__main__':
     # obj_class = 'bowl'
-    # obj_class = 'bottle'
-    obj_class = 'mug'
+    # obj_class = 'bottle_handle_std'
+    # obj_class = 'mug'
+    # obj_class = 'mug_std'
 
     shapenet_obj_dir = osp.join(path_util.get_ndf_obj_descriptions(),
         obj_class + '_centered_obj_normalized')
