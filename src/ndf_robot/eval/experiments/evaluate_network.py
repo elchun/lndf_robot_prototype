@@ -259,7 +259,8 @@ class EvaluateNetwork():
 
     def _insert_object(self, obj_shapenet_id: str, obj_scale: float,
         any_pose: bool, run_decomp_override: bool = False,
-        no_gravity: bool = False, spherical_place: bool = True) -> tuple:
+        no_gravity: bool = False, spherical_place: bool = True,
+        friction=4.0) -> tuple:
         """
         Insert object described by {obj_shapenet_id} at calculated pose.
         Scales input mesh by amount defined in SimConstants.  This amount is
@@ -366,7 +367,7 @@ class EvaluateNetwork():
 
         # p.changeDynamics(obj_id, -1, lateralFriction=0.5)
         # p.changeDynamics(obj_id, -1, lateralFriction=1.0, linearDamping=5, angularDamping=5)
-        p.changeDynamics(obj_id, -1, lateralFriction=4.0, linearDamping=5, angularDamping=5)
+        p.changeDynamics(obj_id, -1, lateralFriction=friction, linearDamping=5, angularDamping=5)
 
         o_cid = None
         if no_gravity:

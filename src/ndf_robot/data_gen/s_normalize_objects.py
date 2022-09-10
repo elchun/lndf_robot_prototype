@@ -38,8 +38,8 @@ def get_ref_extents_sum(fname: str) -> float:
 
 
 if __name__ == '__main__':
-    obj_class = 'bottle_handle'
-    ref_obj_class = 'bottle_handle'
+    obj_class = 'bowl_handle'
+    ref_obj_class = 'bowl_handle'
     # ref_obj_class = 'bottle'
     shapenet_obj_dir = osp.join(path_util.get_ndf_obj_descriptions(),
         obj_class + '_centered_obj_normalized')

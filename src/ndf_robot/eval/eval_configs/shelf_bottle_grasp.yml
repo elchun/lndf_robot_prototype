@@ -5,9 +5,9 @@ setup_args:
   # exp_dir_suffix: EVAL_conv_shelf_anyrot_bottle_handle
 
   # exp_dir_suffix: EVAL_ndf_q_ori_shelf_upright_bottle
-  exp_dir_suffix: EVAL_ndf_q_ori_shelf_upright_bottle_handle
+  # exp_dir_suffix: EVAL_ndf_q_ori_shelf_upright_bottle_handle
   # exp_dir_suffix: EVAL_ndf_q_ori_shelf_anyrot_bottle
-  # exp_dir_suffix: EVAL_ndf_q_ori_shelf_anyrot_bottle_handle
+  exp_dir_suffix: EVAL_ndf_q_ori_shelf_anyrot_bottle_handle
 
 
   # exp_dir_suffix: DEBUG_ALL_OPT_shelf_bottle_upright_smol_q
@@ -35,8 +35,8 @@ evaluator:
   # test_obj_class: mug
   num_trials: 200
   include_avoid_obj: False
-  # any_pose: True
-  any_pose: False
+  any_pose: True
+  # any_pose: False
   obj_scale_low: 0.95
   obj_scale_high: 1.05
   obj_scale_default: 1.0

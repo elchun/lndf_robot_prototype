@@ -38,7 +38,9 @@ class EvaluateRackPlaceGraspIdealStep(EvaluateNetwork):
     def __init__(self, grasp_optimizer: OccNetOptimizer,
                  place_optimizer: OccNetOptimizer, seed: int,
                  shapenet_obj_dir: str, eval_save_dir: str,
-                 demo_load_dir: str, pybullet_viz: bool = False,
+                 demo_load_dir: str, obj_scale_low: float,
+                 obj_scale_high: float, obj_scale_default: float,
+                 pybullet_viz: bool = False,
                  test_obj_class: str = 'mug', num_trials: int = 200,
                  include_avoid_obj: bool = True, any_pose: bool = True):
 
@@ -56,6 +58,10 @@ class EvaluateRackPlaceGraspIdealStep(EvaluateNetwork):
         # self.scale_low = 0.50
         # self.scale_high = 0.6
         # self.scale_default = 0.55
+
+        self.scale_low = obj_scale_low
+        self.scale_high = obj_scale_high
+        self.scale_default = obj_scale_default
 
 
     # MESH_SCALE_DEFAULT = 0.5
@@ -233,22 +239,22 @@ class EvaluateRackPlaceGraspIdealStep(EvaluateNetwork):
             grasp_ee_pose_mats[best_grasp_idx]))
         trial_data.aux_data['grasp_opt_idx'] = best_grasp_idx
 
-        # -- Post process grasp position -- #
-        try:
-            # When there are no nearby grasp points, this throws an index
-            # error.  The try catch allows us to run more trials after the error.
-            new_grasp_pt = post_process_grasp_point(
-                grasp_ee_pose,
-                target_obj_pcd_obs,
-                thin_feature=thin_feature,
-                grasp_viz=grasp_viz,
-                grasp_dist_thresh=grasp_dist_thresh)
-        except IndexError:
-            trial_data.trial_result = TrialResults.POST_PROCESS_FAILED
-            self.robot.pb_client.remove_body(obj_id)
-            return trial_data
+        # # -- Post process grasp position -- #
+        # try:
+        #     # When there are no nearby grasp points, this throws an index
+        #     # error.  The try catch allows us to run more trials after the error.
+        #     new_grasp_pt = post_process_grasp_point(
+        #         grasp_ee_pose,
+        #         target_obj_pcd_obs,
+        #         thin_feature=thin_feature,
+        #         grasp_viz=grasp_viz,
+        #         grasp_dist_thresh=grasp_dist_thresh)
+        # except IndexError:
+        #     trial_data.trial_result = TrialResults.POST_PROCESS_FAILED
+        #     self.robot.pb_client.remove_body(obj_id)
+        #     return trial_data
 
-        grasp_ee_pose[:3] = new_grasp_pt
+        # grasp_ee_pose[:3] = new_grasp_pt
 
         # -- Create pose which offsets gripper from object -- #
         pregrasp_offset_tf = get_ee_offset(ee_pose=grasp_ee_pose)
@@ -346,117 +352,138 @@ class EvaluateRackPlaceGraspIdealStep(EvaluateNetwork):
         # plan3 = self.ik_helper.plan_joint_motion(grasp_jnt_pos, post_grasp_jnt_pos)
         plan3 = self.ik_helper.plan_joint_motion(grasp_jnt_pos, home_jnt_pos)
 
+        joint_plan_good = True
         if None in [plan1, plan2, plan3]:
             trial_data.trial_result = TrialResults.JOINT_PLAN_FAILED
-            self.robot.pb_client.remove_body(obj_id)
-            return trial_data
+            trial_data.aux_data['grasp_success'] = False
+            grasp_success = False
+            joint_plan_good = False
+            # self.robot.pb_client.remove_body(obj_id)
+            # return trial_data
 
-        # -- Move for grasp -- #
-        self.robot.pb_client.set_step_sim(True)
-        self.robot.arm.eetool.open()
-        # Go to pre grasp location (linearly away from grasp area)
-        for jnt in plan1:
-            self.robot.arm.set_jpos(jnt, wait=False)
-            self._step_n_steps(10)
-            # time.sleep(0.025)
-        self.robot.arm.set_jpos(plan1[-1], wait=False)
-
-        self._step_n_steps(10)
-
-
-        # turn ON collisions between robot and object
-        for i in range(p.getNumJoints(self.robot.arm.robot_id)):
-            safeCollisionFilterPair(bodyUniqueIdA=self.robot.arm.robot_id,
-                bodyUniqueIdB=obj_id,
-                linkIndexA=i,
-                linkIndexB=-1,
-                enableCollision=True,
-                physicsClientId=self.robot.pb_client.get_client_id())
-
-        # Go to grasp location
-        for jnt in plan2:
-            self.robot.arm.set_jpos(jnt, wait=False)
-            self._step_n_steps(10)
-            # time.sleep(0.04)
-        self.robot.arm.set_jpos(plan2[-1], wait=False)
-        self._step_n_steps(100)
-
-        n_grasp_trials = 5
-        obj_pos_before_grasp = p.getBasePositionAndOrientation(obj_id)[0]
-        jnt_pos_before_grasp = self.robot.arm.get_jpos()
-        for i in range(n_grasp_trials):
-            print(f'Grasp iter: {i}')
-            soft_grasp_close(self.robot, RobotIDs.finger_joint_id, force=50)
-            self._step_n_steps(240)
-
-            # p.performCollisionDetection()
-            # time.sleep(0.8)
-
-            grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
-                f'{str(iteration).zfill(3)}_02{i}grasp.png')
-            self._take_image(grasp_img_fname)
-
-            safeRemoveConstraint(o_cid)
-            safeCollisionFilterPair(obj_id, self.table_id, -1, -1,
-                enableCollision=False)
-            self._step_n_steps(240)
-            time.sleep(0.8)
-
-            # Move to clearance location
-            for jnt in plan3:
+        if joint_plan_good:
+            # -- Move for grasp -- #
+            self.robot.pb_client.set_step_sim(True)
+            self.robot.arm.eetool.open()
+            # Go to pre grasp location (linearly away from grasp area)
+            for jnt in plan1:
                 self.robot.arm.set_jpos(jnt, wait=False)
-                # time.sleep(0.025)
                 self._step_n_steps(10)
-            self.robot.arm.set_jpos(plan3[-1], wait=False)
-            self._step_n_steps(240)
-            # time.sleep(1)
+                # time.sleep(0.025)
+            self.robot.arm.set_jpos(plan1[-1], wait=False)
 
-            contact_grasp_success = object_is_still_grasped(self.robot,
-                obj_id, RobotIDs.right_pad_id, RobotIDs.left_pad_id)
+            self._step_n_steps(10)
 
-            if contact_grasp_success:
-                break
-            elif i != n_grasp_trials - 1:
-                self.robot.arm.eetool.open()  # NEW
-                p.resetBasePositionAndOrientation(obj_id, obj_pos_before_grasp, ori)
-                o_cid = constraint_obj_world(obj_id, obj_pos_before_grasp, ori) # Lock object in pose
-                self.robot.arm.set_jpos(jnt_pos_before_grasp, ignore_physics=True)
-                safeCollisionFilterPair(obj_id, self.table_id, -1, -1,
-                    enableCollision=True)
+            # turn ON collisions between robot and object
+            for i in range(p.getNumJoints(self.robot.arm.robot_id)):
+                safeCollisionFilterPair(bodyUniqueIdA=self.robot.arm.robot_id,
+                    bodyUniqueIdB=obj_id,
+                    linkIndexA=i,
+                    linkIndexB=-1,
+                    enableCollision=True,
+                    physicsClientId=self.robot.pb_client.get_client_id())
+
+            # Go to grasp location
+            for jnt in plan2:
+                self.robot.arm.set_jpos(jnt, wait=False)
+                self._step_n_steps(10)
+                # time.sleep(0.04)
+            self.robot.arm.set_jpos(plan2[-1], wait=False)
+            self._step_n_steps(100)
+
+            n_grasp_trials = 5
+            obj_pos_before_grasp = p.getBasePositionAndOrientation(obj_id)[0]
+            jnt_pos_before_grasp = self.robot.arm.get_jpos()
+            for i in range(n_grasp_trials):
+                print(f'Grasp iter: {i}')
+                soft_grasp_close(self.robot, RobotIDs.finger_joint_id, force=50)
                 self._step_n_steps(240)
+
+                # p.performCollisionDetection()
                 # time.sleep(0.8)
-        # self.robot.pb_client.set_step_sim(False)
 
-        # -- Take image of grasp at clearance height -- #
-        grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
-            '%s_03clearance.png' % str(iteration).zfill(3))
-        self._take_image(grasp_img_fname)
+                grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
+                    f'{str(iteration).zfill(3)}_02{i}grasp.png')
+                self._take_image(grasp_img_fname)
 
-        self.robot.arm.eetool.open()
-        self._step_n_steps(120)
-        # time.sleep(0.5)
+                safeRemoveConstraint(o_cid)
+                safeCollisionFilterPair(obj_id, self.table_id, -1, -1,
+                    enableCollision=False)
+                self._step_n_steps(240)
 
-        # If the ee was intersecting the mug, original_grasp_success
-        # would be true after the table disappears.  However, an
-        # intersection is generally a false grasp When the ee is
-        # opened again, a good grasp should fall down while an
-        # intersecting grasp would stay in contact.
+                contact_grasp_success = object_is_still_grasped(self.robot,
+                    obj_id, RobotIDs.right_pad_id, RobotIDs.left_pad_id)
 
-        intersecting_grasp = object_is_still_grasped(self.robot,
-            obj_id, RobotIDs.right_pad_id, RobotIDs.left_pad_id)
+                intersecting_grasp = object_is_intersecting(obj_id, self.robot.arm.robot_id, -1, -1)
 
-        grasp_success = contact_grasp_success and not intersecting_grasp
+                grasp_success = contact_grasp_success and not intersecting_grasp
 
-        if grasp_success:
-            trial_data.trial_result = TrialResults.GRASP_SUCCESS
-            trial_data.aux_data['grasp_success'] = True
+                if grasp_success:
+                    break
+                elif i != n_grasp_trials - 1:
+                    self.robot.arm.eetool.open()  # NEW
+                    p.resetBasePositionAndOrientation(obj_id, obj_pos_before_grasp, ori)
+                    o_cid = constraint_obj_world(obj_id, obj_pos_before_grasp, ori) # Lock object in pose
+                    self.robot.arm.set_jpos(jnt_pos_before_grasp, ignore_physics=True)
+                    safeCollisionFilterPair(obj_id, self.table_id, -1, -1,
+                        enableCollision=True)
+                    self._step_n_steps(240)
 
-        else:
-            trial_data.trial_result = TrialResults.BAD_OPT_POS
+                # # Move to clearance location
+                # for jnt in plan3:
+                #     self.robot.arm.set_jpos(jnt, wait=False)
+                #     # time.sleep(0.025)
+                #     self._step_n_steps(10)
+                # self.robot.arm.set_jpos(plan3[-1], wait=False)
+                # self._step_n_steps(240)
+                # # time.sleep(1)
+
+                # contact_grasp_success = object_is_still_grasped(self.robot,
+                #     obj_id, RobotIDs.right_pad_id, RobotIDs.left_pad_id)
+
+                # # -- Take image of grasp at clearance height -- #
+                # grasp_img_fname = osp.join(self.eval_grasp_imgs_dir,
+                #     '%s_03clearance.png' % str(iteration).zfill(3))
+                # self._take_image(grasp_img_fname)
+
+                # self.robot.arm.eetool.open()
+                # self._step_n_steps(120)
+                # # time.sleep(0.5)
+
+                # # If the ee was intersecting the mug, original_grasp_success
+                # # would be true after the table disappears.  However, an
+                # # intersection is generally a false grasp When the ee is
+                # # opened again, a good grasp should fall down while an
+                # # intersecting grasp would stay in contact.
+
+                # intersecting_grasp = object_is_still_grasped(self.robot,
+                #     obj_id, RobotIDs.right_pad_id, RobotIDs.left_pad_id)
+
+                # grasp_success = contact_grasp_success and not intersecting_grasp
+
+                # if grasp_success:
+                #     break
+                # elif i != n_grasp_trials - 1:
+                #     self.robot.arm.eetool.open()  # NEW
+                #     p.resetBasePositionAndOrientation(obj_id, obj_pos_before_grasp, ori)
+                #     o_cid = constraint_obj_world(obj_id, obj_pos_before_grasp, ori) # Lock object in pose
+                #     self.robot.arm.set_jpos(jnt_pos_before_grasp, ignore_physics=True)
+                #     safeCollisionFilterPair(obj_id, self.table_id, -1, -1,
+                #         enableCollision=True)
+                #     self._step_n_steps(240)
+                    # time.sleep(0.8)
+
+            if grasp_success:
+                trial_data.trial_result = TrialResults.GRASP_SUCCESS
+                trial_data.aux_data['grasp_success'] = True
+
+            else:
+                trial_data.trial_result = TrialResults.BAD_OPT_POS
 
         # -- Set up for place -- #
 
         log_debug('Attemptimg Place')
+        self.robot.arm.go_home(ignore_physics=True)
 
         placement_link_id = 0
 

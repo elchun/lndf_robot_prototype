@@ -179,7 +179,7 @@ class EvaluateGraspTeleport(EvaluateNetwork):
 
         # -- load object -- #
         obj_id, o_cid, pos, ori = self._insert_object(obj_shapenet_id,
-            obj_scale, any_pose, no_gravity=True)
+            obj_scale, any_pose, no_gravity=True, friction=2.0)
 
         img_fname = osp.join(self.eval_grasp_imgs_dir,
             '%s_00ori.png' % str(iteration).zfill(3))
@@ -210,22 +210,22 @@ class EvaluateGraspTeleport(EvaluateNetwork):
             grasp_ee_pose_mats[best_grasp_idx]))
         trial_data.aux_data['grasp_opt_idx'] = best_grasp_idx
 
-        # -- Post process grasp position -- #
-        try:
-            # When there are no nearby grasp points, this throws an index
-            # error.  The try catch allows us to run more trials after the error.
-            new_grasp_pt = post_process_grasp_point(
-                grasp_ee_pose,
-                target_obj_pcd_obs,
-                thin_feature=thin_feature,
-                grasp_viz=grasp_viz,
-                grasp_dist_thresh=grasp_dist_thresh)
-        except IndexError:
-            trial_data.trial_result = TrialResults.POST_PROCESS_FAILED
-            self.robot.pb_client.remove_body(obj_id)
-            return trial_data
+        # # -- Post process grasp position -- #
+        # try:
+        #     # When there are no nearby grasp points, this throws an index
+        #     # error.  The try catch allows us to run more trials after the error.
+        #     new_grasp_pt = post_process_grasp_point(
+        #         grasp_ee_pose,
+        #         target_obj_pcd_obs,
+        #         thin_feature=thin_feature,
+        #         grasp_viz=grasp_viz,
+        #         grasp_dist_thresh=grasp_dist_thresh)
+        # except IndexError:
+        #     trial_data.trial_result = TrialResults.POST_PROCESS_FAILED
+        #     self.robot.pb_client.remove_body(obj_id)
+        #     return trial_data
 
-        grasp_ee_pose[:3] = new_grasp_pt
+        # grasp_ee_pose[:3] = new_grasp_pt
 
         # -- Figure out where to teleport object -- #
         ee_pose_world = np.concatenate(self.robot.arm.get_ee_pose()[:2]).tolist()
@@ -280,7 +280,7 @@ class EvaluateGraspTeleport(EvaluateNetwork):
             self._take_image(img_fname)
 
             safeRemoveConstraint(o_cid)
-            self._step_n_steps(100)
+            self._step_n_steps(240)
 
             # -- Determine if grasp was successful -- #
             contact_grasp_success = object_is_still_grasped(self.robot,
@@ -306,6 +306,8 @@ class EvaluateGraspTeleport(EvaluateNetwork):
         img_fname = osp.join(self.eval_grasp_imgs_dir,
             '%s_03clearance.png' % str(iteration).zfill(3))
         self._take_image(img_fname)
+
+        # ee_intersecting_mug = object_is_intersecting(obj_id, self.robot.arm.robot_id, -1, -1)
 
         self.robot.arm.eetool.open()
         self._step_n_steps(240)
