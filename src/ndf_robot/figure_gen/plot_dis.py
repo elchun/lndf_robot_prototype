@@ -94,12 +94,6 @@ def plot_grid(fig, grid_start, grid_spacing, n_voxels, line_color, point_color):
 
 
 
-
-
-
-
-
-
 if __name__ == '__main__':
 
     # seed = 0
@@ -145,7 +139,11 @@ if __name__ == '__main__':
     pcd = np.array(mesh.sample(1000))
     # sample_pt = np.array([[-0.010, 0.020, 0.117]])
     # sample_pt = np.array([[0.004, 0.2905, 0.2454]])
-    sample_pt = np.array([[-0.20, 0.04, 0.29]])
+    # sample_pt = np.array([[-0.20, 0.04, 0.29]])
+    sample_pt = np.array([[-0.20, 0.01, -0.04]])
+
+    distances = ((pcd - sample_pt)**2).sum(axis=1).sqrt()
+    print(distances.shape)
 
     min_pts = pcd.min(axis=0)
     max_pts = pcd.max(axis=0)

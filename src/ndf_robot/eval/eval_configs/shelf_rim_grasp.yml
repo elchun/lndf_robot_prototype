@@ -63,14 +63,16 @@ model:
 
 grasp_optimizer:
   args:
-    opt_iterations: 1000
+    # opt_iterations: 1000
+    opt_iterations: 500
     rand_translate: True
     use_tsne: False
     M_override: 20
 
 place_optimizer:
   args:
-    opt_iterations: 1000
+    # opt_iterations: 1000
+    opt_iterations: 500
     rand_translate: True
     use_tsne: False
     M_override: 20
