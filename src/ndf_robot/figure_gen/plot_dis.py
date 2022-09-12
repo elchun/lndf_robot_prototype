@@ -130,19 +130,29 @@ if __name__ == '__main__':
     # rot1[:3, :3] = R.random().as_matrix()
     mesh.apply_transform(rot1)
 
-    # rot2 = np.eye(4)
-    # rot2[:3, :3] = R.random().as_matrix()
+    rot2 = np.eye(4)
+    rot2[:3, :3] = R.random().as_matrix()
     # mesh.apply_transform(rot2)
 
     min_n_voxel = 4
 
     pcd = np.array(mesh.sample(1000))
+    pcd = pcd[pcd[:, 0] < 0, :]
     # sample_pt = np.array([[-0.010, 0.020, 0.117]])
     # sample_pt = np.array([[0.004, 0.2905, 0.2454]])
     # sample_pt = np.array([[-0.20, 0.04, 0.29]])
     sample_pt = np.array([[-0.20, 0.01, -0.04]])
 
-    distances = ((pcd - sample_pt)**2).sum(axis=1).sqrt()
+    distances = np.sqrt(((pcd - sample_pt)**2).sum(axis=1))
+    color = 1 / (distances + 0.1)
+
+    # --- Plot pcd -- #
+    fig = px.scatter_3d(
+        x=pcd[:, 0], y=pcd[:, 1], z=pcd[:, 2], color=color, opacity=0.5
+    )
+    # fig.update_traces(marker_color='rgba(50, 50, 50, 0.4)', selector=dict(type='scatter3d'))
+
+
     print(distances.shape)
 
     min_pts = pcd.min(axis=0)
@@ -165,10 +175,10 @@ if __name__ == '__main__':
     color = np.zeros(pcd.shape[0])
 
     # --- Plot pcd -- #
-    fig = px.scatter_3d(
-        x=pcd[:, 0], y=pcd[:, 1], z=pcd[:, 2], color=color
-    )
-    fig.update_traces(marker_color='rgba(50, 50, 50, 0.4)', selector=dict(type='scatter3d'))
+    # fig = px.scatter_3d(
+    #     x=pcd[:, 0], y=pcd[:, 1], z=pcd[:, 2], color=color
+    # )
+    # fig.update_traces(marker_color='rgba(50, 50, 50, 0.4)', selector=dict(type='scatter3d'))
     # fig.update_traces(marker_color='rgba(50, 50, 50, 0.0)', selector=dict(type='scatter3d'))
 
     # -- Plot sample pt -- #
@@ -177,7 +187,7 @@ if __name__ == '__main__':
     # sample_pt_color = 'rgba(248, 230, 216, 1.0)'
     sample_pt_color = 'rgba(200, 100, 100, 1.0)'
 
-    # sample_pt_color = 'rgba(255, 106, 0, 1.0)'
+    sample_pt_color = 'rgba(255, 106, 0, 1.0)'
     fig.add_trace(go.Scatter3d(x=sample_pt[:, 0], y=sample_pt[:, 1], z =sample_pt[:, 2], mode='markers', marker=dict(color=sample_pt_color, size=20)))
 
     # # https://stackoverflow.com/questions/62403763/how-to-add-planes-in-a-3d-scatter-plot
@@ -217,7 +227,7 @@ if __name__ == '__main__':
     # 238	205	205
 
     # 248	230	216
-    plot_grid(fig, voxel_start, voxel_width, n_plot_voxel, grid_color, point_color)
+    # plot_grid(fig, voxel_start, voxel_width, n_plot_voxel, grid_color, point_color)
 
     sample_voxel_idx = (sample_pt - voxel_start) // voxel_width
     print(sample_voxel_idx)
@@ -225,7 +235,7 @@ if __name__ == '__main__':
     voxel_min_coords = (sample_voxel_idx * voxel_width + voxel_start).flatten()
     voxel_max_coords = ((sample_voxel_idx + 1) * voxel_width + voxel_start).flatten()
 
-    make_voxel(fig, voxel_min_coords, voxel_max_coords, voxel_pt_color)
+    # make_voxel(fig, voxel_min_coords, voxel_max_coords, voxel_pt_color)
 
 
 
@@ -269,6 +279,6 @@ if __name__ == '__main__':
     )
 
 
-    fname = osp.join(path_util.get_ndf_eval(), 'debug_viz', 'debug_grid_fig.html')
+    fname = osp.join(path_util.get_ndf_eval(), 'debug_viz', 'debug_dis_fig.html')
 
     fig.write_html(fname)
