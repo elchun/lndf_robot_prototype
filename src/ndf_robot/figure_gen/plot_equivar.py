@@ -1,5 +1,6 @@
 import os.path as osp
 
+import random
 import numpy as np
 import torch
 from torch.nn import functional as F
@@ -18,6 +19,37 @@ import ndf_robot.model.conv_occupancy_net.conv_occupancy_net \
 
 import plotly.express as px
 import plotly.graph_objects as go
+
+def get_activations(pcd, query, model):
+    """
+    Get activations of pcd and query points when passed into model.
+
+    Args:
+        pcd (np.ndarray): (n, 3)
+        query (np.ndarray): (k, 3)
+
+    Returns:
+        np.ndarray: (n, z) where z is the length of activations.
+    """
+
+    if torch.cuda.is_available():
+        dev = torch.device('cuda:0')
+    else:
+        dev = torch.device('cpu')
+
+    model_input = {}
+
+    query = torch.from_numpy(query).float().to(dev)
+    pcd = torch.from_numpy(pcd).float().to(dev)
+
+    model_input['coords'] = query[None, :, :]
+    model_input['point_cloud'] = pcd[None, :, :]
+    latent = model.extract_latent(model_input).detach()
+
+    act_torch = model.forward_latent(latent, model_input['coords']).detach()
+    act = act_torch.squeeze().cpu().numpy()
+
+    return act
 
 def add_plane(fig, normal_ax: str, x_extents: tuple, y_extents: tuple, z_extents: tuple,
     axis_loc: float, color: np.ndarray):
@@ -93,7 +125,6 @@ def plot_grid(fig, grid_start, grid_spacing, n_voxels, line_color, point_color):
     return fig
 
 
-
 if __name__ == '__main__':
 
     # seed = 0
@@ -105,16 +136,22 @@ if __name__ == '__main__':
 
     use_conv = True
     # use_conv = False
-    n_samples = 1000
 
     if torch.cuda.is_available():
         dev = torch.device('cuda:0')
     else:
         dev = torch.device('cpu')
 
+    # -- Set up model -- #
+    model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=128,
+        model_type='pointnet', return_features=True, sigmoid=False, acts='last').cuda()
+    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_7/checkpoints/model_epoch_0001_iter_060000.pth')
+    model.load_state_dict(torch.load(model_path))
+
+    # -- Load and apply demo object -- #
     # see the demo object descriptions folder for other object models you can try
-    obj_model = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/28f1e7bc572a633cb9946438ed40eeb9/models/model_normalized.obj')
-    # obj_model = osp.join(path_util.get_ndf_obj_descriptions(), 'bottle_std_centered_obj_normalized/f4851a2835228377e101b7546e3ee8a7/models/model_normalized.obj')
+    # obj_model = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/28f1e7bc572a633cb9946438ed40eeb9/models/model_normalized.obj')
+    obj_model = osp.join(path_util.get_ndf_obj_descriptions(), 'bottle_std_centered_obj_normalized/f4851a2835228377e101b7546e3ee8a7/models/model_normalized.obj')
     # obj_model = osp.join(path_util.get_ndf_obj_descriptions(), 'bottle_centered_obj_normalized/e593aa021f3fa324530647fc03dd20dc/models/model_normalized.obj')
 
     scale = 1.0
@@ -126,51 +163,98 @@ if __name__ == '__main__':
     # Make mesh 1 upright
     rot1 = np.eye(4)
     rot1[:3, :3] = util.make_rotation_matrix('x', np.pi / 2)
-    # rot1 = np.eye(4)
-    # rot1[:3, :3] = R.random().as_matrix()
     mesh.apply_transform(rot1)
+    # sample_pt = np.array([[0.0, 0.36, 0.10]])
+    # sample_pt = np.array([[0.0, 0.27, 0.10]])
+    sample_pt = np.array([[-0.02, 0, 0.08]])
 
-    rot2 = np.eye(4)
-    rot2[:3, :3] = R.random().as_matrix()
-    # mesh.apply_transform(rot2)
+    # x is the axis to rotated by
+
+    pcd_list = []
+    color_list = []
+    sample_pt_list = []
+
+    n_rot = 4
+    n_pts = 1000
+    # rots = [0, np.pi/2, np.pi, 3 * np.pi / 2]
+    rots = [np.pi/2, np.pi/2, np.pi, 3 * np.pi / 2]
+    for i in range(n_rot):
+        working_mesh = mesh.copy()
+        # Want 0 rot to look upright
+        angle = rots[i]
+        if angle != 0:
+            angle += random.random() * np.pi/8
+        trans = np.eye(4)
+        trans[:3, :3] = util.make_rotation_matrix('x', angle)
+        trans[:3, -1] = [0, -i * 1, 0]
+        working_mesh.apply_transform(trans)
+        rot_sample_pt = util.apply_pose_numpy(sample_pt, util.pose_stamped2list(util.pose_from_matrix(trans)))
+        sample_pt_list.append(rot_sample_pt)
+
+        pcd_whole = np.array(working_mesh.sample(4 * n_pts))
+        pcd = pcd_whole[pcd_whole[:, 0] < 0, :][:n_pts, :]
+        pcd_list.append(pcd)
+
+        # -- Debug plot distances -- #
+        # distances = np.sqrt(((pcd - rot_sample_pt)**2).sum(axis=1))
+        # color = 1 / (distances + 0.1)
+
+        # -- Plot activation similarity -- #
+        ref_act = get_activations(pcd_whole, rot_sample_pt, model)
+        ref_act = ref_act[None, :]
+        ref_act = np.repeat(ref_act, n_pts, axis=0)
+
+        print(pcd)
+        acts = get_activations(pcd_whole, pcd, model)
+
+        # print(ref_act)
+        # print('---\n\n---')
+        # print(acts)
+
+        cor = F.cosine_similarity(torch.from_numpy(acts).float().to(dev),
+            torch.from_numpy(ref_act).float().to(dev), dim=1)
+
+        cor = cor.cpu().numpy()
+        color = cor
+
+        color_list.append(color)
+
+
+    pcd = np.vstack(pcd_list)
+    color = np.concatenate(color_list, axis=0)
+    print(color)
 
     min_n_voxel = 4
 
-    pcd = np.array(mesh.sample(1000))
-    pcd = pcd[pcd[:, 0] < 0, :]
     # sample_pt = np.array([[-0.010, 0.020, 0.117]])
     # sample_pt = np.array([[0.004, 0.2905, 0.2454]])
     # sample_pt = np.array([[-0.20, 0.04, 0.29]])
-    sample_pt = np.array([[-0.20, 0.01, -0.04]])
 
-    distances = np.sqrt(((pcd - sample_pt)**2).sum(axis=1))
-    color = 1 / (distances + 0.1)
+    # distances = np.sqrt(((pcd - sample_pt)**2).sum(axis=1))
+    # color = 1 / (distances + 0.1)
 
     # --- Plot pcd -- #
     fig = px.scatter_3d(
         x=pcd[:, 0], y=pcd[:, 1], z=pcd[:, 2], color=color, opacity=0.5
     )
-    # fig.update_traces(marker_color='rgba(50, 50, 50, 0.4)', selector=dict(type='scatter3d'))
 
+    # https://plotly.com/python/3d-axes/
+    fig.update_layout(scene_aspectmode='data')
 
-    print(distances.shape)
+    # min_pts = pcd.min(axis=0)
+    # max_pts = pcd.max(axis=0)
+    # min_range = min(max_pts - min_pts)
+    # voxel_width = min_range / min_n_voxel
 
-    min_pts = pcd.min(axis=0)
-    max_pts = pcd.max(axis=0)
-    min_range = min(max_pts - min_pts)
-    voxel_width = min_range / min_n_voxel
+    # print(voxel_width)
 
-    print(voxel_width)
+    # sample_voxel_idx = (sample_pt - min_pts) // voxel_width
+    # print(sample_voxel_idx)
 
-    sample_voxel_idx = (sample_pt - min_pts) // voxel_width
-    print(sample_voxel_idx)
+    # voxel_min_coords = (sample_voxel_idx * voxel_width + min_pts).flatten()
+    # voxel_max_coords = ((sample_voxel_idx + 1) * voxel_width + min_pts).flatten()
 
-    voxel_min_coords = (sample_voxel_idx * voxel_width + min_pts).flatten()
-    voxel_max_coords = ((sample_voxel_idx + 1) * voxel_width + min_pts).flatten()
-
-    print(voxel_min_coords, voxel_max_coords)
-
-
+    # print(voxel_min_coords, voxel_max_coords)
 
     color = np.zeros(pcd.shape[0])
 
@@ -185,10 +269,11 @@ if __name__ == '__main__':
     # sample_pt_color = 'rgba(21, 49, 140, 1.0)'
     # sample_pt_color = 'rgba(135, 206, 250, 1.0)'
     # sample_pt_color = 'rgba(248, 230, 216, 1.0)'
-    sample_pt_color = 'rgba(200, 100, 100, 1.0)'
+    # sample_pt_color = 'rgba(200, 100, 100, 1.0)'
 
     sample_pt_color = 'rgba(255, 106, 0, 1.0)'
-    fig.add_trace(go.Scatter3d(x=sample_pt[:, 0], y=sample_pt[:, 1], z =sample_pt[:, 2], mode='markers', marker=dict(color=sample_pt_color, size=20)))
+    for sample_pt in sample_pt_list:
+        fig.add_trace(go.Scatter3d(x=sample_pt[:, 0], y=sample_pt[:, 1], z =sample_pt[:, 2], mode='markers', marker=dict(color=sample_pt_color, size=20)))
 
     # # https://stackoverflow.com/questions/62403763/how-to-add-planes-in-a-3d-scatter-plot
     # fig.add_trace(go.Surface())
@@ -279,6 +364,6 @@ if __name__ == '__main__':
     )
 
 
-    fname = osp.join(path_util.get_ndf_eval(), 'debug_viz', 'debug_dis_fig.html')
+    fname = osp.join(path_util.get_ndf_eval(), 'debug_viz', 'debug_equivar_fig.html')
 
     fig.write_html(fname)
