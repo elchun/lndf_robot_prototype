@@ -213,6 +213,10 @@ class EvaluateRackPlaceGraspIdealStep(EvaluateNetwork):
         obj_id, o_cid, pos, ori = self._insert_object(obj_shapenet_id,
             obj_scale, any_pose)
 
+        img_fname = osp.join(self.eval_grasp_imgs_dir,
+            '%s_rack_grasp_start.png' % str(iteration).zfill(3))
+        self._get_figure_img(img_fname)
+
         safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=True)
         p.changeDynamics(obj_id, -1, linearDamping=5, angularDamping=5)
         time.sleep(1.5)
@@ -480,6 +484,9 @@ class EvaluateRackPlaceGraspIdealStep(EvaluateNetwork):
             else:
                 trial_data.trial_result = TrialResults.BAD_OPT_POS
 
+            img_fname = osp.join(self.eval_grasp_imgs_dir,
+                '%s_rack_grasp_grasp.png' % str(iteration).zfill(3))
+            self._get_figure_img(img_fname)
         # -- Set up for place -- #
 
         log_debug('Attemptimg Place')
@@ -521,6 +528,10 @@ class EvaluateRackPlaceGraspIdealStep(EvaluateNetwork):
             if place_success:
                 trial_data.aux_data['place_success'] = True
                 break
+
+        img_fname = osp.join(self.eval_grasp_imgs_dir,
+            '%s_rack_grasp_place.png' % str(iteration).zfill(3))
+        self._get_figure_img(img_fname)
 
         if grasp_success and place_success:
             trial_data.trial_result = TrialResults.SUCCESS

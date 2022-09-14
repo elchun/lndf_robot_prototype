@@ -196,7 +196,17 @@ class EvaluateNetwork():
             fname (filename): Filename of image to save.
         """
         grasp_rgb = self.robot.cam.get_images(get_rgb=True)[0]
+        # print(grasp_rgb.shape)
+        # print('Cam shape: ', len(self.robot.cam.get_images(get_rgb=True)))
         util.np2img(grasp_rgb.astype(np.uint8), fname)
+
+    # def _take_image_2(self, fname):
+    #     for i, cam in enumerate(self.cams.cams):
+    #         im_fname = ''.join(fname.split('.')[:-1]) + str(i) + '.' + fname.split('.')[-1]
+    #         im_rgb = cam.get_images(get_rgb)[0]
+    #         print('Cam shape: ', len(im_rgb))
+    #         util.np2img(im_rgb.astype(np.uint8), im_fname)
+
 
     @classmethod
     def _compute_anyrot_pose(cls, x_min: float, x_max: float, y_min: float,
@@ -507,3 +517,36 @@ class EvaluateNetwork():
             table_ori,
             scaling=SimConstants.TABLE_SCALING)
 
+    def _get_figure_img(self, fname: str, view_mat: list = None, proj_mat: list = None,
+        front_view: bool = True):
+        """
+        Take centered image of simulation.  Set view_mat and proj_mat to set
+        your own camera, otherwise default will be used.
+
+        Args:
+            fname (str): Filename to save to.  Must include path.
+            view_mat (list, optional): length 16 view mat. Generate with
+                p.computeViewMatrix.  Defaults to None.
+            proj_matrix (list, optional): length 16 proj mat. Generate with
+                p.computeProjectionMatrixFOV.  Defaults to None.
+        """
+        width = 1080
+        height = 1080
+
+        fov = 60
+        aspect = width / height
+        near = 0.02
+        far = 4
+
+        # p.computeViewMatrix(cameraEyePosition, cameraTargetPosition, cameraUpVector)
+        if view_mat is None:
+            if front_view:
+                view_mat = p.computeViewMatrix([1.5, 0, 1.6], [0, 0, 1.2], [0, 0, 1])
+            else:
+                view_mat = p.computeViewMatrix([0.4, 1.1, 1.6], [0.4, 0, 1.2], [0, 0, 1])
+        if proj_mat is None:
+            proj_mat = p.computeProjectionMatrixFOV(fov, aspect, near, far)
+
+        img = np.array(p.getCameraImage(width, height, view_mat, proj_mat)[2]).reshape(height, width, 4)
+        # img = np.array(p.getCameraImage(1080, 1080)[2])
+        util.np2img(img.astype(np.uint8), fname)

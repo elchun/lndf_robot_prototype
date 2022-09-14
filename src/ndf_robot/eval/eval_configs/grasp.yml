@@ -17,9 +17,9 @@ setup_args:
   # exp_dir_suffix: EVAL_conv_grasp_anyrot_mug
   # exp_dir_suffix: EVAL_conv_grasp_anyrot_bowl_handle
   # exp_dir_suffix: EVAL_conv_grasp_anyrot_bottle_handle
-  exp_dir_suffix: EVAL_conv_grasp_anyrot_bowl
+  # exp_dir_suffix: EVAL_conv_grasp_anyrot_bowl
 
-  # exp_dir_suffix: DEBUG_grasp_bowls_ndf
+  exp_dir_suffix: FIG_grasp_anyrot_bowl
 
   # demo_exp: 'mug/grasp_rim_hang_handle_gaussian_precise_w_shelf_converted'
   demo_exp: 'mug/mug_handle_converted'
@@ -33,7 +33,8 @@ evaluator:
   # test_obj_class: bowl_handle_std
   # test_obj_class: bottle_handle_std
   test_obj_class: bowl_std
-  num_trials: 200
+  # num_trials: 200
+  num_trials: 50
   include_avoid_obj: False
   # include_avoid_obj: False
   any_pose: True

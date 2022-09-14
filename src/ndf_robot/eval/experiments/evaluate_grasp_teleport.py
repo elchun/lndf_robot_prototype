@@ -110,6 +110,7 @@ class EvaluateGraspTeleport(EvaluateNetwork):
 
         self.reset_sim()
 
+
         # # put table at right spot
         # table_ori = euler2quat([0, 0, np.pi / 2])
 
@@ -185,6 +186,12 @@ class EvaluateGraspTeleport(EvaluateNetwork):
             '%s_00ori.png' % str(iteration).zfill(3))
         # util.np2img(grasp_rgb.astype(np.uint8), grasp_img_fname)
         self._take_image(img_fname)
+
+        # -- Camera for figure -- #
+        img_fname = osp.join(self.eval_grasp_imgs_dir,
+            '%s_handle_grasp_figure_img_start.png' % str(iteration).zfill(3))
+
+        self._get_figure_img(img_fname)
 
         # safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=True)
         p.changeDynamics(obj_id, -1, linearDamping=5, angularDamping=5)
@@ -306,6 +313,10 @@ class EvaluateGraspTeleport(EvaluateNetwork):
         img_fname = osp.join(self.eval_grasp_imgs_dir,
             '%s_03clearance.png' % str(iteration).zfill(3))
         self._take_image(img_fname)
+
+        img_fname = osp.join(self.eval_grasp_imgs_dir,
+            '%s_handle_grasp_figure_img_end.png' % str(iteration).zfill(3))
+        self._get_figure_img(img_fname)
 
         # ee_intersecting_mug = object_is_intersecting(obj_id, self.robot.arm.robot_id, -1, -1)
 

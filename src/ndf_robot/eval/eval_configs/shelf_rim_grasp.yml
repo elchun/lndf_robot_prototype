@@ -4,7 +4,7 @@ setup_args:
   # exp_dir_suffix: EVAL_conv_shelf_upright_mug
   # exp_dir_suffix: EVAL_conv_shelf_anyrot_bowl
   # exp_dir_suffix: EVAL_conv_shelf_anyrot_bowl_handle
-  exp_dir_suffix: EVAL_conv_shelf_anyrot_mug
+  # exp_dir_suffix: EVAL_conv_shelf_anyrot_mug
 
 
   # exp_dir_suffix: EVAL_ndf_q_ori_shelf_upright_bowl
@@ -15,6 +15,8 @@ setup_args:
   # exp_dir_suffix: EVAL_ndf_q_ori_shelf_anyrot_mug
 
   # exp_dir_suffix: DEBUG_shelf
+
+  exp_dir_suffix: FIG_conv_shelf_anyrot_bowl_handle
 
 
   # demo_exp: 'mug/grasp_rim_hang_handle_gaussian_precise_w_shelf_converted'
@@ -30,8 +32,8 @@ setup_args:
 evaluator:
   pybullet_viz: False
   # test_obj_class: bowl_std
-  # test_obj_class: bowl_handle_std
-  test_obj_class: mug_std
+  test_obj_class: bowl_handle_std
+  # test_obj_class: mug_std
 
   num_trials: 200
   include_avoid_obj: False

@@ -7,7 +7,7 @@ setup_args:
   # exp_dir_suffix: EVAL_ndf_q_ori_shelf_upright_bottle
   # exp_dir_suffix: EVAL_ndf_q_ori_shelf_upright_bottle_handle
   # exp_dir_suffix: EVAL_ndf_q_ori_shelf_anyrot_bottle
-  exp_dir_suffix: EVAL_ndf_q_ori_shelf_anyrot_bottle_handle
+  # exp_dir_suffix: EVAL_ndf_q_ori_shelf_anyrot_bottle_handle
 
 
   # exp_dir_suffix: DEBUG_ALL_OPT_shelf_bottle_upright_smol_q
@@ -17,6 +17,8 @@ setup_args:
   # exp_dir_suffix: DEBUG_shelf_bottle_upright_dim128_ori_shelf
 
   # exp_dir_suffix: DEBUG_ndf
+
+  exp_dir_suffix: FIG_conv_shelf_anyrot_bottle_handle
 
 
   demo_exp: 'bottle/grasp_side_place_shelf_with_collision'
@@ -42,152 +44,64 @@ evaluator:
   obj_scale_default: 1.0
 
 
-# # -- Conv config -- #
-# model:
-#   type: CONV_OCC
-#   # checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_final.pth
-#   checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_7/checkpoints/model_epoch_0001_iter_060000.pth
+# -- Conv config -- #
+model:
+  type: CONV_OCC
+  # checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_final.pth
+  checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_7/checkpoints/model_epoch_0001_iter_060000.pth
 
-#   args:
-#     # latent_dim: 64
-#     latent_dim: 128
-#     model_type: pointnet
-#     return_features: True
-#     sigmoid: False
-#     acts: last
-
-
-# grasp_optimizer:
-#   args:
-#     # opt_iterations: 1000
-#     opt_iterations: 500
-#     rand_translate: True
-#     use_tsne: False
-#     M_override: 20
-#     cos_loss: True
-#     # save_all_opt: True
-
-# place_optimizer:
-#   args:
-#     # opt_iterations: 1000
-#     opt_iterations: 500
-#     rand_translate: True
-#     use_tsne: False
-#     M_override: 20
-#     opt_fname_prefix: 'place_pose_optimized'
-#     query_pts_override: True
-#     cos_loss: True
-
-# # With rect query points, z1 is actually pointing up when
-# # used as a query point
-# # y is along the gripper movement direction
-# # gripper_query_pts:
-# #   type: RECT
-# #   args:
-# #     n_pts: 1000
-# #     x: 0.04
-# #     y: 0.10
-# #     z1: 0.06
-# #     z2: 0.02
+  args:
+    # latent_dim: 64
+    latent_dim: 128
+    model_type: pointnet
+    return_features: True
+    sigmoid: False
+    acts: last
 
 
+grasp_optimizer:
+  args:
+    # opt_iterations: 1000
+    opt_iterations: 500
+    rand_translate: True
+    use_tsne: False
+    M_override: 20
+    cos_loss: True
+    # save_all_opt: True
+
+place_optimizer:
+  args:
+    # opt_iterations: 1000
+    opt_iterations: 500
+    rand_translate: True
+    use_tsne: False
+    M_override: 20
+    opt_fname_prefix: 'place_pose_optimized'
+    query_pts_override: True
+    cos_loss: True
+
+# With rect query points, z1 is actually pointing up when
+# used as a query point
+# y is along the gripper movement direction
 # gripper_query_pts:
 #   type: RECT
 #   args:
 #     n_pts: 1000
 #     x: 0.04
-#     # y: 0.04
-#     y: 0.05
-#     z1: 0.04
-#     z2: 0.01
-
-# # gripper_query_pts:
-# #   type: SPHERE
-# #   args:
-# #     n_pts: 1000
-# #     radius: 0.05
-
-# # shelf_query_pts:
-# #   type: SHELF
-# #   args:
-# #     n_pts: 1000
-# #     radius: 0.03
-# #     # radius: 0.06
-# #     # radius: 0.1
-# #     height: 0.02
-# #     y_rot_rad: 0.0
-# #     x_trans: 0.0
-# #     y_trans: 0.07
-# #     # z_trans: 0.11
-# #     z_trans: 0.09
-
-# shelf_query_pts:
-#   type: SHELF
-#   args:
-#     n_pts: 1000
-#     # radius: 0.03
-#     # radius: 0.08
-#     radius: 0.03
-#     height: 0.30
-#     y_rot_rad: 0.0
-#     x_trans: 0.0
-#     y_trans: 0.07
-#     # z_trans: 0.11
-#     z_trans: 0.08
-
-# # shelf_query_pts:
-# #   type: NDF_SHELF
-# #   args:
-# #     n_pts: 1000
-
-
-
-# -- NDF Config -- #
-model:
-  type: VNN_NDF
-  checkpoint: multi_category_weights.pth
-  args:
-    latent_dim: 256
-    model_type: pointnet
-    return_features: True
-    sigmoid: True
-    acts: all
-
-grasp_optimizer:
-  args:
-    opt_iterations: 500
-    rand_translate: False
-    use_tsne: False
-    M_override: 10
-
-place_optimizer:
-  args:
-    opt_iterations: 500
-    rand_translate: False
-    use_tsne: False
-    M_override: 10
-    opt_fname_prefix: 'place_pose_optimized'
-
-# # With rect query points, z1 is actually pointing up when
-# # used as a query point
-# # y is along the gripper movement direction
-# gripper_query_pts:
-#   type: RECT
-#   args:
-#     n_pts: 1000
-#     x: 0.06
-#     # x: 0.08
-#     # y: 0.09
-#     # y: 0.15
 #     y: 0.10
 #     z1: 0.06
 #     z2: 0.02
-#     # z2: 0.04
+
 
 gripper_query_pts:
-  type: NDF_GRIPPER
+  type: RECT
   args:
     n_pts: 1000
+    x: 0.04
+    # y: 0.04
+    y: 0.05
+    z1: 0.04
+    z2: 0.01
 
 # gripper_query_pts:
 #   type: SPHERE
@@ -199,9 +113,10 @@ gripper_query_pts:
 #   type: SHELF
 #   args:
 #     n_pts: 1000
-#     radius: 0.08
+#     radius: 0.03
+#     # radius: 0.06
 #     # radius: 0.1
-#     height: 0.10
+#     height: 0.02
 #     y_rot_rad: 0.0
 #     x_trans: 0.0
 #     y_trans: 0.07
@@ -209,6 +124,93 @@ gripper_query_pts:
 #     z_trans: 0.09
 
 shelf_query_pts:
-  type: NDF_SHELF
+  type: SHELF
   args:
     n_pts: 1000
+    # radius: 0.03
+    # radius: 0.08
+    radius: 0.03
+    height: 0.30
+    y_rot_rad: 0.0
+    x_trans: 0.0
+    y_trans: 0.07
+    # z_trans: 0.11
+    z_trans: 0.08
+
+# shelf_query_pts:
+#   type: NDF_SHELF
+#   args:
+#     n_pts: 1000
+
+
+
+# # -- NDF Config -- #
+# model:
+#   type: VNN_NDF
+#   checkpoint: multi_category_weights.pth
+#   args:
+#     latent_dim: 256
+#     model_type: pointnet
+#     return_features: True
+#     sigmoid: True
+#     acts: all
+
+# grasp_optimizer:
+#   args:
+#     opt_iterations: 500
+#     rand_translate: False
+#     use_tsne: False
+#     M_override: 10
+
+# place_optimizer:
+#   args:
+#     opt_iterations: 500
+#     rand_translate: False
+#     use_tsne: False
+#     M_override: 10
+#     opt_fname_prefix: 'place_pose_optimized'
+
+# # # With rect query points, z1 is actually pointing up when
+# # # used as a query point
+# # # y is along the gripper movement direction
+# # gripper_query_pts:
+# #   type: RECT
+# #   args:
+# #     n_pts: 1000
+# #     x: 0.06
+# #     # x: 0.08
+# #     # y: 0.09
+# #     # y: 0.15
+# #     y: 0.10
+# #     z1: 0.06
+# #     z2: 0.02
+# #     # z2: 0.04
+
+# gripper_query_pts:
+#   type: NDF_GRIPPER
+#   args:
+#     n_pts: 1000
+
+# # gripper_query_pts:
+# #   type: SPHERE
+# #   args:
+# #     n_pts: 1000
+# #     radius: 0.05
+
+# # shelf_query_pts:
+# #   type: SHELF
+# #   args:
+# #     n_pts: 1000
+# #     radius: 0.08
+# #     # radius: 0.1
+# #     height: 0.10
+# #     y_rot_rad: 0.0
+# #     x_trans: 0.0
+# #     y_trans: 0.07
+# #     # z_trans: 0.11
+# #     z_trans: 0.09
+
+# shelf_query_pts:
+#   type: NDF_SHELF
+#   args:
+#     n_pts: 1000

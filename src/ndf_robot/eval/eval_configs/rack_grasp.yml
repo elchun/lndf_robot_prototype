@@ -11,7 +11,9 @@ setup_args:
   # exp_dir_suffix: EVAL_conv_rack_grasp_upright_bottle_handle
   # exp_dir_suffix: EVAL_conv_rack_grasp_anyrot_mug
   # exp_dir_suffix: EVAL_conv_rack_grasp_anyrot_bowl_handle
-  exp_dir_suffix: EVAL_conv_rack_grasp_anyrot_bottle_handle
+  # exp_dir_suffix: EVAL_conv_rack_grasp_anyrot_bottle_handle
+
+  exp_dir_suffix: FIG_conv_rack_grasp_anyrot_bowl_handle
 
   # exp_dir_suffix: DEBUG_rack_grasp
 
@@ -28,9 +30,10 @@ setup_args:
 evaluator:
   pybullet_viz: False
   # test_obj_class: mug_std
-  # test_obj_class: bowl_handle_std
-  test_obj_class: bottle_handle_std
-  num_trials: 200
+  test_obj_class: bowl_handle_std
+  # test_obj_class: bottle_handle_std
+  # num_trials: 200
+  num_trials: 25
   # include_avoid_obj: True
   include_avoid_obj: False
   any_pose: True

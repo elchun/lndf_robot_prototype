@@ -180,6 +180,7 @@ class EvaluateGrasp(EvaluateNetwork):
         obj_id, o_cid, pos, ori = self._insert_object(obj_shapenet_id,
             obj_scale, any_pose, no_gravity=True)
 
+
         # safeCollisionFilterPair(obj_id, self.table_id, -1, -1, enableCollision=True)
         p.changeDynamics(obj_id, -1, linearDamping=5, angularDamping=5)
         time.sleep(1.5)

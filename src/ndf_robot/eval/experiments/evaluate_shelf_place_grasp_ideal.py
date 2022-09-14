@@ -238,6 +238,10 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
             self.robot.pb_client.remove_body(obj_id)
             return trial_data
 
+        img_fname = osp.join(self.eval_grasp_imgs_dir,
+            '%s_shelf_grasp_start.png' % str(iteration).zfill(3))
+        self._get_figure_img(img_fname)
+
         # -- Get grasp position -- #
         log_debug('Getting grasp position.')
         opt_viz_path = osp.join(eval_iter_dir, 'visualize')
@@ -579,6 +583,10 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
                 # return trial_data
 
 
+        img_fname = osp.join(self.eval_grasp_imgs_dir,
+            '%s_shelf_grasp_grasp.png' % str(iteration).zfill(3))
+        self._get_figure_img(img_fname)
+
         # -- Set up for place -- #
         log_debug('Attempting Place')
         self.robot.arm.go_home(ignore_physics=True)
@@ -618,6 +626,10 @@ class EvaluateShelfPlaceGraspIdeal(EvaluateNetwork):
             if place_success:
                 trial_data.aux_data['place_success'] = True
                 break
+
+        img_fname = osp.join(self.eval_grasp_imgs_dir,
+            '%s_shelf_grasp_place.png' % str(iteration).zfill(3))
+        self._get_figure_img(img_fname)
 
         if grasp_success and place_success:
             trial_data.trial_result = TrialResults.SUCCESS
