@@ -18,7 +18,12 @@ setup_args:
 
   # exp_dir_suffix: DEBUG_ndf
 
-  exp_dir_suffix: FIG_conv_shelf_anyrot_bottle_handle
+  # exp_dir_suffix: ABLAT_128OccOnly_shelf_anyrot_bottle
+  # exp_dir_suffix: ABLAT_128HardLoss_shelf_anyrot_bottle
+  # exp_dir_suffix: ABLAT_128DistLoss_shelf_anyrot_bottle
+
+  # exp_dir_suffix: ABLAT_128Random_shelf_anyrot_bottle
+  exp_dir_suffix: ABLAT_32DistLoss_shelf_anyrot_bottle
 
 
   demo_exp: 'bottle/grasp_side_place_shelf_with_collision'
@@ -31,8 +36,8 @@ setup_args:
 
 evaluator:
   pybullet_viz: False
-  # test_obj_class: bottle_std # Choose from mug, bowl, bottle
-  test_obj_class: bottle_handle_std # Choose from mug, bowl, bottle
+  test_obj_class: bottle_std # Choose from mug, bowl, bottle
+  # test_obj_class: bottle_handle_std # Choose from mug, bowl, bottle
   # test_obj_class: bowl_std # Choose from mug, bowl, bottle
   # test_obj_class: mug
   num_trials: 200
@@ -48,11 +53,20 @@ evaluator:
 model:
   type: CONV_OCC
   # checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_0/checkpoints/model_final.pth
-  checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_7/checkpoints/model_epoch_0001_iter_060000.pth
+  # These are ablation studies
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_0/checkpoints/model_epoch_0008_iter_508000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s3_7/checkpoints/model_epoch_0002_iter_132000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_multicategory_latent_sim_occ_neg_se3_s4_1/checkpoints/model_epoch_0005_iter_326000.pth
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_7/checkpoints/model_epoch_0000_iter_000000.pth
+
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_7/checkpoints/model_epoch_0001_iter_060000.pth  <-- This is the best one
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_0/checkpoints/model_epoch_0000_iter_000000.pth
+  checkpoint: ndf_vnn/conv_occ_hidden32_anyrot_dist_cont_1/checkpoints/model_epoch_0001_iter_060000.pth
 
   args:
+    latent_dim: 32
     # latent_dim: 64
-    latent_dim: 128
+    # latent_dim: 128
     model_type: pointnet
     return_features: True
     sigmoid: False

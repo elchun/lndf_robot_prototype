@@ -322,9 +322,16 @@ class EvaluateGraspTeleport(EvaluateNetwork):
 
         self.robot.arm.eetool.open()
         self._step_n_steps(240)
+        # Sometimes object collides with gripper body and gets stuck there...
+        soft_grasp_close(self.robot, RobotIDs.finger_joint_id, force=50)
+        self._step_n_steps(240)
         ee_intersecting_mug = object_is_still_grasped(
             self.robot, obj_id, RobotIDs.right_pad_id,
             RobotIDs.left_pad_id)
+
+        obj_table_pts = p.getClosestPoints(bodyA=obj_id, bodyB=self.table_id, distance=0.002,
+                                            linkIndexA=-1, linkIndexB=-1)
+        print('DEBUG CLOSEST PTS', ee_intersecting_mug, len(obj_table_pts))
 
         img_fname = osp.join(self.eval_grasp_imgs_dir,
             '%s_04release.png' % str(iteration).zfill(3))

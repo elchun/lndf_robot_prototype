@@ -25,6 +25,7 @@ import ndf_robot.model.conv_occupancy_net.conv_occupancy_net \
     as conv_occupancy_network
 
 from ndf_robot.opt.optimizer_lite import OccNetOptimizer
+from ndf_robot.opt.optimizer_geom import GeomOptimizer
 from ndf_robot.robot.multicam import MultiCams
 from ndf_robot.utils.franka_ik import FrankaIK
 
@@ -66,6 +67,18 @@ class EvaluateNetworkSetup():
         self.seed = None
 
     def set_up_network(self, fname: str) -> EvaluateNetwork:
+        """
+        Create an instance of EvaluateNetwork by loading a config file.
+
+        Args:
+            fname (str): Filename of config file to use.  Must be a yaml file.
+
+        Raises:
+            ValueError: config file must have correct evaluator type.
+
+        Returns:
+            EvaluateNetwork: Network Evaluator with parameters set by config file.
+        """
         config_path = osp.join(self.config_dir, fname)
         with open(config_path, "r") as stream:
             try:
@@ -102,6 +115,12 @@ class EvaluateNetworkSetup():
             raise ValueError('Invalid evaluator type.')
 
     def _grasp_setup(self) -> EvaluateNetwork:
+        """
+        Set up grasp experiment.  Must have 'grasp_optimizer' in config file.
+
+        Returns:
+            EvaluateNetwork
+        """
         setup_config = self.config_dict['setup_args']
         obj_class = self.config_dict['evaluator']['test_obj_class']
 
@@ -347,14 +366,25 @@ class EvaluateNetworkSetup():
         Returns:
             OccNetOptimizer: Optimizer to find best grasp position
         """
+        if 'opt_type' in optimizer_config:
+            optimizer_type = optimizer_config['opt_type']  # LNDF or GEOM
+        else:
+            optimizer_type = None
+
         optimizer_config = optimizer_config['args']
         if eval_save_dir is not None:
             opt_viz_path = osp.join(eval_save_dir, 'visualization')
         else:
             opt_viz_path = 'visualization'
 
-        optimizer = OccNetOptimizer(model, query_pts, viz_path=opt_viz_path,
-            **optimizer_config)
+        if optimizer_type == 'GEOM':
+            print('Using geometric optimizer')
+            optimizer = GeomOptimizer(model, query_pts, viz_path=opt_viz_path,
+                **optimizer_config)
+        else:
+            print('Using Occ Net optimizer')
+            optimizer = OccNetOptimizer(model, query_pts, viz_path=opt_viz_path,
+                **optimizer_config)
         return optimizer
 
     def _create_query_pts(self, query_pts_config: dict) -> np.ndarray:

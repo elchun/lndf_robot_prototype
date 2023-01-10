@@ -1,6 +1,8 @@
-# Neural Descriptor Fields (NDF)
+# Local Neural Descriptor Fields (LNDF)
 
-PyTorch implementation for training continuous 3D neural fields to represent dense correspondence across objects, and using these descriptor fields to mimic demonstrations of a pick-and-place task on a robotic system
+PyTorch implementation for training continuous convolutional neural fields to represent dense correspondence across objects, and using these descriptor fields to mimic demonstrations of a pick-and-place task on a robotic system.
+
+------------ TODO: EDIT ALL STUFF BELOW THIS LINE -------------------
 
 <p align="center">
 <img src="./doc/mug_cut.gif" alt="drawing" width="700"/>

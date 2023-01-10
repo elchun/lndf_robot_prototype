@@ -150,28 +150,77 @@ if __name__ == '__main__':
 
     # -- Load and apply demo object -- #
     # see the demo object descriptions folder for other object models you can try
-    # obj_model = osp.join(path_util.get_ndf_obj_descriptions(), 'mug_std_centered_obj_normalized/28f1e7bc572a633cb9946438ed40eeb9/models/model_normalized.obj')
-    obj_model = osp.join(path_util.get_ndf_obj_descriptions(), 'bottle_std_centered_obj_normalized/f4851a2835228377e101b7546e3ee8a7/models/model_normalized.obj')
+    mug_std = osp.join(path_util.get_ndf_obj_descriptions(), 'mug_std_centered_obj_normalized/28f1e7bc572a633cb9946438ed40eeb9/models/model_normalized.obj')
+    mug2_std = osp.join(path_util.get_ndf_obj_descriptions(), 'mug_std_centered_obj_normalized/7a8ea24474846c5c2f23d8349a133d2b/models/model_normalized.obj')
+    bottle_std = osp.join(path_util.get_ndf_obj_descriptions(), 'bottle_std_centered_obj_normalized/f4851a2835228377e101b7546e3ee8a7/models/model_normalized.obj')
+    bottle_handle_std = osp.join(path_util.get_ndf_obj_descriptions(), 'bottle_handle_std_centered_obj_normalized/e8b48d395d3d8744e53e6e0633163da8-h/models/model_normalized.obj')
     # obj_model = osp.join(path_util.get_ndf_obj_descriptions(), 'bottle_centered_obj_normalized/e593aa021f3fa324530647fc03dd20dc/models/model_normalized.obj')
-    # obj_model = osp.join(path_util.get_ndf_obj_descriptions(), 'bowl_handle_std_centered_obj_normalized/34875f8448f98813a2c59a4d90e63212-h/models/model_normalized.obj')
+    bowl_handle_std = osp.join(path_util.get_ndf_obj_descriptions(), 'bowl_handle_std_centered_obj_normalized/34875f8448f98813a2c59a4d90e63212-h/models/model_normalized.obj')
+    bowl_handle2_std = osp.join(path_util.get_ndf_obj_descriptions(), 'bowl_handle_std_centered_obj_normalized/2c1df84ec01cea4e525b133235812833-h/models/model_normalized.obj')
+
 
     scale = 1.0
-    mesh = trimesh.load(obj_model, process=False)
-    mesh.apply_scale(scale)
+    bottle_std = trimesh.load(bottle_std, process=False)
+    bottle_std.apply_scale(scale)
+
+    scale = 1.0
+    bottle_handle_std = trimesh.load(bottle_handle_std, process=False)
+    bottle_handle_std.apply_scale(scale)
+
+    scale = 1.0
+    mug_std = trimesh.load(mug_std, process=False)
+    mug_std.apply_scale(scale)
+
+    scale = 1.0
+    mug2_std = trimesh.load(mug2_std, process=False)
+    mug2_std.apply_scale(scale)
+
+    scale = 1.0
+    bowl_handle_std = trimesh.load(bowl_handle_std, process=False)
+    bowl_handle_std.apply_scale(scale)
+
+    scale = 1.0
+    bowl_handle2_std = trimesh.load(bowl_handle2_std, process=False)
+    bowl_handle2_std.apply_scale(scale)
+
+    # object_list = [bottle_std, bottle_std, bottle_handle_std, bottle_handle_std]
+    # object_list = [mug_std, bowl_handle_std, bottle_handle_std, mug2_std]
+    object_list = [mug_std, bowl_handle_std, bowl_handle2_std, mug2_std]
 
     # sample_pts = mesh1.sample(n_samples)
 
-    # Make mesh 1 upright
-    rot1 = np.eye(4)
-    rot1[:3, :3] = util.make_rotation_matrix('x', np.pi / 2)
-    mesh.apply_transform(rot1)
+    # # -- Make input upright -- #
+    # for i in range(len(object_list)):
+    #     rot1 = np.eye(4)
+    #     rot1[:3, :3] = util.make_rotation_matrix('x', np.pi / 2)
+
+    #     object_list[i].apply_transform(rot1)
+
+    upright_transform = np.eye(4)
+    upright_transform[:3, :3] = util.make_rotation_matrix('x', np.pi / 2)
+
+    obj_sample_pt_list = [
+        np.array([[0.0, 0.08, 0.07]]),
+        np.array([[0.00, -0.13, 0.05]]),
+        np.array([[0.00, -0.13, 0.04]]),
+        # np.array([[-0.02, -0.09, 0.06]]),
+        np.array([[0.0, 0.10, 0.06]])
+    ]
+
+    # obj_sample_pt_list = [
+    #     np.array([[-0.02, 0, 0.08]]),
+    #     np.array([[-0.02, 0, 0.08]]),
+    #     np.array([[-0.02, 0, 0.08]]),
+    #     np.array([[-0.02, 0, 0.08]]),
+    # ]
+
     # For mug
     # sample_pt = np.array([[0.0, 0.36, 0.10]])
     # sample_pt = np.array([[0.0, 0.27, 0.10]])
     # sample_pt = np.array([[0.00, 0.10, 0.05]])
 
     # For bottle
-    sample_pt = np.array([[-0.02, 0, 0.08]])
+    # sample_pt = np.array([[-0.02, 0, 0.08]]),
 
     # For bowl handle
     # sample_pt = np.array([[0.00, -0.13, 0.05]])
@@ -186,14 +235,17 @@ if __name__ == '__main__':
     n_pts = 1000
     rots = [0, np.pi/2, np.pi, 3 * np.pi / 2]
     # rots = [np.pi/2, np.pi/2, np.pi, 3 * np.pi / 2]
+    first_ref_act = None
     for i in range(n_rot):
-        working_mesh = mesh.copy()
+        working_mesh = object_list[i].copy()
+        sample_pt = obj_sample_pt_list[i]
         # Want 0 rot to look upright
         angle = rots[i]
         if angle != 0:
             angle += random.random() * np.pi/8
         rot = np.eye(4)
         rot[:3, :3] = util.make_rotation_matrix('x', angle)
+        working_mesh.apply_transform(upright_transform)
         working_mesh.apply_transform(rot)
         rot_sample_pt = util.apply_pose_numpy(sample_pt, util.pose_stamped2list(util.pose_from_matrix(rot)))
 
@@ -201,17 +253,26 @@ if __name__ == '__main__':
         pcd = pcd_whole[pcd_whole[:, 0] < 0, :][:n_pts, :]
 
         # Add offset so we can view side by side
-        pcd_list.append(pcd + np.array([0, -1 * i, 0]))
-        sample_pt_list.append(rot_sample_pt + np.array([0, -1 * i, 0]))
+        y_offset = -0.5
+        pcd_list.append(pcd + np.array([0, y_offset * i, 0]))
+        sample_pt_list.append(rot_sample_pt + np.array([0, y_offset * i, 0]))
 
         # -- Debug plot distances -- #
         # distances = np.sqrt(((pcd - rot_sample_pt)**2).sum(axis=1))
         # color = 1 / (distances + 0.1)
 
         # -- Plot activation similarity -- #
-        ref_act = get_activations(pcd_whole, rot_sample_pt, model)
-        ref_act = ref_act[None, :]
-        ref_act = np.repeat(ref_act, n_pts, axis=0)
+        # ref_act = get_activations(pcd_whole, rot_sample_pt, model)
+        # ref_act = ref_act[None, :]
+        # ref_act = np.repeat(ref_act, n_pts, axis=0)
+
+        if first_ref_act is None:
+            ref_act = get_activations(pcd_whole, rot_sample_pt, model)
+            ref_act = ref_act[None, :]
+            ref_act = np.repeat(ref_act, n_pts, axis=0)
+            first_ref_act = ref_act
+        else:
+            ref_act = first_ref_act
 
         acts = get_activations(pcd_whole, pcd, model)
 
@@ -227,7 +288,7 @@ if __name__ == '__main__':
 
         color_list.append(color)
 
-    scale_color_pt = np.array([[00, 10, 0]])
+    scale_color_pt = np.array([[00, 5.5, 0]])
     scale_color_color = np.array([1.4])
 
     # So that we don't have bright yellow.  Could change scale too but this is

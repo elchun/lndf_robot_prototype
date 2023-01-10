@@ -107,8 +107,8 @@ if __name__ == '__main__':
     # conv_occ_args = latent_dim_4
     # conv_occ_args = default_args
     # conv_occ_args = latent_dim_16
-    # conv_occ_args = latent_dim_32
-    conv_occ_args = latent_dim_64
+    conv_occ_args = latent_dim_32
+    # conv_occ_args = latent_dim_64
     # conv_occ_args = latent_dim_128
 
     # -- LOSS FUNCTION ARGS -- #
@@ -235,8 +235,8 @@ if __name__ == '__main__':
     # loss_fn_args = cos_args
     # loss_fn_args = cos_contrast_args
     # loss_fn_args = cos_relative_args
-    # loss_fn_args = cos_distance_args
-    loss_fn_args = no_sim_contrast
+    loss_fn_args = cos_distance_args
+    # loss_fn_args = no_sim_contrast
 
     # -- DATALOADER ARGS -- #
     sidelength = 128

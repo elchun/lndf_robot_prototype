@@ -1,3 +1,5 @@
+# NOT USED
+
 import os, os.path as osp
 import random
 import numpy as np
@@ -28,7 +30,7 @@ from ndf_robot.utils import path_util
 from ndf_robot.share.globals import bad_shapenet_mug_ids_list, bad_shapenet_bowls_ids_list, bad_shapenet_bottles_ids_list
 from ndf_robot.utils.franka_ik import FrankaIK
 from ndf_robot.utils.eval_gen_utils import (
-    soft_grasp_close, constraint_grasp_close, constraint_obj_world, constraint_grasp_open, 
+    soft_grasp_close, constraint_grasp_close, constraint_obj_world, constraint_grasp_open,
     safeCollisionFilterPair, object_is_still_grasped, get_ee_offset, post_process_grasp_point,
     process_demo_data_rack, process_demo_data_shelf, process_xq_data, process_xq_rs_data, safeRemoveConstraint,
 )
@@ -47,7 +49,7 @@ class Evaluate_NDF():
             set_log_level('debug')
         else:
             set_log_level('info')
-        
+
         self.use_conv = not args.no_conv
         self.sto_dir_path = Evaluate_NDF.__make_temp_viz_save()
 
@@ -57,7 +59,7 @@ class Evaluate_NDF():
 
         # general experiment + environment setup/scene generation configs
         self.cfg = self.__get_cfg()
-        
+
         # object specific configs
         self.obj_cfg = self.__get_obj_cfg()
 
@@ -68,10 +70,10 @@ class Evaluate_NDF():
         self.sample_grasp_data = demo_data['sample_grasp_data']
 
         model = self.__init_model()
-        self.place_optimizer, self.grasp_optimizer = self.__set_optimizers(model, demo_data) 
+        self.place_optimizer, self.grasp_optimizer = self.__set_optimizers(model, demo_data)
 
-        self.test_object_ids = self.__get_test_object_ids(demo_data['demo_shapenet_ids'], 
-            demo_data['avoid_shapenet_ids'], 
+        self.test_object_ids = self.__get_test_object_ids(demo_data['demo_shapenet_ids'],
+            demo_data['avoid_shapenet_ids'],
             demo_data['test_shapenet_ids'],
         )
 
@@ -116,7 +118,7 @@ class Evaluate_NDF():
         if self.cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
             placement_link_id = shelf_link_id
         else:
-            placement_link_id = rack_link_id 
+            placement_link_id = rack_link_id
 
         # directory paths
         self.shapenet_obj_dir = global_dict['shapenet_obj_dir']
@@ -147,7 +149,7 @@ class Evaluate_NDF():
                 raise ValueError('Too many dirs created')
             dir_path = dir_path_template.format(i)
         os.makedirs(dir_path)
-        return dir_path  
+        return dir_path
 
     def __get_cfg(self):
         cfg = get_eval_cfg_defaults()
@@ -158,7 +160,7 @@ class Evaluate_NDF():
             log_info('Config file %s does not exist, using defaults' % config_fname)
         cfg.freeze()
         return cfg
-    
+
     def __get_obj_cfg(self):
         obj_cfg = get_obj_cfg_defaults()
         obj_config_name = osp.join(path_util.get_ndf_config(), args.object_class + '_obj_cfg.yaml')
@@ -171,24 +173,24 @@ class Evaluate_NDF():
         if self.use_conv:
             print('Using conv occupancy network')
             model = conv_occupancy_network.ConvolutionalOccupancyNetwork(
-                latent_dim=32, 
-                model_type='pointnet', 
-                return_features=True, 
+                latent_dim=32,
+                model_type='pointnet',
+                return_features=True,
                 sigmoid=False).cuda()
         else:
             print('Using non-conv occupancy network')
             if args.dgcnn:
                 model = vnn_occupancy_network.VNNOccNet(
-                    latent_dim=256, 
+                    latent_dim=256,
                     model_type='dgcnn',
-                    return_features=True, 
+                    return_features=True,
                     sigmoid=True,
                     acts=args.acts).cuda()
             else:
                 model = vnn_occupancy_network.VNNOccNet(
-                    latent_dim=256, 
+                    latent_dim=256,
                     model_type='pointnet',
-                    return_features=True, 
+                    return_features=True,
                     sigmoid=True).cuda()
 
         if not args.random:
@@ -209,14 +211,14 @@ class Evaluate_NDF():
         Returns:
             tuple(list, list):
                 grasp_demo_filenames: list of fnames of grasp demos
-                place_demo_filenames: list of fnames of place demos 
+                place_demo_filenames: list of fnames of place demos
         """
         # get filenames of all the demo files
         demo_filenames = os.listdir(self.global_dict['demo_load_dir'])
         assert len(demo_filenames), 'No demonstrations found in path: %s!' % self.global_dict['demo_load_dir']
 
         # strip the filenames to properly pair up each demo file
-        grasp_demo_filenames_orig = [osp.join(self.global_dict['demo_load_dir'], fn) 
+        grasp_demo_filenames_orig = [osp.join(self.global_dict['demo_load_dir'], fn)
             for fn in demo_filenames if 'grasp_demo' in fn]  # use the grasp names as a reference
 
         place_demo_filenames = []
@@ -250,7 +252,7 @@ class Evaluate_NDF():
             load_shelf = True
         else:
             load_shelf = False
-        
+
         grasp_data_list = []
         place_data_list = []
         demo_rel_mat_list = []
@@ -266,7 +268,7 @@ class Evaluate_NDF():
         elif obj_class == 'bowl':
             avoid_shapenet_ids = bad_shapenet_bowls_ids_list + self.cfg.BOWL.AVOID_SHAPENET_IDS
         elif obj_class == 'bottle':
-            avoid_shapenet_ids = bad_shapenet_bottles_ids_list + self.cfg.BOTTLE.AVOID_SHAPENET_IDS 
+            avoid_shapenet_ids = bad_shapenet_bottles_ids_list + self.cfg.BOTTLE.AVOID_SHAPENET_IDS
         else:
             test_shapenet_ids = []
 
@@ -326,7 +328,7 @@ class Evaluate_NDF():
                 'avoid_shapenet_ids': avoid_shapenet_ids,
                 'sample_grasp_data': grasp_data,
             }
-    
+
     def __set_optimizers(self, model, demo_data):
 
         place_optimizer_pts = demo_data['place_optimizer_pts']
@@ -359,20 +361,20 @@ class Evaluate_NDF():
             valid = s_id not in demo_shapenet_ids and s_id not in avoid_shapenet_ids
             if args.only_test_ids:
                 valid = valid and (s_id in test_shapenet_ids)
-            
+
             if valid:
                 test_object_ids.append(s_id)
 
         if self.args.single_instance:
             test_object_ids = [demo_shapenet_ids[0]]
-        
+
         return test_object_ids
 
     @staticmethod
-    def hide_link(obj_id, link_id): 
+    def hide_link(obj_id, link_id):
         if link_id is not None:
             p.changeVisualShape(obj_id, link_id, rgbaColor=[0, 0, 0, 0])
-    
+
     @staticmethod
     def show_link(obj_id, link_id, color):
         if link_id is not None:
@@ -390,7 +392,7 @@ def main(args, global_dict):
         set_log_level('debug')
     else:
         set_log_level('info')
-    
+
     use_conv = not args.no_conv
 
 
@@ -430,7 +432,7 @@ def main(args, global_dict):
     util.safe_makedirs(eval_grasp_imgs_dir) # skipped
     util.safe_makedirs(eval_teleport_imgs_dir) # skipped
 
-    ### 
+    ###
     #
     test_shapenet_ids = np.loadtxt(osp.join(path_util.get_ndf_share(), '%s_test_object_split.txt' % obj_class), dtype=str).tolist()
     if obj_class == 'mug':
@@ -438,7 +440,7 @@ def main(args, global_dict):
     elif obj_class == 'bowl':
         avoid_shapenet_ids = bad_shapenet_bowls_ids_list + cfg.BOWL.AVOID_SHAPENET_IDS
     elif obj_class == 'bottle':
-        avoid_shapenet_ids = bad_shapenet_bottles_ids_list + cfg.BOTTLE.AVOID_SHAPENET_IDS 
+        avoid_shapenet_ids = bad_shapenet_bottles_ids_list + cfg.BOTTLE.AVOID_SHAPENET_IDS
     else:
         test_shapenet_ids = []
 
@@ -461,24 +463,24 @@ def main(args, global_dict):
     # if use_conv:
     #     print('Using conv occupancy network')
     #     model = conv_occupancy_network.ConvolutionalOccupancyNetwork(
-    #         latent_dim=32, 
-    #         model_type='pointnet', 
-    #         return_features=True, 
+    #         latent_dim=32,
+    #         model_type='pointnet',
+    #         return_features=True,
     #         sigmoid=False).cuda()
     # else:
     #     print('Using non-conv occupancy network')
     #     if args.dgcnn:
     #         model = vnn_occupancy_network.VNNOccNet(
-    #             latent_dim=256, 
+    #             latent_dim=256,
     #             model_type='dgcnn',
-    #             return_features=True, 
+    #             return_features=True,
     #             sigmoid=True,
     #             acts=args.acts).cuda()
     #     else:
     #         model = vnn_occupancy_network.VNNOccNet(
-    #             latent_dim=256, 
+    #             latent_dim=256,
     #             model_type='pointnet',
-    #             return_features=True, 
+    #             return_features=True,
     #             sigmoid=True).cuda()
 
     # if not args.random:
@@ -617,7 +619,7 @@ def main(args, global_dict):
     #     valid = s_id not in demo_shapenet_ids and s_id not in avoid_shapenet_ids
     #     if args.only_test_ids:
     #         valid = valid and (s_id in test_shapenet_ids)
-        
+
     #     if valid:
     #         test_object_ids.append(s_id)
 
@@ -662,12 +664,12 @@ def main(args, global_dict):
     if cfg.DEMOS.PLACEMENT_SURFACE == 'shelf':
         placement_link_id = shelf_link_id
     else:
-        placement_link_id = rack_link_id 
+        placement_link_id = rack_link_id
 
-    def hide_link(obj_id, link_id): 
+    def hide_link(obj_id, link_id):
         if link_id is not None:
             p.changeVisualShape(obj_id, link_id, rgbaColor=[0, 0, 0, 0])
-    
+
     def show_link(obj_id, link_id, color):
         if link_id is not None:
             p.changeVisualShape(obj_id, link_id, rgbaColor=color)
@@ -691,7 +693,7 @@ def main(args, global_dict):
         # for testing, use the "normalized" object
         obj_obj_file = osp.join(shapenet_obj_dir, obj_shapenet_id, 'models/model_normalized.obj')
         obj_obj_file_dec = obj_obj_file.split('.obj')[0] + '_dec.obj'
-    
+
         scale_high, scale_low = cfg.MESH_SCALE_HIGH, cfg.MESH_SCALE_LOW
         scale_default = cfg.MESH_SCALE_DEFAULT
         if args.rand_mesh_scale:
@@ -794,7 +796,7 @@ def main(args, global_dict):
         obj_pose_world = p.getBasePositionAndOrientation(obj_id)
         obj_pose_world = util.list2pose_stamped(list(obj_pose_world[0]) + list(obj_pose_world[1]))
         viz_dict['start_obj_pose'] = util.pose_stamped2list(obj_pose_world)
-        for i, cam in enumerate(cams.cams): 
+        for i, cam in enumerate(cams.cams):
             # get image and raw point cloud
             rgb, depth, seg = cam.get_images(get_rgb=True, get_depth=True, get_seg=True)
             pts_raw, _ = cam.get_pcd(in_world=True, rgb_image=rgb, depth_image=depth, depth_min=0.0, depth_max=np.inf)
@@ -804,8 +806,8 @@ def main(args, global_dict):
             flat_depth = depth.flatten()
             obj_inds = np.where(flat_seg == obj_id)
             table_inds = np.where(flat_seg == table_id)
-            seg_depth = flat_depth[obj_inds[0]]  
-            
+            seg_depth = flat_depth[obj_inds[0]]
+
             obj_pts = pts_raw[obj_inds[0], :]
             obj_pcd_pts.append(util.crop_pcd(obj_pts))
             table_pts = pts_raw[table_inds[0], :][::int(table_inds[0].shape[0]/500)]
@@ -817,15 +819,15 @@ def main(args, global_dict):
                 if rack_inds[0].shape[0] > 0:
                     rack_pts = pts_raw[rack_inds[0], :]
                     rack_pcd_pts.append(rack_pts)
-        
+
             depth_imgs.append(seg_depth)
             seg_idxs.append(obj_inds)
-        
+
         target_obj_pcd_obs = np.concatenate(obj_pcd_pts, axis=0)  # object shape point cloud
         target_pts_mean = np.mean(target_obj_pcd_obs, axis=0)
         inliers = np.where(np.linalg.norm(target_obj_pcd_obs - target_pts_mean, 2, 1) < 0.2)[0]
         target_obj_pcd_obs = target_obj_pcd_obs[inliers]
-        
+
         if obj_class == 'mug':
             rack_color = p.getVisualShapeData(table_id)[rack_link_id][7]
             show_link(table_id, rack_link_id, rack_color)
@@ -855,7 +857,7 @@ def main(args, global_dict):
 
         ee_end_pose = util.transform_pose(pose_source=util.list2pose_stamped(pre_grasp_ee_pose), pose_transform=util.list2pose_stamped(rack_relative_pose))
         pre_ee_end_pose2 = util.transform_pose(pose_source=ee_end_pose, pose_transform=preplace_offset_tf)
-        pre_ee_end_pose1 = util.transform_pose(pose_source=pre_ee_end_pose2, pose_transform=preplace_horizontal_tf)        
+        pre_ee_end_pose1 = util.transform_pose(pose_source=pre_ee_end_pose2, pose_transform=preplace_horizontal_tf)
 
         ee_end_pose_list = util.pose_stamped2list(ee_end_pose)
         pre_ee_end_pose1_list = util.pose_stamped2list(pre_ee_end_pose1)
@@ -890,7 +892,7 @@ def main(args, global_dict):
                 else:
                     if viz_index == best_rack_idx:
                         shutil.copy(fname, new_fname)
-        
+
         viz_data_list.append(viz_dict)
         viz_sample_fname = osp.join(eval_iter_dir, 'overlay_visualization_data.npz')
         print('Saving viz to: ', viz_sample_fname)
@@ -946,7 +948,7 @@ def main(args, global_dict):
                 safeCollisionFilterPair(bodyUniqueIdA=robot.arm.robot_id, bodyUniqueIdB=obj_id, linkIndexA=i, linkIndexB=-1, enableCollision=False, physicsClientId=robot.pb_client.get_client_id())
             robot.arm.eetool.open()
 
-            if jnt_pos is None or grasp_jnt_pos is None: 
+            if jnt_pos is None or grasp_jnt_pos is None:
                 jnt_pos = ik_helper.get_feasible_ik(pre_pre_grasp_ee_pose)
                 grasp_jnt_pos = ik_helper.get_feasible_ik(pre_grasp_ee_pose)
 
@@ -968,7 +970,7 @@ def main(args, global_dict):
                     grasp_img_fname = osp.join(eval_grasp_imgs_dir, '%d.png' % iteration)
                     np2img(grasp_rgb.astype(np.uint8), grasp_img_fname)
                     continue
-                
+
                 ########################### planning to pre_pre_grasp and pre_grasp ##########################
                 if grasp_plan is None:
                     plan1 = ik_helper.plan_joint_motion(robot.arm.get_jpos(), jnt_pos)
@@ -1009,7 +1011,7 @@ def main(args, global_dict):
                         time.sleep(0.8)
 
                         if g_idx == 1:
-                            grasp_success = object_is_still_grasped(robot, obj_id, right_pad_id, left_pad_id) 
+                            grasp_success = object_is_still_grasped(robot, obj_id, right_pad_id, left_pad_id)
 
                             if grasp_success:
                             # turn OFF collisions between object / table and object / rack, and move to pre-place pose
@@ -1019,7 +1021,7 @@ def main(args, global_dict):
                                 soft_grasp_close(robot, finger_joint_id, force=40)
                                 robot.arm.set_jpos(jnt_pos_before_grasp, ignore_physics=True)
                                 cid = constraint_grasp_close(robot, obj_id)
-                                
+
                         #########################################################################################################
 
                         if offset_jnts is not None:
@@ -1053,7 +1055,7 @@ def main(args, global_dict):
 
                     for jnt in place_plan:
                         robot.arm.set_jpos(jnt, wait=False)
-                        time.sleep(0.035) 
+                        time.sleep(0.035)
                     robot.arm.set_jpos(place_plan[-1], wait=True)
 
                 ################################################################################################################
@@ -1064,7 +1066,7 @@ def main(args, global_dict):
 
                     for jnt in plan3:
                         robot.arm.set_jpos(jnt, wait=False)
-                        time.sleep(0.075) 
+                        time.sleep(0.075)
                     robot.arm.set_jpos(plan3[-1], wait=True)
 
                     p.changeDynamics(obj_id, -1, linearDamping=5, angularDamping=5)
@@ -1185,7 +1187,7 @@ if __name__ == "__main__":
     util.safe_makedirs(eval_save_dir)
 
     vnn_model_path = osp.join(path_util.get_ndf_model_weights(), args.model_path + '.pth')
-    
+
     # Mod to use model path
     conv_model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_exp_archive/checkpoints/model_epoch_0020_iter_149500.pth')
 

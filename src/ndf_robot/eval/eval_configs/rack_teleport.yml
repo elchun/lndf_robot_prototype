@@ -1,3 +1,5 @@
+# Test script, not used in trials
+
 setup_args:
   # exp_dir_suffix: EVAL_conv_rack_teleport
   # exp_dir_suffix: EVAL_conv_rack_teleport_anyrot

@@ -19,7 +19,7 @@ setup_args:
   # exp_dir_suffix: EVAL_conv_grasp_anyrot_bottle_handle
   # exp_dir_suffix: EVAL_conv_grasp_anyrot_bowl
 
-  exp_dir_suffix: FIG_grasp_anyrot_bowl
+  exp_dir_suffix: GEOM_grasp_upright_mug_M1
 
   # demo_exp: 'mug/grasp_rim_hang_handle_gaussian_precise_w_shelf_converted'
   demo_exp: 'mug/mug_handle_converted'
@@ -29,16 +29,16 @@ setup_args:
 
 evaluator:
   pybullet_viz: False
-  # test_obj_class: mug_std
+  test_obj_class: mug_std
   # test_obj_class: bowl_handle_std
   # test_obj_class: bottle_handle_std
-  test_obj_class: bowl_std
-  # num_trials: 200
-  num_trials: 50
+  # test_obj_class: bowl_std
+  num_trials: 200
+  # num_trials: 50
   include_avoid_obj: False
   # include_avoid_obj: False
-  any_pose: True
-  # any_pose: False
+  # any_pose: True
+  any_pose: False
   obj_scale_low: 0.95
   obj_scale_high: 1.05
   obj_scale_default: 1.0
@@ -75,21 +75,25 @@ model:
 
 
 grasp_optimizer:
+  opt_type:  GEOM # Choose between LNDF and GEOM
   args:
     # opt_iterations: 1000
     opt_iterations: 500
     rand_translate: True
     use_tsne: False
-    M_override: 20
+    # M_override: 20
+    M_override: 1  # Works better with geom
     # save_all_opt: True
 
 place_optimizer:
+  opt_type: GEOM
   args:
     # opt_iterations: 1000
     opt_iterations: 500
     rand_translate: True
     use_tsne: False
-    M_override: 20
+    # M_override: 20
+    M_override: 1  # Works better with geom
     opt_fname_prefix: 'place_pose_optimized'
     query_pts_override: True
 

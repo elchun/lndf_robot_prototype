@@ -172,7 +172,8 @@ if __name__ == '__main__':
 
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_multicategory_latent_sim_occ_neg_se3_s4_1/checkpoints/model_epoch_0000_iter_050000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_multicategory_latent_sim_occ_neg_se3_s4_1/checkpoints/model_epoch_0002_iter_117000.pth')
-        model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_multicategory_latent_sim_occ_neg_se3_s4_1/checkpoints/model_epoch_0005_iter_326000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_multicategory_latent_sim_occ_neg_se3_s4_1/checkpoints/model_epoch_0005_iter_326000.pth')
+        model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_dist_cont_1/checkpoints/model_epoch_0001_iter_060000.pth')
     else:
         model_path = osp.join(path_util.get_ndf_model_weights(), 'multi_category_weights.pth')
 
@@ -218,11 +219,11 @@ if __name__ == '__main__':
         # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=128,
         #     model_type='pointnet', return_features=True, sigmoid=False, acts='last').cuda()
 
-        # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=128,
-        #     model_type='pointnet', return_features=True, sigmoid=False, acts='last').cuda()
-
-        model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=64,
+        model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=128,
             model_type='pointnet', return_features=True, sigmoid=False, acts='last').cuda()
+
+        # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=64,
+        #     model_type='pointnet', return_features=True, sigmoid=False, acts='last').cuda()
     else:
         model = vnn_occupancy_network.VNNOccNet(latent_dim=256,
             model_type='pointnet', return_features=True, sigmoid=True).cuda()
