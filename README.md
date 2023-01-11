@@ -2,13 +2,12 @@
 
 PyTorch implementation for training continuous convolutional neural fields to represent dense correspondence across objects, and using these descriptor fields to mimic demonstrations of a pick-and-place task on a robotic system.
 
------------- TODO: EDIT ALL STUFF BELOW THIS LINE -------------------
 
 <p align="center">
-<img src="./doc/mug_cut.gif" alt="drawing" width="700"/>
+<img src="./doc/icra_2023.gif" alt="drawing" width="700"/>
 </p>
 
----
+------------ TODO: EDIT ALL STUFF BELOW THIS LINE -------------------
 
 This is the reference implementation for our paper:
 
@@ -20,12 +19,12 @@ This is the reference implementation for our paper:
 
 [PDF](https://arxiv.org/abs/2112.05124) | [Video](https://youtu.be/dXl9xI2LrRw)
 
-[Anthony Simeonov*](https://anthonysimeonov.github.io/), [Yilun Du*](https://yilundu.github.io/), [Andrea Tagliasacchi](https://taiya.github.io/), [Joshua B. Tenenbaum](http://web.mit.edu/cocosci/josh.html), [Alberto Rodriguez](http://meche.mit.edu/people/faculty/ALBERTOR@MIT.EDU), [Pulkit Agrawal**](http://people.csail.mit.edu/pulkitag/), [Vincent Sitzmann**](https://www.vincentsitzmann.com/) 
+[Anthony Simeonov*](https://anthonysimeonov.github.io/), [Yilun Du*](https://yilundu.github.io/), [Andrea Tagliasacchi](https://taiya.github.io/), [Joshua B. Tenenbaum](http://web.mit.edu/cocosci/josh.html), [Alberto Rodriguez](http://meche.mit.edu/people/faculty/ALBERTOR@MIT.EDU), [Pulkit Agrawal**](http://people.csail.mit.edu/pulkitag/), [Vincent Sitzmann**](https://www.vincentsitzmann.com/)
 (*Equal contribution, order determined by coin flip. **Equal advising)
 
 ---
 ## Google Colab
-If you want a quickstart demo of NDF without installing anything locally, we have written a [Colab](https://colab.research.google.com/drive/16bFIFq_E8mnAVwZ_V2qQiKp4x4D0n1sG#scrollTo=YxiZ-ZE21wIm). It runs the same demo as the Quickstart Demo section below where a local coordinate frame near one object is sampled, and the corresponding local frame near a new object (with a different shape and pose) is recovered via our energy optimization procedure. 
+If you want a quickstart demo of NDF without installing anything locally, we have written a [Colab](https://colab.research.google.com/drive/16bFIFq_E8mnAVwZ_V2qQiKp4x4D0n1sG#scrollTo=YxiZ-ZE21wIm). It runs the same demo as the Quickstart Demo section below where a local coordinate frame near one object is sampled, and the corresponding local frame near a new object (with a different shape and pose) is recovered via our energy optimization procedure.
 
 ---
 
@@ -75,11 +74,11 @@ The code in the `NDFAlignmentCheck` class in the file [`src/ndf_robot/eval/ndf_a
 
 If you want the full dataset (~150GB for 3 object classes):
 ```
-./scripts/download_training_data.sh 
+./scripts/download_training_data.sh
 ```
 If you want just the mug dataset (~50 GB -- other object class data can be downloaded with the according scripts):
 ```
-./scripts/download_mug_training_data.sh 
+./scripts/download_mug_training_data.sh
 ```
 
 If you want to recreate your own dataset, see Data Generation section
@@ -126,7 +125,7 @@ CUDA_VISIBLE_DEVICES=0 python evaluate_ndf.py \
         --exp test_mug_eval \
         --pybullet_viz
 ```
-More information on experimental evaluation can be found [here](./doc/eval.md). 
+More information on experimental evaluation can be found [here](./doc/eval.md).
 
 ## Data Generation
 **Download all the object data assets**
@@ -144,7 +143,7 @@ python shapenet_pcd_gen.py \
     --rand_scale \
     --num_workers 2
 ```
-More information on dataset generation can be found [here](./doc/dataset.md). 
+More information on dataset generation can be found [here](./doc/dataset.md).
 
 ## Collect new demonstrations with teleoperated robot in PyBullet
 Make sure you have downloaded all the object data assets (see Data Generation section)
@@ -154,7 +153,7 @@ Make sure you have downloaded all the object data assets (see Data Generation se
 cd src/ndf_robot/demonstrations
 python label_demos.py --exp test_bottle --object_class bottle --with_shelf
 ```
-More information on collecting robot demonstrations can be found [here](./doc/demonstrations.md). 
+More information on collecting robot demonstrations can be found [here](./doc/demonstrations.md).
 
 # Citing
 If you find our paper or this code useful in your work, please cite our paper:
