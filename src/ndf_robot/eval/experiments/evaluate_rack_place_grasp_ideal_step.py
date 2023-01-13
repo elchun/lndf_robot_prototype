@@ -602,7 +602,7 @@ class EvaluateRackPlaceGraspIdealStep(EvaluateNetwork):
             with open(self.global_summary_fname, 'a') as f:
                 f.write(f'Trial number: {it}\n')
                 f.write(f'Trial result: {trial_result}\n')
-                f.write(f'Grasp Success Rate: {num_success / (it + 1): 0.3f}\n')
+                f.write(f'Overall Success Rate: {num_success / (it + 1): 0.3f}\n')
                 f.write(f'Shapenet id: {obj_shapenet_id}\n')
                 f.write(f'Grasp Success Rate: {num_grasp_success / (it + 1): 0.3f}\n')
                 f.write(f'Place Success Rate: {num_place_success / (it + 1): 0.3f}\n')

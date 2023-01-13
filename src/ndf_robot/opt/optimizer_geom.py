@@ -112,12 +112,17 @@ class GeomOptimizer:
 
         self.save_all_opt = save_all_opt
 
-        self.target_pcd = None
-        self.target_pcd_down = None
-        self.target_pcd_fpfh = None
+        self.target_pcds = []
+        self.target_pcds_down = []
+        self.target_pcds_fpfh = []
+        # self.target_pcd = None
+        # self.target_pcd_down = None
+        # self.target_pcd_fpfh = None
 
         self.radius_normal = 0.010
         self.voxel_size = 0.005
+
+        self.use_query_pts = False
 
     def _scene_dict(self):
         self.scene_dict = {}
@@ -164,7 +169,7 @@ class GeomOptimizer:
 
     def _refine_registration(self, source, target, source_fpfh,
                             target_fpfh, voxel_size, result_ransac):
-        distance_threshold = voxel_size * 0.4
+        distance_threshold = voxel_size * 0.05
         radius_normal = voxel_size * 2
         source.estimate_normals(
             o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=30))
@@ -226,17 +231,21 @@ class GeomOptimizer:
 
             # -- Transform pts to same position as demo (in world coords) -- #
             obj_pts = util.apply_pose_numpy(obj_pts, demo.obj_pose_world)
-            query_pts = util.apply_pose_numpy(query_pts, demo.query_pose_world)
+            inverse_query_pose = util.get_inverse_pose(demo.query_pose_world)
+            obj_pts = util.apply_pose_numpy(obj_pts, inverse_query_pose)
+
+            # query_pts = util.apply_pose_numpy(query_pts, demo.query_pose_world)
+
             # DEBUG PLOTS
             multiplot([demo.query_pts, self.query_pts], osp.join(self.debug_viz_path,
                 f'{self.opt_fname_prefix}_query_compare.html'))
             multiplot([obj_pts, query_pts], osp.join(self.debug_viz_path,
                 f'{self.opt_fname_prefix}_demo_geom{i}.html'))
 
-            # -- Keep relative orientation, but center points on query mean -- #
-            query_pts_mean = query_pts.mean(0)
-            obj_pts = obj_pts - query_pts_mean
-            query_pts = query_pts - query_pts_mean
+            # # -- Keep relative orientation, but center points on query mean -- #
+            # query_pts_mean = query_pts.mean(0)
+            # obj_pts = obj_pts - query_pts_mean
+            # query_pts = query_pts - query_pts_mean
 
             # -- Create geometric target feature -- #
             object_pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(obj_pts))
@@ -247,19 +256,26 @@ class GeomOptimizer:
             query_pcd.estimate_normals(
                 o3d.geometry.KDTreeSearchParamHybrid(radius=self.radius_normal, max_nn=30))
 
-            object_pcd_cropped, bb_pts = self._crop_with_query(query_pcd=query_pcd, target_pcd=object_pcd)
+            if self.use_query_pts:
+                object_pcd_cropped, bb_pts = self._crop_with_query(query_pcd=query_pcd, target_pcd=object_pcd)
 
-            fname = osp.join(self.debug_viz_path, f'{self.opt_fname_prefix}single_pts{i}.html')
-            multiplot([np.asarray(object_pcd.points),
-                np.asarray(bb_pts),
-                np.asarray(object_pcd_cropped.points)], fname)
+                fname = osp.join(self.debug_viz_path, f'{self.opt_fname_prefix}single_pts{i}.html')
+                multiplot([np.asarray(object_pcd.points),
+                    np.asarray(bb_pts),
+                    np.asarray(object_pcd_cropped.points)], fname)
 
-            demo_pcd_list.append(object_pcd_cropped)
-            # demo_pcd_list.append(object_pcd)
+                demo_pcd_list.append(object_pcd_cropped)
+            else:
+                demo_pcd_list.append(object_pcd)
 
         target_pcd = demo_pcd_list[0]
 
-        target_pcd_down, target_pcd_fpfh = self._preprocess_point_cloud(target_pcd, self.voxel_size)
+        for target_pcd in demo_pcd_list:
+            self.target_pcds.append(target_pcd)
+
+            target_pcd_down, target_pcd_fpfh = self._preprocess_point_cloud(target_pcd, self.voxel_size)
+            self.target_pcds_down.append(target_pcd_down)
+            self.target_pcds_fpfh.append(target_pcd_fpfh)
 
         # demo_pcd_combined_np = np.asarray(demo_pcd_combined.points)
         # fname = osp.join(self.debug_viz_path, f'{self.opt_fname_prefix}_combo_pts.html')
@@ -268,11 +284,12 @@ class GeomOptimizer:
         # fname = osp.join(self.debug_viz_path, 'single_pts.html')
         # multiplot([np.asarray(demo_pcd_list[0].points)], fname)
 
-        self.target_pcd = target_pcd
-        self.target_pcd_down = target_pcd_down
-        self.target_pcd_fpfh = target_pcd_fpfh
+        # self.target_pcd = target_pcd
+        # self.target_pcd_down = target_pcd_down
+        # self.target_pcd_fpfh = target_pcd_fpfh
         fname = osp.join(self.debug_viz_path, f'{self.opt_fname_prefix}_combo_pts.html')
-        multiplot([np.asarray(target_pcd_down.points)], fname)
+        # multiplot([np.asarray(target_pcd_down.points)], fname)
+        multiplot([np.asarray(pcd.points) for pcd in self.target_pcds_down], fname)
 
     def optimize_transform_implicit(self, shape_pts_world_np, viz_path='visualize',
         ee=True, *args, **kwargs):
@@ -289,34 +306,35 @@ class GeomOptimizer:
         util.safe_makedirs(viz_path)
 
         # -- Get number of inits -- #
-        if self.M_override is not None:
-            assert type(self.M_override) == int, 'Expected int number of M'
-            M = self.M_override
-        elif 'dgcnn' in self.model_type:
-            M = 5   # dgcnn can't fit 10 initialization in memory
-        else:
-            M = 10
+        # if self.M_override is not None:
+        #     assert type(self.M_override) == int, 'Expected int number of M'
+        #     M = self.M_override
+        # elif 'dgcnn' in self.model_type:
+        #     M = 5   # dgcnn can't fit 10 initialization in memory
+        # else:
+        #     M = 10
 
         best_idx = 0
-        # M = 1 # Override rn --> Does better with M = 1
         tf_list = []
         losses = []
-        for i in range(M):
-            object_pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(shape_pts_world_np))
-            object_pcd.estimate_normals(
-                    o3d.geometry.KDTreeSearchParamHybrid(radius=self.radius_normal, max_nn=30))
-            object_pcd_down, object_pcd_fpfh = self._preprocess_point_cloud(object_pcd, self.voxel_size)
 
+        object_pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(shape_pts_world_np))
+        object_pcd.estimate_normals(
+                o3d.geometry.KDTreeSearchParamHybrid(radius=self.radius_normal, max_nn=30))
+        object_pcd_down, object_pcd_fpfh = self._preprocess_point_cloud(object_pcd, self.voxel_size)
+
+        for i in range(len(self.target_pcds_down)):
             # Compute ransac for global geometric alignment
-            result_ransac = self._execute_global_registration(object_pcd_down, self.target_pcd_down,
-                                                        object_pcd_fpfh, self.target_pcd_fpfh,
+            result_ransac = self._execute_global_registration(object_pcd_down, self.target_pcds_down[i],
+                                                        object_pcd_fpfh, self.target_pcds_fpfh[i],
                                                         self.voxel_size)
 
-            result_icp = self._refine_registration(object_pcd, self.target_pcd,
-                object_pcd_fpfh, self.target_pcd_fpfh,
+            result_icp = self._refine_registration(object_pcd, self.target_pcds_down[i],
+                object_pcd_fpfh, self.target_pcds_fpfh[i],
                 self.voxel_size, result_ransac)
 
-            inlier_rmse = result_icp.inlier_rmse
+            # inlier_rmse = result_icp.inlier_rmse
+            fitness = result_icp.fitness
 
             transform_mat_np = np.asarray(result_icp.transformation)
 
@@ -327,202 +345,29 @@ class GeomOptimizer:
 
             # final_query_pts = util.transform_pcd(self.query_pts, T_mat)
             tf_list.append(T_mat)
-            losses.append(inlier_rmse)
+            losses.append(-fitness)
             print(T_mat)
 
         best_idx = np.argmin(losses)
+        print('losses: ', losses)
 
         # Visualize best trial
-        for i in range(M):
+        for i in range(len(self.target_pcds_down)):
+            T_mat = tf_list[i]
+            if not ee:
+                T_mat = np.linalg.inv(T_mat)
+
             final_query_pts = util.transform_pcd(self.query_pts, T_mat)
             opt_fname = f'{self.opt_fname_prefix}_{i}.html'
-            target_pts = np.asarray(self.target_pcd_down.points)
+            target_pts = np.asarray(self.target_pcds_down[i].points)
             target_pts = util.transform_pcd(target_pts, T_mat)
             print(opt_fname)
             if self.save_all_opt:
-                self._visualize_pose(shape_pts_world_np, final_query_pts, viz_path, opt_fname)
+                # self._visualize_pose(shape_pts_world_np, final_query_pts, viz_path, opt_fname)
+                multiplot([shape_pts_world_np, final_query_pts, target_pts], osp.join(viz_path, opt_fname))
             elif i == best_idx:
                 multiplot([shape_pts_world_np, final_query_pts, target_pts], osp.join(viz_path, opt_fname))
                 # self._visualize_pose(shape_pts_world_np, final_query_pts, viz_path, opt_fname)
-
-        return tf_list, best_idx
-
-
-
-
-
-
-        # Make temp viz dir
-        util.safe_makedirs(viz_path)
-
-        dev = self.dev
-        n_pts = 1500
-        # opt_pts = 500
-        # opt_pts = 1000 # Seems to work well
-        opt_pts = 2000
-        perturb_scale = self.noise_scale
-        perturb_decay = self.noise_decay
-
-        target_act_hat = self.target_act_hat
-        assert target_act_hat is not None, 'Did you run process_demos() yet?'
-
-        # -- mean center obj pts -- #
-        obj_pts = torch.from_numpy(shape_pts_world_np).float().to(self.dev)
-        obj_pts_mean = obj_pts.mean(0)
-        obj_pts = obj_pts - obj_pts_mean
-
-        # -- Get query points -- #
-        # Centers points so that its easier to translate them to init position
-        query_pts = torch.from_numpy(self.query_pts).float().to(self.dev)
-        # query_pts_mean = query_pts.mean(0)
-        # query_pts = query_pts - query_pts_mean
-
-        # # convert query points to camera frame, and center the query based on the it's shape mean, so that we perform optimization starting with the query at the origin
-        # query_pts_world = torch.from_numpy(self.query_pts_origin).float().to(self.dev)
-        # query_pts_mean = query_pts_world.mean(0)
-        # query_pts_cent = query_pts_world - query_pts_mean
-
-        query_pts_tf = np.eye(4)
-        # query_pts_tf[:-1, -1] = query_pts_mean.cpu().numpy()
-
-        # -- Get number of inits -- #
-        if self.M_override is not None:
-            assert type(self.M_override) == int, 'Expected int number of M'
-            M = self.M_override
-        elif 'dgcnn' in self.model_type:
-            M = 5   # dgcnn can't fit 10 initialization in memory
-        else:
-            M = 10
-
-        best_loss = np.inf
-        best_idx = 0
-        # best_tf = np.eye(4)
-        tf_list = []
-        # M = full_opt
-
-        trans = (torch.rand((M, 3)) * 0.1).float().to(dev)
-        rot = torch.rand(M, 3).float().to(dev)
-        # rot_idx = np.random.randint(self.rot_grid.shape[0], size=M)
-        # rot = torch3d_util.matrix_to_axis_angle(torch.from_numpy(self.rot_grid[rot_idx])).float()
-
-        # rand_rot_init = (torch.rand((M, 3)) * 2*np.pi).float().to(dev)
-        rand_rot_idx = np.random.randint(self.rot_grid.shape[0], size=M)
-        rand_rot_init = torch3d_util.matrix_to_axis_angle(torch.from_numpy(self.rot_grid[rand_rot_idx])).float()
-        rand_mat_init = torch_util.angle_axis_to_rotation_matrix(rand_rot_init)
-        rand_mat_init = rand_mat_init.squeeze().float().to(dev)
-
-        # query_pts_cam_cent_rs, query_pts_tf_rs = self._get_query_pts_rs()
-        # X_rs = query_pts_cam_cent_rs[:opt_pts][None, :, :].repeat((M, 1, 1))
-
-        # ADDITIONS
-        min_coords = torch.min(obj_pts, dim=0).values.reshape(3, 1)
-        max_coords = torch.max(obj_pts, dim=0).values.reshape(3, 1)
-        coord_range = max_coords - min_coords
-
-        # Create a translation to random point in bounding box of observed pcd
-        # for each init
-        if self.rand_translate:
-            rand_translate = torch.rand(M, 3, 1).to(dev)
-            rand_translate = rand_translate * coord_range + min_coords
-            # # print('translate: ', rand_translate)
-
-            rand_mat_init[:, :3, 3:4] = rand_translate
-
-        # set up optimization
-        X = query_pts[:opt_pts][None, :, :].repeat((M, 1, 1))
-        X = torch_util.transform_pcd_torch(X, rand_mat_init)
-        # X_rs = torch_util.transform_pcd_torch(X_rs, rand_mat_init)
-
-        # mi is model input
-        mi_point_cloud = []
-        for ii in range(M):
-            rndperm = torch.randperm(obj_pts.size(0))
-            mi_point_cloud.append(obj_pts[rndperm[:n_pts]])
-        mi_point_cloud = torch.stack(mi_point_cloud, 0)
-        mi = dict(point_cloud=mi_point_cloud)
-        obj_mean_trans = np.eye(4)
-        obj_mean_trans[:-1, -1] = obj_pts_mean.cpu().numpy()
-        # shape_pts_world_np = shape_pts_world.cpu().numpy()
-
-        rot.requires_grad_()
-        trans.requires_grad_()
-        full_opt = torch.optim.Adam([trans, rot], lr=1e-2)
-        full_opt.zero_grad()
-
-        loss_values = []
-
-        # set up model input with shape points and the shape latent that will be used throughout
-        mi['coords'] = X
-        latent = self.model.extract_latent(mi).detach()
-
-        # run optimization
-        pcd_traj_list = {}
-        for jj in range(M):
-            pcd_traj_list[jj] = []
-
-        # -- Visualize reconstruction -- #
-        self._visualize_reconstruction(mi, viz_path)
-
-        # -- Run optimization -- #
-        for i in range(self.opt_iterations):
-            T_mat = torch_util.angle_axis_to_rotation_matrix(rot).squeeze()
-
-            # Generating noise vec takes a lot of cpu!!!
-            if perturb_scale > 0:
-                noise_vec = (torch.randn(X.size()) * (perturb_scale / ((i+1)**(perturb_decay)))).to(dev)
-                X_perturbed = X + noise_vec
-            else:
-                X_perturbed = X
-
-            X_new = torch_util.transform_pcd_torch(X_perturbed, T_mat) + trans[:, None, :].repeat((1, X.size(1), 1))
-
-            act_hat = self.model.forward_latent(latent, X_new)
-            t_size = target_act_hat.size()
-
-            losses = [self.loss_fn(act_hat[ii].view(t_size), target_act_hat) for ii in range(M)]
-            loss = torch.mean(torch.stack(losses))
-            if (i + 1) % 100 == 0:
-                losses_str = ['%f' % val.item() for val in losses]
-                loss_str = ', '.join(losses_str)
-                log_debug(f'i: {i}, losses: {loss_str}')
-            loss_values.append(loss.item())
-            full_opt.zero_grad()
-            loss.backward()
-            full_opt.step()
-
-        # -- Find best index -- #
-        best_idx = torch.argmin(torch.stack(losses)).item()
-        best_loss = losses[best_idx]
-        log_debug('best loss: %f, best_idx: %d' % (best_loss, best_idx))
-
-        for j in range(M):
-            # -- Pose query points -- #
-            trans_j, rot_j = trans[j], rot[j]
-
-            transform_mat_np = torch_util.angle_axis_to_rotation_matrix(
-                rot_j.view(1, -1)).squeeze().detach().cpu().numpy()
-            transform_mat_np[:-1, -1] = trans_j.detach().cpu().numpy()
-
-            # Send query points back to where they came from
-            # transform_mat_np = rand_mat_init[j].detach().cpu().numpy()
-            # transform_mat_np = np.matmul(transform_mat_np, query_pts_tf)
-            transform_mat_np = np.matmul(transform_mat_np, rand_mat_init[j].detach().cpu().numpy())
-            # transform_mat_np = np.matmul(transform_mat_np, query_pts_tf)
-            transform_mat_np = np.matmul(obj_mean_trans, transform_mat_np)
-
-            final_query_pts = util.transform_pcd(self.query_pts, transform_mat_np)
-            opt_fname = f'{self.opt_fname_prefix}_{j}.html'
-
-            if self.save_all_opt:
-                self._visualize_pose(shape_pts_world_np, final_query_pts, viz_path, opt_fname)
-            elif j == best_idx:
-                self._visualize_pose(shape_pts_world_np, final_query_pts, viz_path, opt_fname)
-
-            if ee:
-                T_mat = transform_mat_np
-            else:
-                T_mat = np.linalg.inv(transform_mat_np)
-            tf_list.append(T_mat)
 
         return tf_list, best_idx
 
