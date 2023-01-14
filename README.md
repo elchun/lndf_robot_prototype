@@ -7,6 +7,40 @@ PyTorch implementation for training continuous convolutional neural fields to re
 <img src="./doc/icra_2023.gif" alt="drawing" width="700"/>
 </p>
 
+
+## User Guide
+
+### Evaluate Models
+Navigate to the `eval` directory inside `ndf_robot`.  This contains a series
+of scripts to evaluate various portions of the LNDF system.  Files beginning with `s_` are helper scripts used to generate figures or test small components
+of the system.  `evaluate_general.py` is the main evaluation script.
+
+To run an experiment, `evaluate_general.py` takes an argument `--config_fname`
+which refers to a config file in the `eval/eval_configs` directoy.  These are used to specify what optimizer, model, and experiment setup are used.  Please
+see the example config files for reference on how to construct your own.  Additionally, you may view `evaluate_general.py` to see how the config files
+are parsed.
+
+### Train Models
+Navigate to the `training` directory inside `ndf_robot`.  Run or modify the
+shell script `train.sh` to train the convolutional occupancy network
+
+### Add demonstrations
+Navigate to the `demonstrations` directory inside `ndf_robot`.  Use the
+`label_demos.py` script to log new demonstrations.  The current evaluator uses
+a slightly different file format than the output of `label_demos.py` so you
+must run the `convert_demos.py` script to convert the demonstrations into the
+new file format.
+
+### Advanced Changes
+
+- Add or modify models: Use the `descriptions` directory to modify or add new models.
+- Modify optimizer: See both the deep or geometric optimizer classes in the `opt` directory.
+
+
+
+
+
+
 ------------ TODO: EDIT ALL STUFF BELOW THIS LINE -------------------
 
 This is the reference implementation for our paper:
