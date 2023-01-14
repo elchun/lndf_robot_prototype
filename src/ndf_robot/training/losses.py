@@ -690,7 +690,17 @@ def cos_relative(latent_loss_scale: int = 1):
     return loss_fn
 
 
-def cos_distance(latent_loss_scale: int = 1, dis_offset: float = 0.002, dis_scale: float = 1.0):
+def cos_distance(latent_loss_scale: int = 1, dis_offset: float = 0.002):
+    """
+    Loss function used in preprint.  Uses distance between reference and target
+    points to weight cosine similarity.
+
+    Args:
+        latent_loss_scale (int, optional): weight on latent loss
+            (in relation to occupancy loss). Defaults to 1.
+        dis_offset (float, optional): Epsilon value in the 1/(dis + offset)
+            calculation of target cosine similarity. Defaults to 0.002.
+    """
     def loss_fn(model_outputs, ground_truth, val=False, **kwargs):
         """
         Use distance to reweight similarity
@@ -768,6 +778,15 @@ def cos_distance(latent_loss_scale: int = 1, dis_offset: float = 0.002, dis_scal
         relative_sim = torch.cat((latent_positive_sim, latent_negative_sim), dim=1)  # (6, 257)
 
         # -- With cross entropy -- #
+
+        # For a given sample point x, we calculate the euclidean distance between
+        # it and the reference point.  We repeat this for all sample points {x}.
+        # Then, we create a probability distribution P where the probability
+        # of point x is 1 / (dis + epsilon).  This looks like a cone with the
+        # reference point at the center.
+        # Finally, we use torch F.cross_entropy to try to match the cosine similarity
+        # of the sample point with its calculated target probability.
+
         # target = torch.zeros(relative_sim.shape[1]).to(dev)
         # target[:n_sim_samples] = 1
 

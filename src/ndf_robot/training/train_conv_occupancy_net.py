@@ -1,5 +1,6 @@
 import sys
 import os, os.path as osp
+from datetime import datetime
 from turtle import position
 import configargparse
 import torch
@@ -22,7 +23,8 @@ if __name__ == '__main__':
     p = configargparse.ArgumentParser()
     p.add('-c', '--config_filepath', required=False, is_config_file=True, help='Path to config file.')
 
-    p.add_argument('--logging_root', type=str, default=osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn'), help='root for logging')
+    # p.add_argument('--logging_root', type=str, default=osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn'), help='root for logging')
+    p.add_argument('--logging_root', type=str, default=osp.join(path_util.get_ndf_model_weights(), 'lndf_refined'), help='root for logging')
     p.add_argument('--obj_class', type=str, required=True,
                 help='bottle, mug, bowl, all')
     p.add_argument('--experiment_name', type=str, required=True,
@@ -107,9 +109,9 @@ if __name__ == '__main__':
     # conv_occ_args = latent_dim_4
     # conv_occ_args = default_args
     # conv_occ_args = latent_dim_16
-    conv_occ_args = latent_dim_32
+    # conv_occ_args = latent_dim_32
     # conv_occ_args = latent_dim_64
-    # conv_occ_args = latent_dim_128
+    conv_occ_args = latent_dim_128
 
     # -- LOSS FUNCTION ARGS -- #
     # default_args = {
@@ -216,7 +218,6 @@ if __name__ == '__main__':
     cos_distance_args = {
         'latent_loss_scale': 0.1,
         'dis_offset': 0.002,
-        'dis_scale': 1,
     }
 
     # cos_distance_args = {
@@ -228,7 +229,6 @@ if __name__ == '__main__':
     no_sim_contrast = {
         'latent_loss_scale': 0,
         'dis_offset': 0.002,
-        'dis_scale': 1,
     }
     # loss_fn_args = latent_margin
     # loss_fn_args = loss_args
@@ -294,7 +294,12 @@ if __name__ == '__main__':
 
     # -- CREATE SAVE UTILS -- #
     summary_fn = summaries.occupancy_net
-    root_path = os.path.join(opt.logging_root, opt.experiment_name)
+
+    t = datetime.now()
+    time_str = t.strftime('%Y-%m-%d_%HH%MM%SS_%a')
+    experiment_name = time_str + '_' + opt.experiment_name
+
+    root_path = os.path.join(opt.logging_root, experiment_name)
 
     root_path = make_unique_path_to_dir(root_path)
 

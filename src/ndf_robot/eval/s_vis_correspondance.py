@@ -173,7 +173,8 @@ if __name__ == '__main__':
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_multicategory_latent_sim_occ_neg_se3_s4_1/checkpoints/model_epoch_0000_iter_050000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_multicategory_latent_sim_occ_neg_se3_s4_1/checkpoints/model_epoch_0002_iter_117000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_multicategory_latent_sim_occ_neg_se3_s4_1/checkpoints/model_epoch_0005_iter_326000.pth')
-        model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_dist_cont_1/checkpoints/model_epoch_0001_iter_060000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_dist_cont_1/checkpoints/model_epoch_0001_iter_060000.pth')
+        model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_7/checkpoints/model_epoch_0001_iter_060000.pth')
     else:
         model_path = osp.join(path_util.get_ndf_model_weights(), 'multi_category_weights.pth')
 

@@ -305,8 +305,8 @@ if __name__ == '__main__':
 
     # CONSTANTS #
     object_fns = [
-        # osp.join(path_util.get_ndf_demo_obj_descriptions(),
-        #     'mug_centered_obj_normalized/edaf960fb6afdadc4cebc4b5998de5d0/models/model_normalized.obj'),
+        osp.join(path_util.get_ndf_demo_obj_descriptions(),
+            'mug_centered_obj_normalized/edaf960fb6afdadc4cebc4b5998de5d0/models/model_normalized.obj'),
         # osp.join(path_util.get_ndf_demo_obj_descriptions(),
         #     'mug_centered_obj_normalized/e984fd7e97c2be347eaeab1f0c9120b7/models/model_normalized.obj'),
         # osp.join(path_util.get_ndf_demo_obj_descriptions(),
@@ -335,7 +335,7 @@ if __name__ == '__main__':
         #     'bowl_centered_obj_normalized/2c1df84ec01cea4e525b133235812833/models/model_normalized.obj'),
 
         # Rack
-        osp.join(path_util.get_ndf_descriptions(), 'hanging/table/simple_rack.obj')
+        # osp.join(path_util.get_ndf_descriptions(), 'hanging/table/simple_rack.obj')
     ]
     base_output_fn = 'tsne_viz/tsne_viz'
     # output_fn = 'tsne_viz_latent_32.html'
@@ -353,13 +353,13 @@ if __name__ == '__main__':
     #     model_type='pointnet', return_features=True, sigmoid=True,
     #     acts='last').cuda()
 
-    model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=64,
-        model_type='pointnet', return_features=True, sigmoid=True,
-        acts='last').cuda()
-
-    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=128,
+    # model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=64,
     #     model_type='pointnet', return_features=True, sigmoid=True,
     #     acts='last').cuda()
+
+    model = conv_occupancy_network.ConvolutionalOccupancyNetwork(latent_dim=128,
+        model_type='pointnet', return_features=True, sigmoid=True,
+        acts='last').cuda()
 
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_adaptive_2/checkpoints/model_epoch_0009_iter_099000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_latent_4_0/checkpoints/model_epoch_0010_iter_130000.pth')
@@ -393,8 +393,10 @@ if __name__ == '__main__':
 
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_3/checkpoints/model_epoch_0017_iter_349000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_latent_margin_0/checkpoints/model_epoch_0014_iter_221000.pth')
-    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_latent_margin_4/checkpoints/model_epoch_0003_iter_051000.pth')
+    # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_latent_margin_4/checkpoints/model_epoch_0003_iter_051000.pth')
     # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_latent_margin_0/checkpoints/model_epoch_0018_iter_271000.pth')
+
+    model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_7/checkpoints/model_epoch_0001_iter_060000.pth')
 
     model.load_state_dict(torch.load(model_path))
 

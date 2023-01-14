@@ -28,7 +28,7 @@ setup_args:
   # exp_dir_suffix: EVAL_GEOM_shelf_upright_bottle
   # exp_dir_suffix: EVAL_GEOM_shelf_upright_bottle_handle
   # exp_dir_suffix: EVAL_GEOM_shelf_anyrot_bottle
-  exp_dir_suffix: EVAL_GEOM_shelf_anyrot_bottle_handle
+  # exp_dir_suffix: EVAL_GEOM_shelf_anyrot_bottle_handle
 
 
   demo_exp: 'bottle/grasp_side_place_shelf_with_collision'
@@ -172,11 +172,11 @@ shelf_query_pts:
 #   # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s3_7/checkpoints/model_epoch_0002_iter_132000.pth
 #   # checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_multicategory_latent_sim_occ_neg_se3_s4_1/checkpoints/model_epoch_0005_iter_326000.pth
 #   # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_7/checkpoints/model_epoch_0000_iter_000000.pth
-# 
+#
 #   # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_7/checkpoints/model_epoch_0001_iter_060000.pth  <-- This is the best one
 #   # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_0/checkpoints/model_epoch_0000_iter_000000.pth
 #   checkpoint: ndf_vnn/conv_occ_hidden32_anyrot_dist_cont_1/checkpoints/model_epoch_0001_iter_060000.pth
-# 
+#
 #   args:
 #     latent_dim: 32
 #     # latent_dim: 64
@@ -185,8 +185,8 @@ shelf_query_pts:
 #     return_features: True
 #     sigmoid: False
 #     acts: last
-# 
-# 
+#
+#
 # grasp_optimizer:
 #   args:
 #     # opt_iterations: 1000
@@ -196,7 +196,7 @@ shelf_query_pts:
 #     M_override: 20
 #     cos_loss: True
 #     # save_all_opt: True
-# 
+#
 # place_optimizer:
 #   args:
 #     # opt_iterations: 1000
@@ -207,7 +207,7 @@ shelf_query_pts:
 #     opt_fname_prefix: 'place_pose_optimized'
 #     query_pts_override: True
 #     cos_loss: True
-# 
+#
 # # With rect query points, z1 is actually pointing up when
 # # used as a query point
 # # y is along the gripper movement direction
@@ -219,8 +219,8 @@ shelf_query_pts:
 # #     y: 0.10
 # #     z1: 0.06
 # #     z2: 0.02
-# 
-# 
+#
+#
 # gripper_query_pts:
 #   type: RECT
 #   args:
@@ -230,13 +230,13 @@ shelf_query_pts:
 #     y: 0.05
 #     z1: 0.04
 #     z2: 0.01
-# 
+#
 # # gripper_query_pts:
 # #   type: SPHERE
 # #   args:
 # #     n_pts: 1000
 # #     radius: 0.05
-# 
+#
 # # shelf_query_pts:
 # #   type: SHELF
 # #   args:
@@ -250,7 +250,7 @@ shelf_query_pts:
 # #     y_trans: 0.07
 # #     # z_trans: 0.11
 # #     z_trans: 0.09
-# 
+#
 # shelf_query_pts:
 #   type: SHELF
 #   args:
@@ -264,7 +264,7 @@ shelf_query_pts:
 #     y_trans: 0.07
 #     # z_trans: 0.11
 #     z_trans: 0.08
-# 
+#
 # # shelf_query_pts:
 # #   type: NDF_SHELF
 # #   args:
