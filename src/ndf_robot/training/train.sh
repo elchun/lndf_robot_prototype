@@ -3,7 +3,7 @@
 
 python train_conv_occupancy_net.py \
     --obj_class all \
-    --experiment_name DEBUG_conv_hidden128\
+    --experiment_name conv_hidden_128_with_l2_r0p04\
     --num_epochs 12 \
     --iters_til_ckpt 1000 \
     --steps_til_summary 100 \

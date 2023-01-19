@@ -24,6 +24,11 @@ are parsed.
 Navigate to the `training` directory inside `ndf_robot`.  Run or modify the
 shell script `train.sh` to train the convolutional occupancy network
 
+To evaluate a new set of weights, the `s_vis_correspondance.py` script is
+convenient.  By setting the model_path and obj_model variables, you can compare
+the latent representation of an unrotated and rotated version of the same object.
+This allows you to check how strongly SE(3) equivariance is enforced.
+
 ### Add demonstrations
 Navigate to the `demonstrations` directory inside `ndf_robot`.  Use the
 `label_demos.py` script to log new demonstrations.  The current evaluator uses

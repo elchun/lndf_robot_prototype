@@ -27,8 +27,13 @@ setup_args:
   # exp_dir_suffix: EVAL_GEOM_grasp_anyrot_mug
   # exp_dir_suffix: EVAL_GEOM_grasp_anyrot_bowl_handle
   # exp_dir_suffix: EVAL_GEOM_grasp_anyrot_bottle_handle
-  exp_dir_suffix: EVAL_GEOM_grasp_anyrot_bowl
+  # exp_dir_suffix: EVAL_GEOM_grasp_anyrot_bowl
   # exp_dir_suffix: DEBUG_with_LNDF
+
+  exp_dir_suffix: DEBUG_conv_grasp_anyrot_mug_L2
+  # exp_dir_suffix: DEBUG_conv_grasp_anyrot_bowl_handle_L2
+  # exp_dir_suffix: DEBUG_conv_grasp_anyrot_bottle_handle_L2
+  # exp_dir_suffix: DEBUG_conv_grasp_anyrot_bowl_L2
 
   # demo_exp: 'mug/grasp_rim_hang_handle_gaussian_precise_w_shelf_converted'
   demo_exp: 'mug/mug_handle_converted'
@@ -38,10 +43,10 @@ setup_args:
 
 evaluator:
   pybullet_viz: False
-  # test_obj_class: mug_std
+  test_obj_class: mug_std
   # test_obj_class: bowl_handle_std
   # test_obj_class: bottle_handle_std
-  test_obj_class: bowl_std
+  # test_obj_class: bowl_std
   num_trials: 200
   # num_trials: 50
   include_avoid_obj: False
@@ -72,7 +77,13 @@ model:
   # checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_multicategory_0/checkpoints/model_epoch_0007_iter_331000.pth
   # checkpoint: ndf_vnn/conv_occ_hidden64_anyrot_multicategory_part2_0/checkpoints/model_final.pth
   # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_6/checkpoints/model_epoch_0000_iter_010000.pth
-  checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_7/checkpoints/model_epoch_0001_iter_060000.pth
+
+  # Used for main evaluation
+  # checkpoint: ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_7/checkpoints/model_epoch_0001_iter_060000.pth
+
+  # Testing with L2 Loss
+  # checkpoint: lndf_refined/2023-01-14_16H36M11S_Sat_conv_hidden_128_with_l2_0/checkpoints/model_epoch_0001_iter_090000.pth
+  checkpoint: lndf_refined/2023-01-15_16H07M47S_Sun_conv_hidden_128_with_l2_0/checkpoints/model_epoch_0000_iter_020000.pth
 
   args:
     # latent_dim: 64
@@ -84,26 +95,27 @@ model:
 
 
 grasp_optimizer:
-  opt_type:  GEOM # Choose between LNDF and GEOM
-  # opt_type:  LNDF # Choose between LNDF and GEOM
+  # opt_type:  GEOM # Choose between LNDF and GEOM
+  opt_type:  LNDF # Choose between LNDF and GEOM
   args:
     # opt_iterations: 1000
     opt_iterations: 500
     rand_translate: True
     use_tsne: False
-    # M_override: 20
-    M_override: 1  # Works better with geom
+    M_override: 20
+    # M_override: 1  # Works better with geom
     # save_all_opt: True
 
 place_optimizer:
-  opt_type: GEOM
+  # opt_type: GEOM
+  opt_type:  LNDF # Choose between LNDF and GEOM
   args:
     # opt_iterations: 1000
     opt_iterations: 500
     rand_translate: True
     use_tsne: False
-    # M_override: 20
-    M_override: 1  # Works better with geom
+    M_override: 20
+    # M_override: 1  # Works better with geom
     opt_fname_prefix: 'place_pose_optimized'
     query_pts_override: True
 

@@ -220,6 +220,11 @@ if __name__ == '__main__':
         'dis_offset': 0.002,
     }
 
+    cos_distance_l2_args = {
+        'latent_loss_scale': 1,
+        'radius': 0.04,
+    }
+
     # cos_distance_args = {
     #     'latent_loss_scale': 1,
     #     'dis_offset': 0.002,
@@ -235,7 +240,7 @@ if __name__ == '__main__':
     # loss_fn_args = cos_args
     # loss_fn_args = cos_contrast_args
     # loss_fn_args = cos_relative_args
-    loss_fn_args = cos_distance_args
+    loss_fn_args = cos_distance_l2_args
     # loss_fn_args = no_sim_contrast
 
     # -- DATALOADER ARGS -- #
@@ -316,7 +321,8 @@ if __name__ == '__main__':
     # loss_fn = val_loss_fn = losses.simple_loss(**loss_fn_args)
     # loss_fn = val_loss_fn = losses.cos_contrast(**loss_fn_args)
     # loss_fn = val_loss_fn = losses.cos_relative(**loss_fn_args)
-    loss_fn = val_loss_fn = losses.cos_distance(**loss_fn_args)
+    # loss_fn = val_loss_fn = losses.cos_distance(**loss_fn_args)
+    loss_fn = val_loss_fn = losses.cos_distance_with_l2(**loss_fn_args)
     # loss_fn = val_loss_fn = losses.rotated_triplet_log
 
     # training.train_conv_triplet(model=model_parallel, train_dataloader=train_dataloader,
