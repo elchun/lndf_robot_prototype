@@ -149,8 +149,12 @@ model:
   # checkpoint: lndf_refined/2023-01-17_01H02M11S_Tue_conv_hidden_128_with_l2_0/checkpoints/model_epoch_0000_iter_040000.pth
   # checkpoint: lndf_refined/2023-01-17_13H53M56S_Tue_conv_hidden_128_with_l2_r0p05_0/checkpoints/model_epoch_0002_iter_120000.pth
   # checkpoint: lndf_refined/2023-01-17_13H55M38S_Tue_conv_hidden_128_with_l2_r0p02_0/checkpoints/model_epoch_0002_iter_120000.pth
-  checkpoint: lndf_refined/2023-01-17_13H53M56S_Tue_conv_hidden_128_with_l2_r0p05_0/checkpoints/model_epoch_0002_iter_162000.pth
+  # checkpoint: lndf_refined/2023-01-17_13H53M56S_Tue_conv_hidden_128_with_l2_r0p05_0/checkpoints/model_epoch_0002_iter_162000.pth
   # checkpoint: lndf_refined/2023-01-18_14H21M46S_Wed_conv_hidden_128_with_l2_r0p04_0/checkpoints/model_epoch_0000_iter_030000.pth
+  # checkpoint: lndf_refined/2023-01-18_21H53M09S_Wed_conv_hidden_128_with_l2_r0p1_0/checkpoints/model_epoch_0000_iter_006000.pth
+  # checkpoint:  lndf_refined/2023-01-18_21H53M09S_Wed_conv_hidden_128_with_l2_r0p1_0/checkpoints/model_epoch_0001_iter_060000.pth
+  checkpoint:  lndf_refined/2023-01-21_15H00M07S_Sat_conv_hidden_128_with_l2_r0p1_0/checkpoints/model_epoch_0002_iter_120000.pth
+  # checkpoint:  lndf_refined/2023-01-21_15H00M07S_Sat_conv_hidden_128_with_l2_r0p1_0/checkpoints/model_epoch_0004_iter_240000.pth
 
   args:
     # latent_dim: 64
@@ -206,7 +210,7 @@ rack_query_pts:
 # With rect query points, z1 is actually pointing up when
 # used as a query point
 # y is along the gripper movement direction
-gripper_query_pts:
+gripper_query_pts:   # This is the set used in the original conv occ trials
   type: RECT
   args:
     n_pts: 1000
@@ -215,17 +219,17 @@ gripper_query_pts:
     z1: 0.06
     z2: 0.02
 
-# Original ndf
-# gripper_query_pts:
-#   type: NDF_GRIPPER
-#   args:
-#     n_pts: 1000
 
-# Original ndf
-# rack_query_pts:
-#   type: NDF_RACK
+# gripper_query_pts:   # This is the set for new L2 loss trials
+#   type: RECT
 #   args:
 #     n_pts: 1000
+#     x: 0.06
+#     y: 0.09
+#     z1: 0.06
+#     z2: 0.02
+
+
 
 
 # # -- NDF Config -- #

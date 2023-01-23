@@ -180,7 +180,8 @@ model:
   # checkpoint: lndf_refined/2023-01-15_16H07M47S_Sun_conv_hidden_128_with_l2_0/checkpoints/model_epoch_0001_iter_060000.pth
   # checkpoint: lndf_refined/2023-01-15_16H07M47S_Sun_conv_hidden_128_with_l2_0/checkpoints/model_epoch_0000_iter_030000.pth
   # checkpoint: lndf_refined/2023-01-17_13H53M56S_Tue_conv_hidden_128_with_l2_r0p05_0/checkpoints/model_epoch_0002_iter_162000.pth
-  checkpoint: lndf_refined/2023-01-17_13H53M56S_Tue_conv_hidden_128_with_l2_r0p05_0/checkpoints/model_epoch_0002_iter_120000.pth
+  # checkpoint: lndf_refined/2023-01-17_13H53M56S_Tue_conv_hidden_128_with_l2_r0p05_0/checkpoints/model_epoch_0002_iter_120000.pth
+  checkpoint:  lndf_refined/2023-01-21_15H00M07S_Sat_conv_hidden_128_with_l2_r0p1_0/checkpoints/model_epoch_0002_iter_120000.pth
 
   args:
     # latent_dim: 32

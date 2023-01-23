@@ -222,7 +222,7 @@ if __name__ == '__main__':
 
     cos_distance_l2_args = {
         'latent_loss_scale': 1,
-        'radius': 0.04,
+        'radius': 0.1,
     }
 
     # cos_distance_args = {
@@ -254,9 +254,9 @@ if __name__ == '__main__':
         'any_rot': True,
         'neg_any_se3': True,
         # 'trans_ratio': 1,
-        # 'trans_ratio': 0.5,
+        'trans_ratio': 0.5,
         # 'trans_ratio': 0.25,
-        'trans_ratio': 0,
+        # 'trans_ratio': 0,
     }
 
     val_dataloader_args = {
@@ -268,9 +268,9 @@ if __name__ == '__main__':
         'any_rot': True,
         'neg_any_se3': True,
         # 'trans_ratio': 1,
+        'trans_ratio': 0.5,
         # 'trans_ratio': 0.25,
-        # 'trans_ratio': 0.25,
-        'trans_ratio': 0,
+        # 'trans_ratio': 0,
     }
 
     # -- CREATE DATALOADERS -- #

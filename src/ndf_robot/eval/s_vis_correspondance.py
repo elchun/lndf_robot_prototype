@@ -97,12 +97,14 @@ if __name__ == '__main__':
 
     # see the demo object descriptions folder for other object models you can try
     # obj_model = osp.join(path_util.get_ndf_demo_obj_descriptions(), 'mug_centered_obj_normalized/28f1e7bc572a633cb9946438ed40eeb9/models/model_normalized.obj')
-    # obj_model = osp.join(path_util.get_ndf_obj_descriptions(), 'bottle_centered_obj_normalized/f4851a2835228377e101b7546e3ee8a7/models/model_normalized.obj')
+    obj_model = osp.join(path_util.get_ndf_obj_descriptions(), 'bottle_centered_obj_normalized/f4851a2835228377e101b7546e3ee8a7/models/model_normalized.obj')
     # obj_model = osp.join(path_util.get_ndf_obj_descriptions(), 'bottle_centered_obj_normalized/e593aa021f3fa324530647fc03dd20dc/models/model_normalized.obj')
 
     # One of the models that the L2 networks tend to fail at
     # obj_model = osp.join(path_util.get_ndf_obj_descriptions(), 'mug_centered_obj_normalized/e94e46bc5833f2f5e57b873e4f3ef3a4/models/model_normalized.obj')
-    obj_model = osp.join(path_util.get_ndf_obj_descriptions(), 'mug_centered_obj_normalized/d46b98f63a017578ea456f4bbbc96af9/models/model_normalized.obj')
+    # obj_model = osp.join(path_util.get_ndf_obj_descriptions(), 'mug_centered_obj_normalized/d46b98f63a017578ea456f4bbbc96af9/models/model_normalized.obj')
+    # obj_model = osp.join(path_util.get_ndf_obj_descriptions(), 'mug_centered_obj_normalized/f7d776fd68b126f23b67070c4a034f08/models/model_normalized.obj')
+    # obj_model = osp.join(path_util.get_ndf_obj_descriptions(), 'bottle_centered_obj_normalized/f4851a2835228377e101b7546e3ee8a7/models/model_normalized.obj')
 
     if use_conv:
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_high_0/checkpoints/model_epoch_0001_iter_093000.pth')
@@ -179,7 +181,7 @@ if __name__ == '__main__':
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_multicategory_latent_sim_occ_neg_se3_s4_1/checkpoints/model_epoch_0002_iter_117000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden64_anyrot_multicategory_latent_sim_occ_neg_se3_s4_1/checkpoints/model_epoch_0005_iter_326000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden32_anyrot_dist_cont_1/checkpoints/model_epoch_0001_iter_060000.pth')
-        # model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_7/checkpoints/model_epoch_0001_iter_060000.pth')
+        model_path = osp.join(path_util.get_ndf_model_weights(), 'ndf_vnn/conv_occ_hidden128_anyrot_multicategory_latent_sim_occ_neg_se3_s4_7/checkpoints/model_epoch_0001_iter_060000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'lndf_refined/2023-01-14_16H36M11S_Sat_conv_hidden_128_with_l2_0/checkpoints/model_epoch_0002_iter_120000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'lndf_refined/2023-01-14_16H06M03S_Sat_DEBUG_conv_hidden128_0/checkpoints/model_epoch_0001_iter_060000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'lndf_refined/2023-01-15_15H48M36S_Sun_conv_hidden_128_with_l2_pointy_0/checkpoints/model_epoch_0001_iter_060000.pth')
@@ -187,8 +189,10 @@ if __name__ == '__main__':
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'lndf_refined/2023-01-16_13H28M16S_Mon_conv_hidden_128_with_l2_light_0/checkpoints/model_epoch_0002_iter_120000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'lndf_refined/2023-01-17_01H02M11S_Tue_conv_hidden_128_with_l2_0/checkpoints/model_epoch_0000_iter_040000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'lndf_refined/2023-01-17_13H55M38S_Tue_conv_hidden_128_with_l2_r0p02_0/checkpoints/model_epoch_0002_iter_120000.pth')
-        model_path = osp.join(path_util.get_ndf_model_weights(), 'lndf_refined/2023-01-17_13H53M56S_Tue_conv_hidden_128_with_l2_r0p05_0/checkpoints/model_epoch_0002_iter_162000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'lndf_refined/2023-01-17_13H53M56S_Tue_conv_hidden_128_with_l2_r0p05_0/checkpoints/model_epoch_0002_iter_120000.pth')
         # model_path = osp.join(path_util.get_ndf_model_weights(), 'lndf_refined/2023-01-18_14H21M46S_Wed_conv_hidden_128_with_l2_r0p04_0/checkpoints/model_epoch_0000_iter_030000.pth')
+        # model_path = osp.join(path_util.get_ndf_model_weights(), 'lndf_refined/2023-01-21_15H00M07S_Sat_conv_hidden_128_with_l2_r0p1_0/checkpoints/model_epoch_0004_iter_240000.pth')
+
 
     else:
         model_path = osp.join(path_util.get_ndf_model_weights(), 'multi_category_weights.pth')
@@ -217,9 +221,11 @@ if __name__ == '__main__':
     # rot1[:3, :3] = R.random().as_matrix()
     mesh1.apply_transform(rot1)
     ref_pt = util.transform_pcd(ref_pt, rot1)
+    upright_sample_pts = util.transform_pcd(upright_sample_pts, rot1)
 
     rot2 = np.eye(4)
     rot2[:3, :3] = R.random().as_matrix()
+    # rot2[:3, 3] = [0, 0.1, 0]  # Test translation
     mesh2.apply_transform(rot2)
     sample_pts = util.transform_pcd(sample_pts, rot2)
     recon_sample_pts = util.transform_pcd(recon_sample_pts, rot2)
@@ -270,10 +276,13 @@ if __name__ == '__main__':
 
     # -- Get distances -- #
     # Should be length k
-    distances = np.sqrt(((sample_pts - ref_pt)**2).sum(axis=-1))  # sample_pts is k x 3
+    # print(upright_sample_pts)
+    # print(ref_pt)
+    distances = np.sqrt(((upright_sample_pts - ref_pt)**2).sum(axis=-1))  # sample_pts is k x 3
 
-    distance_corr = np.vstack(distances, cor)
-    distance_corr.tofile('corr.csv', sep=',')
+    distance_corr = np.stack([distances, cor], axis=0).T
+    print(distance_corr.shape)
+    np.savetxt('corr.csv', distance_corr, delimiter=',')
 
 
 
@@ -302,3 +311,10 @@ if __name__ == '__main__':
     fname = osp.join(path_util.get_ndf_eval(), 'debug_viz', 'debug_correspondance_cor.html')
 
     fig.write_html(fname)
+
+
+    fig = px.scatter_3d(
+        x=plot_pts[:, 0], y=plot_pts[:, 1], z=plot_pts[:, 2], color=distances)
+
+    # fname = osp.join(path_util.get_ndf_eval(), 'debug_viz', 'DELETE_debug_dist.html')
+    # fig.write_html(fname)
