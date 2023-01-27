@@ -194,6 +194,8 @@ def multiplot(point_list: 'list[np.ndarray]', fname='debug.html', write_html=Tru
     fig = px.scatter_3d(
         x=plot_pts[:, 0], y=plot_pts[:, 1], z=plot_pts[:, 2], color=color)
 
+    fig.update_layout(coloraxis=dict(cmax=max(color) + 1, cmin=-1))
+
     if write_html:
         fig.write_html(fname)
 
